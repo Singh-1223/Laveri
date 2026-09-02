@@ -137,7 +137,7 @@ export default function MasterDataScreen() {
       </View>
 
       <SectionCard title={`${editingId ? 'Edit' : 'Add'} ${singularLabel(tab)}`}>
-        {tab === 'animals' && animalCategory === 'cow' ? (
+        {tab === 'animals' ? (
           <View style={styles.choiceRow}>
             {(['cow', 'heifer', 'calf'] as const).map((category) => (
               <Pressable key={category} onPress={() => { setAnimalCategory(category); if (category !== 'cow') setAnimalIsMilking(false); }} style={[styles.choice, { backgroundColor: animalCategory === category ? colors.primary : colors.backgroundSelected }]}>
