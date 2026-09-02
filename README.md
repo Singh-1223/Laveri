@@ -127,7 +127,7 @@ Restart Metro after changing `.env`. A release build must be rebuilt to include 
 4. Enable airplane mode, create another record, force-close/reopen, and confirm it remains.
 5. Restore connectivity and confirm **Sync status** reaches zero pending uploads.
 
-Use [Docs/RELEASE_AND_PILOT_TESTING.md](Docs/RELEASE_AND_PILOT_TESTING.md) to create and share an EAS-signed APK and run the family pilot checklist. Use [Docs/TESTING.md](Docs/TESTING.md) for the full technical Mode 02, second-device, correction, CSV-export, and conflict checks.
+Share [Docs/CLIENT_TESTING_GUIDE.md](Docs/CLIENT_TESTING_GUIDE.md) with the client for a plain-language walkthrough of every app screen and the complete acceptance checklist. Use [Docs/RELEASE_AND_PILOT_TESTING.md](Docs/RELEASE_AND_PILOT_TESTING.md) to create and share an EAS-signed APK and run the family pilot checklist. Use [Docs/TESTING.md](Docs/TESTING.md) for the full technical Mode 02, second-device, correction, CSV-export, and conflict checks.
 
 ## Guide for later updates
 
