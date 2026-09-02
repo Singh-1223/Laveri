@@ -1,0 +1,324 @@
+import * as Crypto from 'expo-crypto';
+
+import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
+import { recordCorrection } from '@/data/repositories/corrections.native';
+import { calculateFlatMilkAmountPaise, calculateQualityRatePaise } from '@/domain/calculations';
+
+import type { MilkSessionSnapshot, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
+
+export async function loadMilkSession(
+  farmId: string,
+  milkDate: string,
+  session: 'morning' | 'evening',
+): Promise<MilkSessionSnapshot> {
+  const database = await getPowerSyncDatabase();
+  const [entries, buyerAllocations, householdAllocation, settings] = await Promise.all([
+    database.getAll<MilkSessionSnapshot['entries'][number]>(
+      `SELECT
+        animal.id AS animalId,
+        animal.tag,
+        animal.category,
+        entry.id AS entryId,
+        entry.volume_ml AS volumeMl,
+        entry.pricing_mode AS pricingMode,
+        entry.flat_rate_paise_per_litre AS flatRatePaisePerLitre,
+        entry.fat_hundredths AS fatHundredths,
+        entry.snf_hundredths AS snfHundredths,
+        entry.cmfat_paise AS cmFatPaise,
+        entry.cmsnf_paise AS cmSnfPaise,
+        entry.calculated_rate_paise_per_litre AS ratePaisePerLitre,
+        entry.state
+      FROM animals animal
+      LEFT JOIN milk_entries entry
+        ON entry.animal_id = animal.id
+        AND entry.milk_date = ?
+        AND entry.session = ?
+        AND entry.deleted_at IS NULL
+      WHERE animal.farm_id = ?
+        AND animal.deleted_at IS NULL
+        AND ((animal.status = 'active' AND animal.is_milking = 1) OR entry.id IS NOT NULL)
+      ORDER BY animal.tag COLLATE NOCASE`,
+      [milkDate, session, farmId],
+    ),
+    database.getAll<MilkSessionSnapshot['allocations'][number]>(
+      `SELECT
+        buyer.id AS key,
+        allocation.id AS allocationId,
+        'buyer' AS destination,
+        buyer.id AS buyerId,
+        buyer.name AS label,
+        allocation.volume_ml AS volumeMl,
+        coalesce(allocation.rate_paise_per_litre, buyer.default_rate_paise_per_litre) AS ratePaisePerLitre
+       FROM buyers buyer
+       LEFT JOIN milk_allocations allocation
+         ON allocation.buyer_id = buyer.id
+         AND allocation.milk_date = ?
+         AND allocation.session = ?
+         AND allocation.destination = 'buyer'
+         AND allocation.deleted_at IS NULL
+       WHERE buyer.farm_id = ?
+         AND buyer.deleted_at IS NULL
+         AND (buyer.active = 1 OR allocation.id IS NOT NULL)
+       ORDER BY buyer.name COLLATE NOCASE`,
+      [milkDate, session, farmId],
+    ),
+    database.getOptional<{
+      id: string;
+      volume_ml: number;
+      rate_paise_per_litre: number;
+    }>(
+      `SELECT id, volume_ml, rate_paise_per_litre
+       FROM milk_allocations
+       WHERE farm_id = ?
+         AND milk_date = ?
+         AND session = ?
+         AND destination = 'household'
+         AND deleted_at IS NULL
+       LIMIT 1`,
+      [farmId, milkDate, session],
+    ),
+    database.getOptional<{ milk_mode: 'flat' | 'quality' }>(
+      `SELECT milk_mode FROM farm_settings
+       WHERE farm_id = ? AND deleted_at IS NULL LIMIT 1`,
+      [farmId],
+    ),
+  ]);
+
+  const existingPricing = entries.find((entry) => entry.entryId !== null);
+  const pricingMode = existingPricing?.pricingMode ?? settings?.milk_mode ?? 'flat';
+  const pricing = await database.getOptional<{
+    flat_rate_paise_per_litre: number | null;
+    cmfat_paise: number | null;
+    cmsnf_paise: number | null;
+  }>(
+    `SELECT flat_rate_paise_per_litre, cmfat_paise, cmsnf_paise
+     FROM milk_pricing_configs
+     WHERE farm_id = ? AND mode = ? AND buyer_id IS NULL
+       AND effective_from <= ?
+       AND (effective_to IS NULL OR effective_to >= ?)
+       AND deleted_at IS NULL
+     ORDER BY effective_from DESC, updated_at DESC
+     LIMIT 1`,
+    [farmId, pricingMode, milkDate, milkDate],
+  );
+
+  return {
+    entries,
+    allocations: [
+      ...buyerAllocations,
+      {
+        key: 'household',
+        allocationId: householdAllocation?.id ?? null,
+        destination: 'household',
+        buyerId: null,
+        label: 'Household consumption',
+        volumeMl: householdAllocation?.volume_ml ?? null,
+        ratePaisePerLitre: householdAllocation?.rate_paise_per_litre ?? null,
+      },
+    ],
+    pricingMode,
+    suggestedRatePaisePerLitre: pricing?.flat_rate_paise_per_litre ?? null,
+    suggestedCmFatPaise: pricing?.cmfat_paise ?? null,
+    suggestedCmSnfPaise: pricing?.cmsnf_paise ?? null,
+  };
+}
+
+export async function saveMilkSession(input: SaveMilkSessionInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  if (input.pricingMode === 'flat') {
+    if (!Number.isSafeInteger(input.flatRatePaisePerLitre) || input.flatRatePaisePerLitre !== input.ratePaisePerLitre) {
+      throw new Error('The flat-rate pricing snapshot is invalid.');
+    }
+  } else {
+    if (
+      input.fatHundredths === null || input.snfHundredths === null
+      || input.cmFatPaise === null || input.cmSnfPaise === null
+      || calculateQualityRatePaise(input.fatHundredths, input.snfHundredths, input.cmFatPaise, input.cmSnfPaise) !== input.ratePaisePerLitre
+    ) throw new Error('The quality-pricing snapshot is invalid.');
+  }
+  const isCorrection = input.entries.some((entry) => entry.entryId !== null)
+    || input.allocations.some((allocation) => allocation.allocationId !== null);
+
+  await database.writeTransaction(async (transaction) => {
+    const before = isCorrection ? {
+      entries: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_entries WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY animal_id`,
+        [input.farmId, input.milkDate, input.session],
+      ),
+      allocations: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY destination, buyer_id`,
+        [input.farmId, input.milkDate, input.session],
+      ),
+    } : null;
+
+    for (const entry of input.entries) {
+      if (!Number.isSafeInteger(entry.volumeMl) || entry.volumeMl < 0) {
+        throw new RangeError('Milk volume must be a non-negative safe integer.');
+      }
+
+      if (entry.entryId) {
+        await transaction.execute(
+          `UPDATE milk_entries
+           SET volume_ml = ?, pricing_mode = ?, flat_rate_paise_per_litre = ?,
+               fat_hundredths = ?, snf_hundredths = ?, cmfat_paise = ?, cmsnf_paise = ?,
+               calculated_rate_paise_per_litre = ?, state = 'complete',
+               updated_at = ?, updated_by = ?, version = version + 1
+           WHERE id = ?`,
+          [
+            entry.volumeMl, input.pricingMode, input.flatRatePaisePerLitre,
+            input.fatHundredths, input.snfHundredths, input.cmFatPaise, input.cmSnfPaise,
+            input.ratePaisePerLitre, now, input.userId, entry.entryId,
+          ],
+        );
+      } else {
+        await transaction.execute(
+          `INSERT INTO milk_entries (
+            id, farm_id, animal_id, milk_date, session, volume_ml,
+            pricing_mode, flat_rate_paise_per_litre, fat_hundredths, snf_hundredths,
+            cmfat_paise, cmsnf_paise,
+            calculated_rate_paise_per_litre, state, notes, void_reason,
+            created_at, updated_at, created_by, updated_by, deleted_at, version
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'complete', NULL, NULL, ?, ?, ?, ?, NULL, 1)`,
+          [
+            Crypto.randomUUID(),
+            input.farmId,
+            entry.animalId,
+            input.milkDate,
+            input.session,
+            entry.volumeMl,
+            input.pricingMode,
+            input.flatRatePaisePerLitre,
+            input.fatHundredths,
+            input.snfHundredths,
+            input.cmFatPaise,
+            input.cmSnfPaise,
+            input.ratePaisePerLitre,
+            now,
+            now,
+            input.userId,
+            input.userId,
+          ],
+        );
+      }
+    }
+
+    for (const allocation of input.allocations) {
+      if (!Number.isSafeInteger(allocation.volumeMl) || allocation.volumeMl <= 0) {
+        throw new RangeError('Milk allocation must be a positive safe integer.');
+      }
+
+      const amountPaise = calculateFlatMilkAmountPaise(allocation.volumeMl, input.ratePaisePerLitre);
+      if (allocation.allocationId) {
+        await transaction.execute(
+          `UPDATE milk_allocations
+           SET volume_ml = ?, rate_paise_per_litre = ?, amount_paise = ?,
+               updated_at = ?, updated_by = ?, version = version + 1
+           WHERE id = ?`,
+          [allocation.volumeMl, input.ratePaisePerLitre, amountPaise, now, input.userId, allocation.allocationId],
+        );
+      } else {
+        await transaction.execute(
+          `INSERT INTO milk_allocations (
+            id, farm_id, milk_date, session, destination, buyer_id,
+            volume_ml, rate_paise_per_litre, amount_paise,
+            notes, void_reason, created_at, updated_at,
+            created_by, updated_by, deleted_at, version
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, NULL, 1)`,
+          [
+            Crypto.randomUUID(),
+            input.farmId,
+            input.milkDate,
+            input.session,
+            allocation.destination,
+            allocation.buyerId,
+            allocation.volumeMl,
+            input.ratePaisePerLitre,
+            amountPaise,
+            now,
+            now,
+            input.userId,
+            input.userId,
+          ],
+        );
+      }
+    }
+
+    if (before) {
+      const after = {
+        entries: await transaction.getAll<Record<string, unknown>>(
+          `SELECT * FROM milk_entries WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY animal_id`,
+          [input.farmId, input.milkDate, input.session],
+        ),
+        allocations: await transaction.getAll<Record<string, unknown>>(
+          `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY destination, buyer_id`,
+          [input.farmId, input.milkDate, input.session],
+        ),
+      };
+      await recordCorrection(transaction, {
+        farmId: input.farmId,
+        userId: input.userId,
+        entityType: 'milk_session',
+        recordId: `${input.milkDate}:${input.session}`,
+        action: 'update',
+        before,
+        after,
+      });
+    }
+  });
+}
+
+export async function voidMilkSession(input: VoidMilkSessionInput) {
+  const reason = input.reason.trim();
+  if (!reason) throw new Error('A reason is required to void a milk session.');
+
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    const before = {
+      entries: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_entries WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY animal_id`,
+        [input.farmId, input.milkDate, input.session],
+      ),
+      allocations: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY destination, buyer_id`,
+        [input.farmId, input.milkDate, input.session],
+      ),
+    };
+    const values = [reason, now, now, input.userId, input.farmId, input.milkDate, input.session];
+    await transaction.execute(
+      `UPDATE milk_entries
+       SET void_reason = ?, deleted_at = ?, updated_at = ?, updated_by = ?,
+           version = version + 1
+       WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL`,
+      values,
+    );
+    await transaction.execute(
+      `UPDATE milk_allocations
+       SET void_reason = ?, deleted_at = ?, updated_at = ?, updated_by = ?,
+           version = version + 1
+       WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL`,
+      values,
+    );
+    const after = {
+      entries: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_entries WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at = ? ORDER BY animal_id`,
+        [input.farmId, input.milkDate, input.session, now],
+      ),
+      allocations: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at = ? ORDER BY destination, buyer_id`,
+        [input.farmId, input.milkDate, input.session, now],
+      ),
+    };
+    await recordCorrection(transaction, {
+      farmId: input.farmId,
+      userId: input.userId,
+      entityType: 'milk_session',
+      recordId: `${input.milkDate}:${input.session}`,
+      action: 'void',
+      reason,
+      before,
+      after,
+    });
+  });
+}

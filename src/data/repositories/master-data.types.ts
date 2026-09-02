@@ -1,0 +1,68 @@
+export type AnimalRow = {
+  id: string;
+  tag: string;
+  category: 'cow' | 'heifer' | 'calf';
+  sex: 'female' | 'male';
+  status: 'active' | 'inactive' | 'sold' | 'deceased';
+  is_milking: number;
+  breed: string | null;
+};
+
+export type BuyerRow = {
+  id: string;
+  name: string;
+  phone: string | null;
+  default_rate_paise_per_litre: number | null;
+  active: number;
+};
+
+export type ItemRow = {
+  id: string;
+  type: 'feed' | 'medicine' | 'product';
+  name: string;
+  base_unit: string;
+  default_rate_paise_per_unit: number | null;
+  active: number;
+};
+
+export type MasterDataSnapshot = {
+  animals: AnimalRow[];
+  buyers: BuyerRow[];
+  items: ItemRow[];
+};
+
+export type AuditContext = {
+  farmId: string;
+  userId: string;
+};
+
+export type CreateAnimalInput = AuditContext & {
+  tag: string;
+  category: AnimalRow['category'];
+  sex: AnimalRow['sex'];
+  isMilking: boolean;
+  breed?: string;
+};
+
+export type CreateBuyerInput = AuditContext & {
+  name: string;
+  phone?: string;
+  defaultRatePaisePerLitre?: number | null;
+};
+
+export type CreateItemInput = AuditContext & {
+  type: ItemRow['type'];
+  name: string;
+  baseUnit: string;
+  defaultRatePaisePerUnit?: number | null;
+};
+
+export type UpdateAnimalInput = CreateAnimalInput & { id: string };
+export type UpdateBuyerInput = CreateBuyerInput & { id: string };
+export type UpdateItemInput = CreateItemInput & { id: string };
+
+export type SetMasterRecordActiveInput = AuditContext & {
+  id: string;
+  kind: 'animal' | 'buyer' | 'item';
+  active: boolean;
+};

@@ -1,0 +1,23 @@
+config:
+  edition: 3
+
+streams:
+  user_farm_data:
+    auto_subscribe: true
+    queries:
+      - SELECT profiles.* FROM profiles WHERE profiles.id = auth.user_id()
+      - SELECT farm_members.* FROM farm_members WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT farms.* FROM farms INNER JOIN farm_members ON farm_members.farm_id = farms.id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT farm_settings.* FROM farm_settings INNER JOIN farm_members ON farm_members.farm_id = farm_settings.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT milk_pricing_configs.* FROM milk_pricing_configs INNER JOIN farm_members ON farm_members.farm_id = milk_pricing_configs.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT animals.* FROM animals INNER JOIN farm_members ON farm_members.farm_id = animals.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT buyers.* FROM buyers INNER JOIN farm_members ON farm_members.farm_id = buyers.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT items.* FROM items INNER JOIN farm_members ON farm_members.farm_id = items.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT milk_entries.* FROM milk_entries INNER JOIN farm_members ON farm_members.farm_id = milk_entries.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT milk_allocations.* FROM milk_allocations INNER JOIN farm_members ON farm_members.farm_id = milk_allocations.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT feed_transactions.* FROM feed_transactions INNER JOIN farm_members ON farm_members.farm_id = feed_transactions.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT treatments.* FROM treatments INNER JOIN farm_members ON farm_members.farm_id = treatments.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT product_transactions.* FROM product_transactions INNER JOIN farm_members ON farm_members.farm_id = product_transactions.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT heat_events.* FROM heat_events INNER JOIN farm_members ON farm_members.farm_id = heat_events.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT correction_events.* FROM correction_events INNER JOIN farm_members ON farm_members.farm_id = correction_events.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
+      - SELECT spike_records.* FROM spike_records INNER JOIN farm_members ON farm_members.farm_id = spike_records.farm_id WHERE farm_members.user_id = auth.user_id() AND farm_members.status = 'active' AND farm_members.deleted_at IS NULL
