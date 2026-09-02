@@ -19,6 +19,8 @@ export default function HomeScreen() {
   const [farmName, setFarmName] = useState('Laveri Dairy');
   const [summary, setSummary] = useState<DailyDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [waitingForFarm, setWaitingForFarm] = useState(true);
+  const [initialSyncError, setInitialSyncError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -26,11 +28,18 @@ export default function HomeScreen() {
     try {
       const snapshot = await getPowerSyncSnapshot();
       setFarmId(snapshot.farmId);
+      setWaitingForFarm(!snapshot.farmId && !snapshot.hasSynced && !snapshot.error);
+      setInitialSyncError(!snapshot.farmId && !snapshot.hasSynced ? snapshot.error : null);
       if (snapshot.farmId) {
         setSummary(await getDailyDashboardSummary(snapshot.farmId, todayAtFarm()));
+      } else {
+        setSummary(null);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to read local farm data.');
+      const nextError = error instanceof Error ? error.message : 'Unable to read local farm data.';
+      setMessage(nextError);
+      setInitialSyncError(nextError);
+      setWaitingForFarm(false);
     } finally {
       setLoading(false);
     }
@@ -38,8 +47,13 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      const timeout = setTimeout(() => void refresh(), 0);
-      return () => clearTimeout(timeout);
+      let active = true;
+      const poll = () => { if (active) void refresh(); };
+      poll();
+      // Sign-in and sign-out clear the local database. Poll briefly while the
+      // first PowerSync download restores the user's farm membership.
+      const interval = setInterval(poll, 1_000);
+      return () => { active = false; clearInterval(interval); };
     }, [refresh]),
   );
 
@@ -64,6 +78,21 @@ export default function HomeScreen() {
 
       {loading ? (
         <ActivityIndicator color={colors.primary} />
+      ) : waitingForFarm && !syncError ? (
+        <SectionCard title="Loading your farm">
+          <ActivityIndicator color={colors.primary} />
+          <Text style={[styles.copy, { color: colors.textSecondary }]}>Checking your existing farm records. This can take a moment after signing in on a device.</Text>
+        </SectionCard>
+      ) : initialSyncError || syncError ? (
+        <SectionCard title="Unable to load your farm">
+          <Text style={[styles.copy, { color: colors.danger }]}>{initialSyncError ?? syncError}</Text>
+          <Text style={[styles.copy, { color: colors.textSecondary }]}>Do not create another farm. Restore internet access, then open Sync status and try again.</Text>
+          <Link href="../sync-status" asChild>
+            <Pressable style={({ pressed }) => [styles.outlineButton, { borderColor: colors.primary }, pressed && styles.pressed]}>
+              <Text style={[styles.outlineText, { color: colors.primary }]}>Open Sync status</Text>
+            </Pressable>
+          </Link>
+        </SectionCard>
       ) : !farmId ? (
         <SectionCard title="Set up your farm">
           <Text style={[styles.copy, { color: colors.textSecondary }]}>This one-time online step creates the farm linked to your Google account.</Text>
