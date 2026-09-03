@@ -111,6 +111,11 @@ const buyers = new Table(
   { ...versioned, indexes: { by_farm_active: ['farm_id', 'active'], by_farm_name: ['farm_id', 'name'] } },
 );
 
+const buyerPayments = new Table(
+  { farm_id: column.text, buyer_id: column.text, payment_date: column.text, amount_paise: column.integer, mode: column.text, notes: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_buyer_date: ['buyer_id', '-payment_date'] } },
+);
+
 const items = new Table(
   {
     farm_id: column.text,
@@ -291,6 +296,7 @@ export const appSchema = new Schema({
   animal_labels: animalLabels,
   animal_label_links: animalLabelLinks,
   buyers,
+  buyer_payments: buyerPayments,
   items,
   milk_entries: milkEntries,
   milk_allocations: milkAllocations,

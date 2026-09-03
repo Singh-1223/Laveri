@@ -28,6 +28,7 @@ const UPLOADABLE_TABLES = new Set([
   'animal_labels',
   'animal_label_links',
   'buyers',
+  'buyer_payments',
   'items',
   'milk_entries',
   'milk_allocations',
