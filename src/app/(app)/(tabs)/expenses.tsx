@@ -105,6 +105,11 @@ export default function ExpensesScreen() {
         .some((value) => value?.toLocaleLowerCase().includes(query));
     });
   }, [history, historyFilter, historySearch]);
+  const heatSuggestions = useMemo(() => [...new Set(
+    history
+      .filter((row) => row.kind === 'heat' && row.isVoided !== 1 && row.notes?.trim())
+      .map((row) => row.notes!.trim()),
+  )].slice(0, 8), [history]);
 
   const clearForm = () => {
     setSelectedAnimalId(null);
@@ -262,6 +267,10 @@ export default function ExpensesScreen() {
         ) : null}
 
         <TextInput accessibilityLabel="Notes" multiline onChangeText={setNotes} placeholder={kind === 'heat' ? 'Observed signs or note' : 'Comment (optional)'} placeholderTextColor={colors.textSecondary} style={[styles.notes, { color: colors.text, borderColor: colors.border }]} value={notes} />
+        {kind === 'heat' && heatSuggestions.length > 0 ? <View style={styles.choiceBlock}>
+          <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Previously observed signs</Text>
+          <View style={styles.choices}>{heatSuggestions.map((suggestion) => <Pressable key={suggestion} onPress={() => setNotes(suggestion)} style={[styles.choice, { backgroundColor: notes === suggestion ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: notes === suggestion ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{suggestion}</Text></Pressable>)}</View>
+        </View> : null}
         <Pressable disabled={busy || loading || !farmId} onPress={save} style={({ pressed }) => [styles.save, { backgroundColor: colors.primary }, (busy || loading || !farmId) && styles.disabled, pressed && styles.pressed]}>{busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>{editingRow ? 'Update' : 'Save'} {kindLabel(kind).toLowerCase()}</Text>}</Pressable>
         {editingRow ? <Pressable disabled={busy} onPress={clearForm} style={[styles.cancelEdit, { borderColor: colors.border }]}><Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Cancel editing</Text></Pressable> : null}
       </SectionCard>
