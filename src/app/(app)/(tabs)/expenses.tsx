@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useCol
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { listMasterData } from '@/data/repositories/master-data';
+import { createItem, listMasterData } from '@/data/repositories/master-data';
 import type { AnimalRow, ItemRow } from '@/data/repositories/master-data.types';
 import {
   createFeedTransaction,
@@ -56,6 +56,8 @@ export default function ExpensesScreen() {
   const [doctorFee, setDoctorFee] = useState('');
   const [medicineCost, setMedicineCost] = useState('');
   const [notes, setNotes] = useState('');
+  const [quickItemName, setQuickItemName] = useState('');
+  const [quickItemUnit, setQuickItemUnit] = useState('');
   const [productCategory, setProductCategory] = useState<'operating_expense' | 'investment'>('operating_expense');
   const [editingRow, setEditingRow] = useState<OperationHistoryRow | null>(null);
   const [voidingKey, setVoidingKey] = useState<string | null>(null);
@@ -112,6 +114,8 @@ export default function ExpensesScreen() {
     setDoctorFee('');
     setMedicineCost('');
     setNotes('');
+    setQuickItemName('');
+    setQuickItemUnit('');
     setProductCategory('operating_expense');
     setEditingRow(null);
   };
@@ -173,6 +177,29 @@ export default function ExpensesScreen() {
     }
   };
 
+  const createQuickItem = async () => {
+    if (!farmId || !session || (kind !== 'feed' && kind !== 'product') || !quickItemName.trim()) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await createItem({
+        farmId,
+        userId: session.user.id,
+        type: kind,
+        name: quickItemName,
+        baseUnit: quickItemUnit.trim() || (kind === 'feed' ? 'kg' : 'unit'),
+      });
+      setQuickItemName('');
+      setQuickItemUnit('');
+      await refresh();
+      setMessage(`${kindLabel(kind)} item added locally. Select it below to record this purchase.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to add the item.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const confirmVoid = async (row: OperationHistoryRow) => {
     if (!farmId || !session || !voidReason.trim()) return;
     setBusy(true);
@@ -211,6 +238,14 @@ export default function ExpensesScreen() {
 
         {kind === 'treatment' || kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind !== 'heat' ? <ChoiceList label={neededItemType} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={setSelectedItemId} /> : null}
+        {kind === 'feed' || kind === 'product' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
+          <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>New {kindLabel(kind).toLowerCase()} item</Text>
+          <View style={styles.numericRow}>
+            <TextInput accessibilityLabel={`New ${kind} item name`} onChangeText={setQuickItemName} placeholder="Item name" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemName} />
+            <TextInput accessibilityLabel={`New ${kind} unit`} onChangeText={setQuickItemUnit} placeholder={kind === 'feed' ? 'Unit (kg)' : 'Unit'} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemUnit} />
+          </View>
+          <Pressable disabled={busy || !quickItemName.trim()} onPress={() => void createQuickItem()} style={[styles.quickItemButton, { borderColor: colors.primary }, (busy || !quickItemName.trim()) && styles.disabled]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Add and save for future suggestions</Text></Pressable>
+        </View> : null}
 
         {kind === 'feed' || kind === 'product' ? (
           <View style={styles.numericRow}>
@@ -250,6 +285,7 @@ export default function ExpensesScreen() {
                 <View style={styles.historyCopy}>
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{row.title}</Text>
                   <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>{formatFarmDate(row.businessDate)} • {kindLabel(row.kind)}{row.detail ? ` • ${row.detail}` : ''}</Text>
+                  {row.notes ? <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>Comment: {row.notes}</Text> : null}
                   {row.isVoided === 1 ? <Text style={[styles.voidReason, { color: colors.danger }]}>Voided: {row.voidReason}</Text> : null}
                 </View>
                 {row.amountPaise > 0 ? <Text style={[styles.amount, { color: colors.text }]}>{formatMoney(row.amountPaise)}</Text> : null}
@@ -308,6 +344,8 @@ const styles = StyleSheet.create({
   choice: { minHeight: 40, borderRadius: 20, justifyContent: 'center', paddingHorizontal: 13 },
   numericRow: { flexDirection: 'row', gap: 10 },
   numericInput: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, fontSize: 15 },
+  quickItem: { gap: 8, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
+  quickItemButton: { minHeight: 40, borderWidth: 1, borderRadius: 10, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12 },
   category: { flex: 1, minHeight: 44, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   notes: { minHeight: 74, borderWidth: 1, borderRadius: 12, padding: 12, textAlignVertical: 'top', fontSize: 15 },
   save: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
