@@ -33,6 +33,7 @@ const UPLOADABLE_TABLES = new Set([
   'milk_allocations',
   'feed_transactions',
   'treatments',
+  'treatment_animals',
   'product_transactions',
   'heat_events',
   'correction_events',

@@ -202,6 +202,11 @@ const treatments = new Table(
   { ...versioned, indexes: { by_farm_date: ['farm_id', '-treated_at'], by_animal_date: ['animal_id', '-treated_at'] } },
 );
 
+const treatmentAnimals = new Table(
+  { farm_id: column.text, treatment_id: column.text, animal_id: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_treatment: ['treatment_id'], by_animal: ['animal_id'] } },
+);
+
 const productTransactions = new Table(
   {
     farm_id: column.text,
@@ -291,6 +296,7 @@ export const appSchema = new Schema({
   milk_allocations: milkAllocations,
   feed_transactions: feedTransactions,
   treatments,
+  treatment_animals: treatmentAnimals,
   product_transactions: productTransactions,
   heat_events: heatEvents,
   correction_events: correctionEvents,

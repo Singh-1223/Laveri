@@ -156,9 +156,8 @@ export default function ExpensesScreen() {
         else await createFeedTransaction(input);
       } else if (kind === 'treatment') {
         if (!selectedAnimal || !Number.isSafeInteger(doctorFeePaise) || !Number.isSafeInteger(medicineCostPaise)) throw new Error('Select an animal and enter valid treatment costs.');
-        const input = { ...context, animalId: selectedAnimal.id, medicineItemId: selectedItem?.id ?? null, doctorFeePaise, medicineCostPaise };
-        if (editingRow) await updateTreatment({ ...input, id: editingRow.id });
-        else await createTreatment(input);
+        if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedAnimal.id, medicineItemId: selectedItem?.id ?? null, doctorFeePaise, medicineCostPaise });
+        else await createTreatment({ ...context, animalIds: [selectedAnimal.id], medicineItemId: selectedItem?.id ?? null, doseMilliUnits: null, doseUnit: null, doctorFeePaise, medicineCostPaise });
       } else if (kind === 'product') {
         if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a product, then enter quantity and rate.');
         const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };

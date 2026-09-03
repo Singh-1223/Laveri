@@ -121,17 +121,24 @@ export async function createFeedTransaction(input: CreateFeedInput) {
 export async function createTreatment(input: CreateTreatmentInput) {
   const database = await getPowerSyncDatabase();
   const audit = auditedId(input);
+  const animalIds = [...new Set(input.animalIds)];
+  if (animalIds.length === 0) throw new Error('Select at least one animal for treatment.');
   const totalPaise = calculateTreatmentTotalPaise(input.doctorFeePaise, input.medicineCostPaise);
   const treatedAt = new Date(`${input.businessDate}T12:00:00`).toISOString();
-  await database.execute(
+  await database.writeTransaction(async (transaction) => {
+    await transaction.execute(
     `INSERT INTO treatments (
       id, farm_id, treatment_date, treated_at, animal_id, medicine_item_id,
       dose_milli_units, dose_unit, doctor_fee_paise, medicine_cost_paise,
       total_paise, notes, void_reason, created_at, updated_at,
       created_by, updated_by, deleted_at, version
-    ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, 1)`,
-    [audit.id, input.farmId, input.businessDate, treatedAt, input.animalId, input.medicineItemId, input.doctorFeePaise, input.medicineCostPaise, totalPaise, input.notes?.trim() || null, audit.now, audit.now, input.userId, input.userId],
-  );
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, NULL, 1)`,
+      [audit.id, input.farmId, input.businessDate, treatedAt, animalIds[0], input.medicineItemId, input.doseMilliUnits, input.doseUnit, input.doctorFeePaise, input.medicineCostPaise, totalPaise, input.notes?.trim() || null, audit.now, audit.now, input.userId, input.userId],
+    );
+    for (const animalId of animalIds) {
+      await transaction.execute(`INSERT INTO treatment_animals (id, farm_id, treatment_id, animal_id, created_at, updated_at, created_by, updated_by, deleted_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`, [Crypto.randomUUID(), input.farmId, audit.id, animalId, audit.now, audit.now, input.userId, input.userId]);
+    }
+  });
 }
 
 export async function createProductTransaction(input: CreateProductInput) {

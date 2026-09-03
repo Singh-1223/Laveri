@@ -39,8 +39,10 @@ export type CreateFeedInput = OperationContext & {
 };
 
 export type CreateTreatmentInput = OperationContext & {
-  animalId: string;
+  animalIds: string[];
   medicineItemId: string | null;
+  doseMilliUnits: number | null;
+  doseUnit: string | null;
   doctorFeePaise: number;
   medicineCostPaise: number;
 };
@@ -61,7 +63,13 @@ export type CreateHeatInput = OperationContext & {
 };
 
 export type UpdateFeedInput = CreateFeedInput & { id: string };
-export type UpdateTreatmentInput = CreateTreatmentInput & { id: string };
+export type UpdateTreatmentInput = OperationContext & {
+  id: string;
+  animalId: string;
+  medicineItemId: string | null;
+  doctorFeePaise: number;
+  medicineCostPaise: number;
+};
 export type UpdateProductInput = CreateProductInput & { id: string };
 export type UpdateHeatInput = CreateHeatInput & { id: string };
 
