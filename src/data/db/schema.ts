@@ -87,6 +87,16 @@ const animals = new Table(
   { ...versioned, indexes: { by_farm_status: ['farm_id', 'status'], by_farm_tag: ['farm_id', 'tag'] } },
 );
 
+const animalLabels = new Table(
+  { farm_id: column.text, name: column.text, color: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_farm_name: ['farm_id', 'name'] } },
+);
+
+const animalLabelLinks = new Table(
+  { farm_id: column.text, animal_id: column.text, label_id: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_animal: ['animal_id'], by_label: ['label_id'] } },
+);
+
 const buyers = new Table(
   {
     farm_id: column.text,
@@ -273,6 +283,8 @@ export const appSchema = new Schema({
   farm_settings: farmSettings,
   milk_pricing_configs: milkPricingConfigs,
   animals,
+  animal_labels: animalLabels,
+  animal_label_links: animalLabelLinks,
   buyers,
   items,
   milk_entries: milkEntries,
