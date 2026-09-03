@@ -8,14 +8,14 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[~] Partial` - some related UI/data exists, but it does not meet the client request.
 - `[x] Done` - implemented and accepted after client retest.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
-- `[-] Rule needed` - the client direction is known, but an exact data/reporting rule is still required before coding.
+- `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 4 partial, 14 open, 1 rule needed. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 4 partial, 14 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
 1. Milk not assigned to a buyer always becomes **Household consumption**.
-2. Remove the Operating/Investment entry selector. Investment must be inferred by another rule; the exact rule is still required.
+2. Feed, Product, Medicine, and Treatment are all collective farm-level **production costs**. They are not investments, and no Investment classification or inference is needed.
 3. Milk data must auto-save after **every field** entry.
 4. Every buyer has a fixed, manual per-litre rate. Only **Verka** is an exception because its rate is finalized after the billing cycle.
 5. Verka handling is for **Cow milk only**.
@@ -29,7 +29,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 | C-01 | [ ] Open | Keep the currently edited input visible above the keyboard on all screens. | Add keyboard-aware layout and scroll-to-focused-input behaviour to entry forms. |
 | C-02 | [ ] Open | Allow the user to choose the order of cows and buyers in Milk entry. | Add a stored display-order field plus up/down or drag reordering in Master data. |
 | C-03 | [ ] Open | Remove the remaining-milk field and automatically put remaining milk into Household consumption. | **Approved:** all milk not assigned to a buyer becomes Household consumption. Replace the editable Household quantity and Remaining display with a calculated Household value. |
-| C-04 | [-] Rule needed | Remove Product categories Operating and Investment. | **Approved direction:** remove the selector and infer Investment another way. Define the exact inference rule before changing reports or existing records. |
+| C-04 | [–] Not applicable | Remove Product categories Operating and Investment. | **Clarified:** this is not a required change. Product, Feed, Medicine, and Treatment are all production costs; do not add Investment handling or an inference rule. |
 | C-05 | [ ] Open | Display dates as `DD-MM-YY`. | Store ISO dates internally for safe calculations/sync, but display `DD-MM-YY` consistently in the app and reports. |
 | C-06 | [ ] Open | Remove the Milk Save button and save each entered value immediately; do not lose partial entry when leaving/reopening Milk. | **Approved:** save after every field. Implement debounced field-level local saves, preserve partial sessions, and synchronize safely without exposing half-entered records as final totals. |
 | C-07 | [~] Partial | In Expenses, show recent activity separately for Feed, Treatment, Product, and Heat. | The screen has filter chips, but it starts at All and does not automatically show only the active operation tab. Make recent activity follow the selected tab by default. |
@@ -66,15 +66,11 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 We should complete and client-test one group at a time:
 
 1. **Daily usability:** C-01, C-02, C-05, C-07, C-08.
-2. **Confirm business-rule decisions:** C-03, C-04, C-06, C-10.
+2. **Confirmed business-rule implementation:** C-03, C-06, C-10.
 3. **Expense/treatment workflow:** C-11, then C-12.
 4. **Buyer billing and Verka:** C-10.1, C-10.2, then C-10.3.
 5. **Animal organization/history:** C-13, C-14, C-15, then C-16.
 6. **Reminders:** C-09 after the definition of a completed Milk session is agreed.
-
-## Remaining rule to confirm before implementation
-
-1. With the Operating/Investment selector removed, what exact rule should identify an Investment? For example: a separate product label, a configurable item type, a value threshold, or a dedicated report-only classification.
 
 ## Completed items
 
