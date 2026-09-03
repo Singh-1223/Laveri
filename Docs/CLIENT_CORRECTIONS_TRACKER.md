@@ -11,7 +11,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 16 implemented awaiting retest, 0 partial, 2 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 16 implemented awaiting retest, 1 partial, 1 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -44,7 +44,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 | C-10 | [>] Implemented | Milk rates are buyer-specific; remove the common Flat/Quality pricing choice from Milk entry and keep the rate calculation only as a simple calculator. | Buyer rates are maintained in Master data and copied into every buyer allocation with its calculated amount. The shared Milk rate flow is removed. Verka can be allocated at ₹0 until billing-cycle pricing is finalized. Awaiting client retest. |
 | C-10.1 | [>] Implemented | Record FAT% and SNF% daily for reference, not to calculate the common milk rate. Show it between Animals and Allocation. | FAT% and SNF% are now a separate Daily milk quality section between Animals and Buyer allocation. They are saved with milk production and do not calculate buyer pricing. Awaiting client retest. |
 | C-10.2 | [>] Implemented | Tapping a buyer opens that buyer’s account: rate input, payment entries with date, pending balance, 10-day milk table, and payment table. | Buyer names open their accounts. The screen shows the configured rate, sales, pending balance, payment entry/history, and navigable 1–10/11–20/21–month-end milk periods. Awaiting client retest. |
-| C-10.3 | [ ] Open | Special **Verka** billing: rate known after each 10-day billing cycle; commission/increments/deductions; edit previous-cycle rate; retain prior rate until updated; upload bill. | **Approved:** Verka covers Cow milk only. Build a Cow-milk 10-day billing-cycle module with adjustments, bill attachment in Supabase Storage, and controlled correction history. This depends on C-10.2. |
+| C-10.3 | [~] Partial | Special **Verka** billing: rate known after each 10-day billing cycle; commission/increments/deductions; edit previous-cycle rate; retain prior rate until updated; upload bill. | A local/offline-first billing-cycle model and screen now support 10-day ranges, final rate, commission/increment/deduction, notes, saved-cycle history, and update the cycle’s allocation amounts when a final rate is saved. Private bill Storage support is queued in migration `202609030005_verka_billing_cycles.sql`; its file-picker/upload UI and easy Verka-account link remain. |
 
 ## Phase 3 - Expenses and treatments
 

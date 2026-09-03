@@ -1,0 +1,3 @@
+export type VerkaCycle = { id: string; cycleStart: string; cycleEnd: string; finalRatePaisePerLitre: number | null; commissionPaise: number; incrementPaise: number; deductionPaise: number; notes: string | null; billPath: string | null; billName: string | null };
+export type VerkaCycleSnapshot = { cycles: VerkaCycle[]; sales: { milkDate: string; volumeMl: number }[] };
+export type SaveVerkaCycleInput = { id?: string; farmId: string; buyerId: string; userId: string; cycleStart: string; cycleEnd: string; finalRatePaisePerLitre: number | null; commissionPaise: number; incrementPaise: number; deductionPaise: number; notes?: string; billPath?: string | null; billName?: string | null };

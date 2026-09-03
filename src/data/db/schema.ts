@@ -116,6 +116,11 @@ const buyerPayments = new Table(
   { ...versioned, indexes: { by_buyer_date: ['buyer_id', '-payment_date'] } },
 );
 
+const verkaBillingCycles = new Table(
+  { farm_id: column.text, buyer_id: column.text, cycle_start: column.text, cycle_end: column.text, final_rate_paise_per_litre: column.integer, commission_paise: column.integer, increment_paise: column.integer, deduction_paise: column.integer, notes: column.text, bill_path: column.text, bill_name: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_buyer_cycle: ['buyer_id', '-cycle_start'] } },
+);
+
 const items = new Table(
   {
     farm_id: column.text,
@@ -297,6 +302,7 @@ export const appSchema = new Schema({
   animal_label_links: animalLabelLinks,
   buyers,
   buyer_payments: buyerPayments,
+  verka_billing_cycles: verkaBillingCycles,
   items,
   milk_entries: milkEntries,
   milk_allocations: milkAllocations,
