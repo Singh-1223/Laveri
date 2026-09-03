@@ -60,6 +60,8 @@ export type SaveMilkSessionInput = {
     buyerId: string | null;
     volumeMl: number;
   }[];
+  clearedAnimalIds: string[];
+  deletedAllocationIds: string[];
 };
 
 export type VoidMilkSessionInput = {

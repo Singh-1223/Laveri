@@ -31,7 +31,7 @@ type OperationContext = {
 
 export type CreateFeedInput = OperationContext & {
   animalId: string | null;
-  animalCategory: AnimalRow['category'];
+  animalCategory: AnimalRow['category'] | null;
   itemId: string;
   quantityMilliUnits: number;
   unitCode: string;

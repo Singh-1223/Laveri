@@ -7,10 +7,11 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[ ] Open` - not implemented yet.
 - `[~] Partial` - some related UI/data exists, but it does not meet the client request.
 - `[x] Done` - implemented and accepted after client retest.
+- `[>] Implemented` - code complete and code-checked; awaiting client retest.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 4 partial, 14 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 3 implemented awaiting retest, 3 partial, 12 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -28,11 +29,11 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 |---|---|---|---|
 | C-01 | [ ] Open | Keep the currently edited input visible above the keyboard on all screens. | Add keyboard-aware layout and scroll-to-focused-input behaviour to entry forms. |
 | C-02 | [ ] Open | Allow the user to choose the order of cows and buyers in Milk entry. | Add a stored display-order field plus up/down or drag reordering in Master data. |
-| C-03 | [ ] Open | Remove the remaining-milk field and automatically put remaining milk into Household consumption. | **Approved:** all milk not assigned to a buyer becomes Household consumption. Replace the editable Household quantity and Remaining display with a calculated Household value. |
+| C-03 | [>] Implemented | Remove the remaining-milk field and automatically put remaining milk into Household consumption. | Buyer allocations are the only editable allocations. The repository calculates, displays, and saves Household consumption as produced minus buyer litres; it also removes a former Household allocation when the calculated value becomes zero. Awaiting client retest. |
 | C-04 | [–] Not applicable | Remove Product categories Operating and Investment. | **Clarified:** this is not a required change. Product, Feed, Medicine, and Treatment are all production costs; do not add Investment handling or an inference rule. |
 | C-05 | [ ] Open | Display dates as `DD-MM-YY`. | Store ISO dates internally for safe calculations/sync, but display `DD-MM-YY` consistently in the app and reports. |
-| C-06 | [ ] Open | Remove the Milk Save button and save each entered value immediately; do not lose partial entry when leaving/reopening Milk. | **Approved:** save after every field. Implement debounced field-level local saves, preserve partial sessions, and synchronize safely without exposing half-entered records as final totals. |
-| C-07 | [~] Partial | In Expenses, show recent activity separately for Feed, Treatment, Product, and Heat. | The screen has filter chips, but it starts at All and does not automatically show only the active operation tab. Make recent activity follow the selected tab by default. |
+| C-06 | [>] Implemented | Remove the Milk Save button and save each entered value immediately; do not lose partial entry when leaving/reopening Milk. | The Save button is removed. Valid edits are debounced briefly and then saved locally per field. Repository upserts by animal/date/session and buyer/date/session so repeated auto-saves update records rather than duplicating them. Awaiting client retest. |
+| C-07 | [>] Implemented | In Expenses, show recent activity separately for Feed, Treatment, Product, and Heat. | Recent activity now starts on Feed and automatically follows the active operation tab. The user can still choose another history filter. Awaiting client retest. |
 | C-08 | [ ] Open | On app launch, open Milk entry automatically. If today is complete, open today’s Morning before noon or Evening after noon; otherwise open the first incomplete session. | Requires startup routing and a clear definition of “complete” for a session. |
 | C-09 | [ ] Open | Configurable reminders for missing Morning/Evening entries, for example 9 AM and 9 PM. | Requires notification permission, local scheduled notifications, settings UI, and completion checks. |
 
@@ -49,7 +50,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 
 | ID | Status | Client request | Current state / scope |
 |---|---|---|
-| C-11 | [~] Partial | Feed/Product entry should be common to all animals; do not require an animal. Enter name, quantity, unit, price/unit, visible comment. Allow new items directly in Expenses and save them for future suggestions. | Current Feed requires one animal; Product allows optional animal. Both require Master data first. Make feed/product farm-level, add quick-create item entry, retain comments in history, and suggest prior items. |
+| C-11 | [~] Partial | Feed/Product entry should be common to all animals; do not require an animal. Enter name, quantity, unit, price/unit, visible comment. Allow new items directly in Expenses and save them for future suggestions. | **Updated:** Feed and Product now save as farm-wide production costs and do not show an animal choice. Remaining: quick-create item inside Expenses, history-based item suggestions, and ensuring comments are shown in history. |
 | C-12 | [ ] Open | Treatment should allow multiple animals and Select all. Enter medicine name, quantity/unit, units, and price/unit; allow quick-create medicine and prior-item suggestions. | **Approved:** one medicine quantity and price are shared across all selected animals. Requires a treatment header plus multiple animal links, quantity/unit fields, quick-create medicine, and reporting/audit changes. |
 
 ## Phase 4 - Animal organization and history

@@ -36,7 +36,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
   return database.getAll<OperationHistoryRow>(
     `SELECT * FROM (
       SELECT feed.id, 'feed' AS kind, feed.transaction_date AS businessDate,
-        item.name AS title, coalesce(animal.tag, feed.animal_category) AS detail,
+        item.name AS title, coalesce(animal.tag, feed.animal_category, 'Farm-wide') AS detail,
         feed.amount_paise AS amountPaise,
         CASE WHEN feed.deleted_at IS NULL THEN 0 ELSE 1 END AS isVoided,
         feed.void_reason AS voidReason,

@@ -21,6 +21,7 @@ import {
 } from '@/data/repositories/operations';
 import type { OperationHistoryRow, OperationKind } from '@/data/repositories/operations.types';
 import { formatMoney } from '@/domain/calculations';
+import { formatFarmDate } from '@/domain/dates';
 import { useSession } from '@/features/auth/session-provider';
 
 function todayAtFarm() {
@@ -45,7 +46,7 @@ export default function ExpensesScreen() {
   const [animals, setAnimals] = useState<AnimalRow[]>([]);
   const [items, setItems] = useState<ItemRow[]>([]);
   const [history, setHistory] = useState<OperationHistoryRow[]>([]);
-  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('all');
+  const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('feed');
   const [historySearch, setHistorySearch] = useState('');
   const [businessDate, setBusinessDate] = useState(todayAtFarm);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
@@ -117,6 +118,7 @@ export default function ExpensesScreen() {
 
   const startEdit = (row: OperationHistoryRow) => {
     setKind(row.kind);
+    setHistoryFilter(row.kind);
     setBusinessDate(row.businessDate);
     setSelectedAnimalId(row.animalId);
     setSelectedItemId(row.itemId);
@@ -139,8 +141,8 @@ export default function ExpensesScreen() {
     try {
       const context = { farmId, userId: session.user.id, businessDate, notes };
       if (kind === 'feed') {
-        if (!selectedAnimal || !selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select an animal and feed item, then enter quantity and rate.');
-        const input = { ...context, animalId: selectedAnimal.id, animalCategory: selectedAnimal.category, itemId: selectedItem.id, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
+        if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a feed item, then enter quantity and rate.');
+        const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
         if (editingRow) await updateFeedTransaction({ ...input, id: editingRow.id });
         else await createFeedTransaction(input);
       } else if (kind === 'treatment') {
@@ -150,7 +152,7 @@ export default function ExpensesScreen() {
         else await createTreatment(input);
       } else if (kind === 'product') {
         if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a product, then enter quantity and rate.');
-        const input = { ...context, animalId: selectedAnimal?.id ?? null, animalCategory: selectedAnimal?.category ?? null, itemId: selectedItem.id, category: productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
+        const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
         if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
         else await createProductTransaction(input);
       } else {
@@ -195,10 +197,10 @@ export default function ExpensesScreen() {
   };
 
   return (
-    <AppScreen title="Farm operations" subtitle="Feed, health, products, investment, and heat events">
+    <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, health, and heat records">
       <View style={styles.tabs}>
         {(['feed', 'treatment', 'product', 'heat'] as const).map((value) => (
-          <Pressable key={value} onPress={() => { setKind(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
+          <Pressable key={value} onPress={() => { setKind(value); setHistoryFilter(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
             <Text style={{ color: kind === value ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{kindLabel(value)}</Text>
           </Pressable>
         ))}
@@ -207,7 +209,7 @@ export default function ExpensesScreen() {
       <SectionCard title={`${editingRow ? 'Edit' : 'Add'} ${kindLabel(kind).toLowerCase()}`}>
         <TextInput accessibilityLabel="Operation date" onChangeText={setBusinessDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={businessDate} />
 
-        <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} />
+        {kind === 'treatment' || kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind !== 'heat' ? <ChoiceList label={neededItemType} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={setSelectedItemId} /> : null}
 
         {kind === 'feed' || kind === 'product' ? (
@@ -221,14 +223,6 @@ export default function ExpensesScreen() {
           <View style={styles.numericRow}>
             <TextInput accessibilityLabel="Doctor fee" keyboardType="decimal-pad" onChangeText={setDoctorFee} placeholder="Doctor fee ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={doctorFee} />
             <TextInput accessibilityLabel="Medicine cost" keyboardType="decimal-pad" onChangeText={setMedicineCost} placeholder="Medicine ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={medicineCost} />
-          </View>
-        ) : null}
-
-        {kind === 'product' ? (
-          <View style={styles.numericRow}>
-            {(['operating_expense', 'investment'] as const).map((category) => (
-              <Pressable key={category} onPress={() => setProductCategory(category)} style={[styles.category, { borderColor: productCategory === category ? colors.primary : colors.border }]}><Text style={{ color: productCategory === category ? colors.primary : colors.textSecondary, fontWeight: '700' }}>{category === 'operating_expense' ? 'Operating' : 'Investment'}</Text></Pressable>
-            ))}
           </View>
         ) : null}
 
@@ -255,7 +249,7 @@ export default function ExpensesScreen() {
               <View style={styles.historyRow}>
                 <View style={styles.historyCopy}>
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{row.title}</Text>
-                  <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>{row.businessDate} • {kindLabel(row.kind)}{row.detail ? ` • ${row.detail}` : ''}</Text>
+                  <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>{formatFarmDate(row.businessDate)} • {kindLabel(row.kind)}{row.detail ? ` • ${row.detail}` : ''}</Text>
                   {row.isVoided === 1 ? <Text style={[styles.voidReason, { color: colors.danger }]}>Voided: {row.voidReason}</Text> : null}
                 </View>
                 {row.amountPaise > 0 ? <Text style={[styles.amount, { color: colors.text }]}>{formatMoney(row.amountPaise)}</Text> : null}

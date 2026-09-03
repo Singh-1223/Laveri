@@ -172,7 +172,27 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
           ],
         );
       } else {
-        await transaction.execute(
+        const existing = await transaction.getOptional<{ id: string }>(
+          `SELECT id FROM milk_entries
+           WHERE farm_id = ? AND animal_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL
+           LIMIT 1`,
+          [input.farmId, entry.animalId, input.milkDate, input.session],
+        );
+        if (existing) {
+          await transaction.execute(
+            `UPDATE milk_entries
+             SET volume_ml = ?, pricing_mode = ?, flat_rate_paise_per_litre = ?,
+                 fat_hundredths = ?, snf_hundredths = ?, cmfat_paise = ?, cmsnf_paise = ?,
+                 calculated_rate_paise_per_litre = ?, state = 'complete',
+                 updated_at = ?, updated_by = ?, version = version + 1
+             WHERE id = ?`,
+            [
+              entry.volumeMl, input.pricingMode, input.flatRatePaisePerLitre,
+              input.fatHundredths, input.snfHundredths, input.cmFatPaise, input.cmSnfPaise,
+              input.ratePaisePerLitre, now, input.userId, existing.id,
+            ],
+          );
+        } else await transaction.execute(
           `INSERT INTO milk_entries (
             id, farm_id, animal_id, milk_date, session, volume_ml,
             pricing_mode, flat_rate_paise_per_litre, fat_hundredths, snf_hundredths,
@@ -218,7 +238,23 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
           [allocation.volumeMl, input.ratePaisePerLitre, amountPaise, now, input.userId, allocation.allocationId],
         );
       } else {
-        await transaction.execute(
+        const existing = await transaction.getOptional<{ id: string }>(
+          `SELECT id FROM milk_allocations
+           WHERE farm_id = ? AND milk_date = ? AND session = ? AND destination = ?
+             AND ((buyer_id IS NULL AND ? IS NULL) OR buyer_id = ?)
+             AND deleted_at IS NULL
+           LIMIT 1`,
+          [input.farmId, input.milkDate, input.session, allocation.destination, allocation.buyerId, allocation.buyerId],
+        );
+        if (existing) {
+          await transaction.execute(
+            `UPDATE milk_allocations
+             SET volume_ml = ?, rate_paise_per_litre = ?, amount_paise = ?,
+                 updated_at = ?, updated_by = ?, version = version + 1
+             WHERE id = ?`,
+            [allocation.volumeMl, input.ratePaisePerLitre, amountPaise, now, input.userId, existing.id],
+          );
+        } else await transaction.execute(
           `INSERT INTO milk_allocations (
             id, farm_id, milk_date, session, destination, buyer_id,
             volume_ml, rate_paise_per_litre, amount_paise,
@@ -242,6 +278,24 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
           ],
         );
       }
+    }
+
+    for (const allocationId of input.deletedAllocationIds) {
+      await transaction.execute(
+        `UPDATE milk_allocations
+         SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1
+         WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [now, now, input.userId, allocationId, input.farmId],
+      );
+    }
+
+    for (const animalId of input.clearedAnimalIds) {
+      await transaction.execute(
+        `UPDATE milk_entries
+         SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1
+         WHERE farm_id = ? AND animal_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL`,
+        [now, now, input.userId, input.farmId, animalId, input.milkDate, input.session],
+      );
     }
 
     if (before) {

@@ -1,5 +1,5 @@
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
@@ -8,6 +8,7 @@ import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { loadMilkSession, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
 import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
 import { calculateQualityRatePaise, formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
+import { formatFarmDate } from '@/domain/dates';
 import type { MilkSession } from '@/domain/types';
 import { useSession } from '@/features/auth/session-provider';
 
@@ -58,12 +59,15 @@ export default function MilkScreen() {
   const [cmFatPaise, setCmFatPaise] = useState<number | null>(null);
   const [cmSnfPaise, setCmSnfPaise] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
+  const lastAutoSaveFingerprint = useRef<string | null>(null);
 
   const refresh = useCallback(async () => {
+    setHydrated(false);
     setLoading(true);
     setMessage(null);
     setVoiding(false);
@@ -95,6 +99,7 @@ export default function MilkScreen() {
       setMessage(error instanceof Error ? error.message : 'Unable to load milk entries.');
     } finally {
       setLoading(false);
+      setHydrated(true);
     }
   }, [milkDate, milkSession]);
 
@@ -116,12 +121,14 @@ export default function MilkScreen() {
     [allocationValues, allocations],
   );
   const invalidAllocation = parsedAllocations.some((item) => Number.isNaN(item.volumeMl));
+  const buyerAllocations = parsedAllocations.filter((item) => item.allocation.destination === 'buyer');
   const allocationSummary = summarizeMilkAllocation(
     totalMl,
-    parsedAllocations
+    buyerAllocations
       .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl))
       .map(({ allocation, volumeMl }) => ({ destination: allocation.destination, volumeMl })),
   );
+  const householdMl = Math.max(0, allocationSummary.unallocatedMl);
   const flatRatePaise = /^\d+(\.\d{0,2})?$/.test(rate.trim()) ? Math.round(Number(rate) * 100) : Number.NaN;
   const fatHundredths = parseHundredths(fat);
   const snfHundredths = parseHundredths(snf);
@@ -136,7 +143,7 @@ export default function MilkScreen() {
   const enteredCount = parsedEntries.filter((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl)).length;
   const hasSavedSession = entries.some((entry) => entry.entryId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
 
-  const save = async () => {
+  const save = async (automatic = false, fingerprint?: string) => {
     if (!farmId || !session || invalidVolume || invalidAllocation || allocationSummary.exceedsProduction || !Number.isSafeInteger(ratePaise) || ratePaise < 0) return;
     setBusy(true);
     setMessage(null);
@@ -156,25 +163,67 @@ export default function MilkScreen() {
         entries: parsedEntries
           .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl))
           .map(({ entry, volumeMl }) => ({ animalId: entry.animalId, entryId: entry.entryId, volumeMl })),
-        allocations: parsedAllocations
+        allocations: buyerAllocations
           .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl) && item.volumeMl > 0)
           .map(({ allocation, volumeMl }) => ({
             allocationId: allocation.allocationId,
             destination: allocation.destination,
             buyerId: allocation.buyerId,
             volumeMl,
-          })),
+          }))
+          .concat(householdMl > 0 ? [{
+            allocationId: allocations.find((allocation) => allocation.destination === 'household')?.allocationId ?? null,
+            destination: 'household' as const,
+            buyerId: null,
+            volumeMl: householdMl,
+          }] : []),
+        clearedAnimalIds: parsedEntries
+          .filter((item) => item.volumeMl === null)
+          .map((item) => item.entry.animalId),
+        deletedAllocationIds: parsedAllocations
+          .filter((item) => item.allocation.allocationId !== null && (
+            (item.allocation.destination === 'buyer' && (item.volumeMl === null || !Number.isFinite(item.volumeMl) || item.volumeMl <= 0))
+            || (item.allocation.destination === 'household' && householdMl === 0)
+          ))
+          .map((item) => item.allocation.allocationId as string),
       });
-      await refresh();
-      setMessage(`${milkSession === 'morning' ? 'Morning' : 'Evening'} milk and allocations saved locally.`);
+      if (!automatic) await refresh();
+      setMessage(`${milkSession === 'morning' ? 'Morning' : 'Evening'} milk and allocations saved locally${automatic ? ' automatically.' : '.'}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to save milk entries.');
     } finally {
+      if (automatic && fingerprint) lastAutoSaveFingerprint.current = fingerprint;
       setBusy(false);
     }
   };
 
-  const saveDisabled = busy || loading || invalidVolume || invalidAllocation || allocationSummary.exceedsProduction || enteredCount === 0 || !Number.isSafeInteger(ratePaise);
+  const autoSaveReady = !busy && !loading && hydrated && enteredCount > 0
+    && !invalidVolume && !invalidAllocation && !allocationSummary.exceedsProduction
+    && Number.isSafeInteger(ratePaise) && ratePaise >= 0;
+  const autoSaveFingerprint = useMemo(() => JSON.stringify({
+    allocationValues,
+    cmFatPaise,
+    fat,
+    milkDate,
+    milkSession,
+    pricingMode,
+    rate,
+    snf,
+    values,
+  }), [allocationValues, cmFatPaise, fat, milkDate, milkSession, pricingMode, rate, snf, values]);
+
+  // `save` intentionally uses this render's snapshot. Adding it as a dependency
+  // would reschedule after its own busy-state updates and repeatedly save unchanged data.
+  useEffect(() => {
+    if (!autoSaveReady || lastAutoSaveFingerprint.current === autoSaveFingerprint) return;
+    const timeout = setTimeout(() => void save(true, autoSaveFingerprint), 650);
+    return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    allocationSummary.exceedsProduction,
+    autoSaveReady,
+    autoSaveFingerprint,
+  ]);
 
   const confirmVoid = async () => {
     if (!farmId || !session || !voidReason.trim()) return;
@@ -194,19 +243,19 @@ export default function MilkScreen() {
   };
 
   return (
-    <AppScreen title="Milk" subtitle="Save the full session locally in one transaction">
+    <AppScreen title="Milk" subtitle="Each valid field is saved locally automatically">
       <View style={styles.dateRow}>
-        <SmallButton label="‹" onPress={() => setMilkDate((value) => shiftDate(value, -1))} />
+        <SmallButton label="‹" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
-          <Text style={[styles.date, { color: colors.text }]}>{milkDate}</Text>
-          {milkDate !== todayAtFarm() ? <Pressable onPress={() => setMilkDate(todayAtFarm())}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable> : null}
+          <Text style={[styles.date, { color: colors.text }]}>{formatFarmDate(milkDate)}</Text>
+          {milkDate !== todayAtFarm() ? <Pressable onPress={() => { setHydrated(false); setMilkDate(todayAtFarm()); }}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable> : null}
         </View>
-        <SmallButton label="›" onPress={() => setMilkDate((value) => shiftDate(value, 1))} />
+        <SmallButton label="›" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, 1)); }} />
       </View>
 
       <View style={styles.sessionRow}>
         {(['morning', 'evening'] as const).map((value) => (
-          <Pressable key={value} onPress={() => setMilkSession(value)} style={[styles.session, { backgroundColor: milkSession === value ? colors.primary : colors.backgroundSelected }]}>
+          <Pressable key={value} onPress={() => { setHydrated(false); setMilkSession(value); }} style={[styles.session, { backgroundColor: milkSession === value ? colors.primary : colors.backgroundSelected }]}>
             <Text style={[styles.sessionText, { color: milkSession === value ? '#FFFFFF' : colors.text }]}>{value === 'morning' ? 'Morning' : 'Evening'}</Text>
           </Pressable>
         ))}
@@ -233,7 +282,7 @@ export default function MilkScreen() {
               </View>
             ) : (
               <View style={styles.missingPricing}>
-                <Text style={[styles.error, { color: colors.danger }]}>No quality-pricing configuration applies on {milkDate}.</Text>
+                <Text style={[styles.error, { color: colors.danger }]}>No quality-pricing configuration applies on {formatFarmDate(milkDate)}.</Text>
                 <Link href="../pricing" asChild><Pressable><Text style={[styles.pricingLink, { color: colors.primary }]}>Configure milk pricing</Text></Pressable></Link>
               </View>
             )}
@@ -262,8 +311,8 @@ export default function MilkScreen() {
         ))}
       </SectionCard>
 
-      <SectionCard title="Allocation">
-        {allocations.map((allocation) => (
+      <SectionCard title="Buyer allocation">
+        {allocations.filter((allocation) => allocation.destination === 'buyer').map((allocation) => (
           <View key={allocation.key} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
               <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>
@@ -281,12 +330,12 @@ export default function MilkScreen() {
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View>
         ))}
-        {allocations.length === 1 ? <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text> : null}
+        {allocations.filter((allocation) => allocation.destination === 'buyer').length === 0 ? <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text> : null}
       </SectionCard>
 
       <View style={[styles.total, { backgroundColor: colors.backgroundSelected }]}>
         <View><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Produced</Text><Text style={[styles.totalValue, { color: colors.text }]}>{formatMilk(totalMl)}</Text></View>
-        <View style={styles.variance}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Remaining</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{formatMilk(Math.abs(allocationSummary.unallocatedMl))}{allocationSummary.unallocatedMl < 0 ? ' over' : ''}</Text></View>
+        <View style={styles.variance}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{allocationSummary.exceedsProduction ? `${formatMilk(Math.abs(allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View>
       </View>
 
       {invalidVolume ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for litres.</Text> : null}
@@ -294,9 +343,7 @@ export default function MilkScreen() {
       {pricingMode === 'quality' && (!qualityInputsValid || !qualityConfigured) ? <Text style={[styles.error, { color: colors.danger }]}>Quality mode requires valid FAT, SNF, CMFAT, and CMSNF values.</Text> : null}
       {allocationSummary.exceedsProduction ? <Text style={[styles.error, { color: colors.danger }]}>Allocated milk cannot exceed produced milk.</Text> : null}
       {message ? <Text style={[styles.helper, { color: message.includes('saved') || message.includes('voided') ? colors.primary : colors.danger }]}>{message}</Text> : null}
-      <Pressable disabled={saveDisabled} onPress={save} style={({ pressed }) => [styles.save, { backgroundColor: colors.primary }, saveDisabled && styles.disabled, pressed && styles.pressed]}>
-        {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>Save {milkSession} session</Text>}
-      </Pressable>
+      {busy ? <View style={[styles.autoSave, { backgroundColor: colors.backgroundSelected }]}><ActivityIndicator color={colors.primary} /><Text style={[styles.helper, { color: colors.textSecondary }]}>Saving changes locally…</Text></View> : null}
 
       {hasSavedSession ? (
         <SectionCard title="Correct saved session">
@@ -371,6 +418,7 @@ const styles = StyleSheet.create({
   varianceValue: { fontSize: 18, fontWeight: '800' },
   error: { fontSize: 13, lineHeight: 19 },
   save: { minHeight: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  autoSave: { minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   saveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700', textTransform: 'capitalize' },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.75 },

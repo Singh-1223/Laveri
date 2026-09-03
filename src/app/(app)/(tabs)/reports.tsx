@@ -9,6 +9,7 @@ import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { getPeriodReport } from '@/data/repositories/reports';
 import type { PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
+import { formatFarmDate } from '@/domain/dates';
 
 function currentMonthRange() {
   const now = new Date();
@@ -114,7 +115,7 @@ export default function ReportsScreen() {
               <View key={entry.id} style={[styles.detailRow, { borderTopColor: colors.border }]}>
                 <View style={styles.detailCopy}>
                   <Text style={[styles.animal, { color: colors.text }]}>{entry.animalTag} · {entry.session === 'morning' ? 'Morning' : 'Evening'}</Text>
-                  <Text style={[styles.sessions, { color: colors.textSecondary }]}>{entry.milkDate} · {entry.pricingMode === 'quality' ? `FAT ${(entry.fatHundredths ?? 0) / 100}% · SNF ${(entry.snfHundredths ?? 0) / 100}%` : 'Flat rate'}</Text>
+                  <Text style={[styles.sessions, { color: colors.textSecondary }]}>{formatFarmDate(entry.milkDate)} · {entry.pricingMode === 'quality' ? `FAT ${(entry.fatHundredths ?? 0) / 100}% · SNF ${(entry.snfHundredths ?? 0) / 100}%` : 'Flat rate'}</Text>
                 </View>
                 <View style={styles.detailValue}>
                   <Text style={[styles.productivityValue, { color: colors.text }]}>{formatMilk(entry.volumeMl)}</Text>
@@ -130,7 +131,7 @@ export default function ReportsScreen() {
               <View key={sale.id} style={[styles.detailRow, { borderTopColor: colors.border }]}>
                 <View style={styles.detailCopy}>
                   <Text style={[styles.animal, { color: colors.text }]}>{sale.buyerName} · {sale.session === 'morning' ? 'Morning' : 'Evening'}</Text>
-                  <Text style={[styles.sessions, { color: colors.textSecondary }]}>{sale.milkDate} · {formatMilk(sale.volumeMl)} × {formatMoney(sale.ratePaisePerLitre)}/L</Text>
+                  <Text style={[styles.sessions, { color: colors.textSecondary }]}>{formatFarmDate(sale.milkDate)} · {formatMilk(sale.volumeMl)} × {formatMoney(sale.ratePaisePerLitre)}/L</Text>
                 </View>
                 <Text style={[styles.productivityValue, { color: colors.text }]}>{formatMoney(sale.amountPaise)}</Text>
               </View>
