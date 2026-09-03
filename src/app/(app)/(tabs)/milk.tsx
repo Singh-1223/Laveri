@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useCol
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { loadMilkSession, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
+import { getMilkLaunchTarget, loadMilkSession, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
 import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
 import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
@@ -61,6 +61,7 @@ export default function MilkScreen() {
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const lastAutoSaveFingerprint = useRef<string | null>(null);
+  const hasChosenLaunchTarget = useRef(false);
 
   const refresh = useCallback(async () => {
     setHydrated(false);
@@ -74,6 +75,16 @@ export default function MilkScreen() {
       if (!sync.farmId) {
         setEntries([]);
         return;
+      }
+
+      if (!hasChosenLaunchTarget.current) {
+        const target = await getMilkLaunchTarget(sync.farmId);
+        hasChosenLaunchTarget.current = true;
+        if (target.milkDate !== milkDate || target.session !== milkSession) {
+          setMilkDate(target.milkDate);
+          setMilkSession(target.session);
+          return;
+        }
       }
 
       const snapshot = await loadMilkSession(sync.farmId, milkDate, milkSession);

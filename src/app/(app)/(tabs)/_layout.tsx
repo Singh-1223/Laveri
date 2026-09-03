@@ -17,6 +17,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      initialRouteName="milk"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,

@@ -11,7 +11,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 9 implemented awaiting retest, 1 partial, 8 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 10 implemented awaiting retest, 1 partial, 7 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -34,7 +34,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 | C-05 | [ ] Open | Display dates as `DD-MM-YY`. | Store ISO dates internally for safe calculations/sync, but display `DD-MM-YY` consistently in the app and reports. |
 | C-06 | [>] Implemented | Remove the Milk Save button and save each entered value immediately; do not lose partial entry when leaving/reopening Milk. | The Save button is removed. Valid edits are debounced briefly and then saved locally per field. Repository upserts by animal/date/session and buyer/date/session so repeated auto-saves update records rather than duplicating them. Awaiting client retest. |
 | C-07 | [>] Implemented | In Expenses, show recent activity separately for Feed, Treatment, Product, and Heat. | Recent activity now starts on Feed and automatically follows the active operation tab. The user can still choose another history filter. Awaiting client retest. |
-| C-08 | [ ] Open | On app launch, open Milk entry automatically. If today is complete, open today’s Morning before noon or Evening after noon; otherwise open the first incomplete session. | Requires startup routing and a clear definition of “complete” for a session. |
+| C-08 | [>] Implemented | On app launch, open Milk entry automatically. If today is complete, open today’s Morning before noon or Evening after noon; otherwise open the first incomplete session. | The initial tab is Milk. A session is considered complete when every active milking animal has an entry. On launch, the app resumes the latest incomplete session; otherwise it chooses today’s Morning before noon or Evening after noon. Awaiting client retest. |
 | C-09 | [ ] Open | Configurable reminders for missing Morning/Evening entries, for example 9 AM and 9 PM. | Requires notification permission, local scheduled notifications, settings UI, and completion checks. |
 
 ## Phase 2 - Milk, buyer billing, and payments

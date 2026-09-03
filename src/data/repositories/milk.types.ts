@@ -72,3 +72,8 @@ export type VoidMilkSessionInput = {
   session: MilkSession;
   reason: string;
 };
+
+export type MilkLaunchTarget = {
+  milkDate: string;
+  session: MilkSession;
+};

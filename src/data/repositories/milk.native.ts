@@ -4,7 +4,37 @@ import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import { recordCorrection } from '@/data/repositories/corrections.native';
 import { calculateFlatMilkAmountPaise } from '@/domain/calculations';
 
-import type { MilkSessionSnapshot, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
+import type { MilkLaunchTarget, MilkSessionSnapshot, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
+
+function todayAtFarm(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+export async function getMilkLaunchTarget(farmId: string): Promise<MilkLaunchTarget> {
+  const database = await getPowerSyncDatabase();
+  const activeAnimals = await database.getOptional<{ count: number }>(
+    `SELECT count(*) AS count FROM animals
+     WHERE farm_id = ? AND status = 'active' AND is_milking = 1 AND deleted_at IS NULL`,
+    [farmId],
+  );
+  const animalCount = activeAnimals?.count ?? 0;
+  const incomplete = animalCount > 0 ? await database.getOptional<MilkLaunchTarget>(
+    `SELECT entry.milk_date AS milkDate, entry.session
+     FROM milk_entries entry
+     WHERE entry.farm_id = ? AND entry.deleted_at IS NULL
+     GROUP BY entry.milk_date, entry.session
+     HAVING count(distinct entry.animal_id) < ?
+     ORDER BY entry.milk_date DESC,
+       CASE entry.session WHEN 'evening' THEN 1 ELSE 0 END DESC
+     LIMIT 1`,
+    [farmId, animalCount],
+  ) : null;
+  if (incomplete) return incomplete;
+
+  const now = new Date();
+  return { milkDate: todayAtFarm(), session: now.getHours() < 12 ? 'morning' : 'evening' };
+}
 
 export async function loadMilkSession(
   farmId: string,
