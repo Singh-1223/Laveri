@@ -1,7 +1,7 @@
 import { Link, useFocusEffect } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -36,7 +36,9 @@ export function AppScreen({ title, subtitle, action, scroll = true, children }: 
 
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      {scroll ? <ScrollView contentContainerStyle={styles.scroll}>{content}</ScrollView> : content}
+      <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: 'height' })} style={styles.keyboardAvoiding}>
+        {scroll ? <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={styles.scroll} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled">{content}</ScrollView> : content}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -94,6 +96,7 @@ export function EmptyState({ children }: PropsWithChildren) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
+  keyboardAvoiding: { flex: 1 },
   scroll: { flexGrow: 1 },
   content: { flex: 1, paddingHorizontal: 20, paddingBottom: 28, gap: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, paddingTop: 12 },
