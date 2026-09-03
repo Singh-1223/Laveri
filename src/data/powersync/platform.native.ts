@@ -27,6 +27,8 @@ const UPLOADABLE_TABLES = new Set([
   'animals',
   'animal_labels',
   'animal_label_links',
+  'animal_events',
+  'animal_photos',
   'buyers',
   'buyer_payments',
   'verka_billing_cycles',

@@ -97,6 +97,16 @@ const animalLabelLinks = new Table(
   { ...versioned, indexes: { by_animal: ['animal_id'], by_label: ['label_id'] } },
 );
 
+const animalEvents = new Table(
+  { farm_id: column.text, animal_id: column.text, event_date: column.text, kind: column.text, title: column.text, notes: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_animal_date: ['animal_id', '-event_date'] } },
+);
+
+const animalPhotos = new Table(
+  { farm_id: column.text, animal_id: column.text, storage_path: column.text, file_name: column.text, caption: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_animal: ['animal_id'] } },
+);
+
 const buyers = new Table(
   {
     farm_id: column.text,
@@ -300,6 +310,8 @@ export const appSchema = new Schema({
   animals,
   animal_labels: animalLabels,
   animal_label_links: animalLabelLinks,
+  animal_events: animalEvents,
+  animal_photos: animalPhotos,
   buyers,
   buyer_payments: buyerPayments,
   verka_billing_cycles: verkaBillingCycles,
