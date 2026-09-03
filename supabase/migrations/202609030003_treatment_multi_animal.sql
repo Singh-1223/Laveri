@@ -1,4 +1,10 @@
 begin;
+
+-- The original treatments table predates composite farm-scoped foreign keys.
+-- Add the matching candidate key before linking treatments to multiple animals.
+alter table public.treatments
+  add constraint treatments_id_farm_unique unique (id, farm_id);
+
 create table public.treatment_animals (
   id uuid primary key,
   farm_id uuid not null references public.farms(id),
