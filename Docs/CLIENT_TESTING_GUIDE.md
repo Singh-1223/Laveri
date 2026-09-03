@@ -85,6 +85,10 @@ Choose the effective date from the calendar and save. The price used is stored w
 
 Open the **Milk** tab.
 
+### Milk reminders
+
+From the Milk screen, tap **Configure milk reminders**. Turn on Morning and/or Evening, choose the time, and tap **Save reminders**. Allow notifications when Android asks. These reminders belong to that phone only; completing a milk session moves its reminder to the next day.
+
 1. Check the date at the top. Use `‹` and `›` for the previous/next day, or **Go to today**.
 2. Select **Morning** or **Evening**.
 3. Enter litres for each animal. Leave an animal blank only when no entry should be recorded for that session.

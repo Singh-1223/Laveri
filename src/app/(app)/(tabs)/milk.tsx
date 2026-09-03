@@ -1,4 +1,4 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
@@ -11,6 +11,7 @@ import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calcu
 import { formatFarmDate } from '@/domain/dates';
 import type { MilkSession } from '@/domain/types';
 import { useSession } from '@/features/auth/session-provider';
+import { refreshMilkSessionReminder } from '@/features/reminders/milk-reminders';
 
 function todayAtFarm(): string {
   const now = new Date();
@@ -44,6 +45,7 @@ function parseHundredths(value: string): number | null {
 export default function MilkScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const router = useRouter();
   const { session } = useSession();
   const [milkDate, setMilkDate] = useState(todayAtFarm);
   const [milkSession, setMilkSession] = useState<MilkSession>('morning');
@@ -182,6 +184,10 @@ export default function MilkScreen() {
           ))
           .map((item) => item.allocation.allocationId as string),
       });
+      if (milkDate === todayAtFarm()) {
+        const sessionComplete = parsedEntries.length > 0 && parsedEntries.every((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl));
+        await refreshMilkSessionReminder(milkSession, sessionComplete);
+      }
       if (!automatic) await refresh();
       setMessage(`${milkSession === 'morning' ? 'Morning' : 'Evening'} milk and allocations saved locally${automatic ? ' automatically.' : '.'}`);
     } catch (error) {
@@ -222,6 +228,7 @@ export default function MilkScreen() {
     setMessage(null);
     try {
       await voidMilkSession({ farmId, userId: session.user.id, milkDate, session: milkSession, reason: voidReason });
+      if (milkDate === todayAtFarm()) await refreshMilkSessionReminder(milkSession, false);
       setVoiding(false);
       setVoidReason('');
       await refresh();
@@ -251,6 +258,8 @@ export default function MilkScreen() {
           </Pressable>
         ))}
       </View>
+
+      <Pressable accessibilityLabel="Configure milk reminders" onPress={() => router.push('/reminders')} style={[styles.reminderLink, { borderColor: colors.border }]}><Text style={[styles.reminderText, { color: colors.primary }]}>Configure milk reminders</Text></Pressable>
 
       <SectionCard title={`Animals (${entries.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add a cow in Master data first.</EmptyState> : entries.map((entry) => (
@@ -363,6 +372,8 @@ const styles = StyleSheet.create({
   sessionRow: { flexDirection: 'row', gap: 10 },
   session: { flex: 1, minHeight: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sessionText: { fontSize: 15, fontWeight: '700' },
+  reminderLink: { minHeight: 42, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  reminderText: { fontSize: 14, fontWeight: '800' },
   helper: { fontSize: 13, lineHeight: 19 },
   qualityRow: { flexDirection: 'row', gap: 10 },
   qualityField: { flex: 1, gap: 6 },
