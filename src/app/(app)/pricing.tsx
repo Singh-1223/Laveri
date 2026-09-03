@@ -8,6 +8,7 @@ import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { loadPricingSettings, saveMilkPricingConfig, setMilkPricingMode } from '@/data/repositories/pricing';
 import type { MilkPricingConfigRow, MilkPricingMode } from '@/data/repositories/pricing.types';
 import { formatMoney } from '@/domain/calculations';
+import { formatFarmDate } from '@/domain/dates';
 import { useSession } from '@/features/auth/session-provider';
 
 function todayAtFarm() {
@@ -142,8 +143,8 @@ export default function PricingScreen() {
         {loading ? <ActivityIndicator color={colors.primary} /> : visibleConfigs.length === 0 ? <EmptyState>No configuration saved for this mode.</EmptyState> : visibleConfigs.map((config) => (
           <View key={config.id} style={[styles.history, { borderTopColor: colors.border }]}>
             <View>
-              <Text style={[styles.historyTitle, { color: colors.text }]}>From {config.effectiveFrom}</Text>
-              <Text style={[styles.helper, { color: colors.textSecondary }]}>{config.effectiveTo ? `Until ${config.effectiveTo}` : 'No end date'}</Text>
+              <Text style={[styles.historyTitle, { color: colors.text }]}>From {formatFarmDate(config.effectiveFrom)}</Text>
+              <Text style={[styles.helper, { color: colors.textSecondary }]}>{config.effectiveTo ? `Until ${formatFarmDate(config.effectiveTo)}` : 'No end date'}</Text>
             </View>
             <Text style={[styles.historyValue, { color: colors.text }]}>{pricingLabel(config)}</Text>
           </View>

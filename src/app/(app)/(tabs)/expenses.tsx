@@ -145,7 +145,7 @@ export default function ExpensesScreen() {
     setEditingRow(row);
     setVoidingKey(null);
     setVoidReason('');
-    setMessage(`Editing ${kindLabel(row.kind).toLowerCase()} from ${row.businessDate}. Use the form above.`);
+    setMessage(`Editing ${kindLabel(row.kind).toLowerCase()} from ${formatFarmDate(row.businessDate)}. Use the form above.`);
   };
 
   const save = async () => {
