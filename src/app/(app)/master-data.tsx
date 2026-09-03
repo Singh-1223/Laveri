@@ -6,11 +6,13 @@ import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import {
   createAnimal,
+  createAnimalLabel,
   createBuyer,
   createItem,
   listMasterData,
   reorderMasterRecord,
   setMasterRecordActive,
+  setAnimalLabels,
   updateAnimal,
   updateBuyer,
   updateItem,
@@ -20,7 +22,8 @@ import { useSession } from '@/features/auth/session-provider';
 
 type MasterTab = 'animals' | 'buyers' | 'feed' | 'medicine' | 'product';
 
-const initialSnapshot: MasterDataSnapshot = { animals: [], buyers: [], items: [] };
+const initialSnapshot: MasterDataSnapshot = { animals: [], buyers: [], items: [], animalLabels: [], animalLabelLinks: [] };
+const labelColors = ['#2E7D32', '#1565C0', '#6A1B9A', '#C62828', '#EF6C00'];
 
 function parseRupees(value: string): number | null {
   const normalized = value.trim();
@@ -42,6 +45,9 @@ export default function MasterDataScreen() {
   const [buyerRate, setBuyerRate] = useState('');
   const [animalCategory, setAnimalCategory] = useState<'cow' | 'heifer' | 'calf'>('cow');
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
+  const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState(labelColors[0]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -75,6 +81,9 @@ export default function MasterDataScreen() {
     setBuyerRate('');
     setAnimalCategory('cow');
     setAnimalIsMilking(true);
+    setSelectedLabelIds([]);
+    setNewLabelName('');
+    setNewLabelColor(labelColors[0]);
     setEditingId(null);
   };
 
@@ -86,8 +95,9 @@ export default function MasterDataScreen() {
       const context = { farmId, userId: session.user.id };
       if (tab === 'animals') {
         const input = { ...context, tag: name, category: animalCategory, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary };
+        const animalId = editingId ?? await createAnimal(input);
         if (editingId) await updateAnimal({ ...input, id: editingId });
-        else await createAnimal(input);
+        await setAnimalLabels({ ...context, animalId, labelIds: selectedLabelIds });
       } else if (tab === 'buyers') {
         const defaultRatePaisePerLitre = parseRupees(buyerRate);
         if (Number.isNaN(defaultRatePaisePerLitre)) throw new Error('Use a valid buyer rate with up to two decimal places.');
@@ -117,11 +127,25 @@ export default function MasterDataScreen() {
       setSecondary(row.breed ?? '');
       setAnimalCategory(row.category);
       setAnimalIsMilking(row.is_milking === 1);
+      setSelectedLabelIds(snapshot.animalLabelLinks.filter((link) => link.animal_id === row.id).map((link) => link.label_id));
     } else {
       setName(row.name);
       setSecondary('base_unit' in row ? row.base_unit : row.phone ?? '');
       if (!('base_unit' in row)) setBuyerRate(row.default_rate_paise_per_litre === null ? '' : String(row.default_rate_paise_per_litre / 100));
     }
+  };
+
+  const addCustomLabel = async () => {
+    if (!farmId || !session || !newLabelName.trim()) return;
+    setBusy(true);
+    try {
+      const labelId = await createAnimalLabel({ farmId, userId: session.user.id, name: newLabelName, color: newLabelColor });
+      setSelectedLabelIds((current) => [...current, labelId]);
+      setNewLabelName('');
+      await refresh();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to create the label.');
+    } finally { setBusy(false); }
   };
 
   const toggleActive = async (row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow) => {
@@ -175,6 +199,13 @@ export default function MasterDataScreen() {
             ))}
           </View>
         ) : null}
+        {tab === 'animals' ? <View style={styles.labelBlock}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Custom labels</Text>
+          <View style={styles.choiceRow}>{snapshot.animalLabels.map((label) => <Pressable key={label.id} onPress={() => setSelectedLabelIds((current) => current.includes(label.id) ? current.filter((id) => id !== label.id) : [...current, label.id])} style={[styles.choice, { backgroundColor: selectedLabelIds.includes(label.id) ? label.color : colors.backgroundSelected }]}><Text style={{ color: selectedLabelIds.includes(label.id) ? '#FFFFFF' : colors.text }}>{label.name}</Text></Pressable>)}</View>
+          <TextInput accessibilityLabel="New custom label" onChangeText={setNewLabelName} placeholder="New label, e.g. Pregnant" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={newLabelName} />
+          <View style={styles.choiceRow}>{labelColors.map((color) => <Pressable key={color} onPress={() => setNewLabelColor(color)} style={[styles.colorChoice, { backgroundColor: color, borderColor: newLabelColor === color ? colors.text : color }]} />)}</View>
+          <Pressable disabled={busy || !newLabelName.trim()} onPress={() => void addCustomLabel()} style={[styles.addLabel, { borderColor: colors.primary }, (busy || !newLabelName.trim()) && styles.disabled]}><Text style={[styles.cancelText, { color: colors.primary }]}>Add custom label</Text></Pressable>
+        </View> : null}
         {tab === 'animals' ? (
           <View style={styles.choiceRow}>
             {[true, false].map((value) => (
@@ -267,6 +298,10 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, fontWeight: '700' },
   choiceRow: { flexDirection: 'row', gap: 8 },
   choice: { minHeight: 40, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 14 },
+  labelBlock: { gap: 8 },
+  label: { fontSize: 13, fontWeight: '700' },
+  colorChoice: { width: 30, height: 30, borderRadius: 15, borderWidth: 3 },
+  addLabel: { minHeight: 40, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 16 },
   save: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },

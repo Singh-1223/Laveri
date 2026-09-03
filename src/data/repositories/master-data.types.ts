@@ -27,10 +27,15 @@ export type ItemRow = {
   active: number;
 };
 
+export type AnimalLabelRow = { id: string; name: string; color: string };
+export type AnimalLabelLinkRow = { animal_id: string; label_id: string };
+
 export type MasterDataSnapshot = {
   animals: AnimalRow[];
   buyers: BuyerRow[];
   items: ItemRow[];
+  animalLabels: AnimalLabelRow[];
+  animalLabelLinks: AnimalLabelLinkRow[];
 };
 
 export type AuditContext = {
@@ -74,3 +79,6 @@ export type ReorderMasterRecordInput = AuditContext & {
   kind: 'animal' | 'buyer';
   direction: 'up' | 'down';
 };
+
+export type CreateAnimalLabelInput = AuditContext & { name: string; color: string };
+export type SetAnimalLabelsInput = AuditContext & { animalId: string; labelIds: string[] };

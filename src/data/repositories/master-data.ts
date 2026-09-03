@@ -15,7 +15,15 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
   throw unavailable();
 }
 
-export async function createAnimal(_input: CreateAnimalInput) {
+export async function createAnimal(_input: CreateAnimalInput): Promise<string> {
+  throw unavailable();
+}
+
+export async function createAnimalLabel(_input: import('./master-data.types').CreateAnimalLabelInput): Promise<string> {
+  throw unavailable();
+}
+
+export async function setAnimalLabels(_input: import('./master-data.types').SetAnimalLabelsInput) {
   throw unavailable();
 }
 

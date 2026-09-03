@@ -5,9 +5,11 @@ import { recordCorrection } from '@/data/repositories/corrections.native';
 
 import type {
   CreateAnimalInput,
+  CreateAnimalLabelInput,
   CreateBuyerInput,
   CreateItemInput,
   MasterDataSnapshot,
+  SetAnimalLabelsInput,
   ReorderMasterRecordInput,
   SetMasterRecordActiveInput,
   UpdateAnimalInput,
@@ -22,7 +24,7 @@ function auditValues(context: { farmId: string; userId: string }) {
 
 export async function listMasterData(): Promise<MasterDataSnapshot> {
   const database = await getPowerSyncDatabase();
-  const [animals, buyers, items] = await Promise.all([
+  const [animals, buyers, items, animalLabels, animalLabelLinks] = await Promise.all([
     database.getAll<MasterDataSnapshot['animals'][number]>(
       `SELECT id, tag, category, sex, status, is_milking, breed, display_order
        FROM animals WHERE deleted_at IS NULL ORDER BY display_order, tag COLLATE NOCASE`,
@@ -35,8 +37,10 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
       `SELECT id, type, name, base_unit, default_rate_paise_per_unit, active
        FROM items WHERE deleted_at IS NULL ORDER BY type, active DESC, name COLLATE NOCASE`,
     ),
+    database.getAll<MasterDataSnapshot['animalLabels'][number]>(`SELECT id, name, color FROM animal_labels WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`),
+    database.getAll<MasterDataSnapshot['animalLabelLinks'][number]>(`SELECT animal_id, label_id FROM animal_label_links WHERE deleted_at IS NULL`),
   ]);
-  return { animals, buyers, items };
+  return { animals, buyers, items, animalLabels, animalLabelLinks };
 }
 
 export async function createAnimal(input: CreateAnimalInput) {
@@ -49,6 +53,40 @@ export async function createAnimal(input: CreateAnimalInput) {
     ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animals WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
     [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.farmId, ...audit.slice(2)],
   );
+  return audit[0];
+}
+
+export async function createAnimalLabel(input: CreateAnimalLabelInput) {
+  const database = await getPowerSyncDatabase();
+  const audit = auditValues(input);
+  await database.execute(
+    `INSERT INTO animal_labels (id, farm_id, name, color, created_at, updated_at, created_by, updated_by, deleted_at, version)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], input.name.trim(), input.color, ...audit.slice(2)],
+  );
+  return audit[0];
+}
+
+export async function setAnimalLabels(input: SetAnimalLabelsInput) {
+  const database = await getPowerSyncDatabase();
+  const targetIds = [...new Set(input.labelIds)];
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    const existing = await transaction.getAll<{ id: string; label_id: string }>(
+      `SELECT id, label_id FROM animal_label_links WHERE farm_id = ? AND animal_id = ? AND deleted_at IS NULL`,
+      [input.farmId, input.animalId],
+    );
+    for (const link of existing.filter((link) => !targetIds.includes(link.label_id))) {
+      await transaction.execute(`UPDATE animal_label_links SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ?`, [now, now, input.userId, link.id]);
+    }
+    for (const labelId of targetIds.filter((labelId) => !existing.some((link) => link.label_id === labelId))) {
+      await transaction.execute(
+        `INSERT INTO animal_label_links (id, farm_id, animal_id, label_id, created_at, updated_at, created_by, updated_by, deleted_at, version)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
+        [Crypto.randomUUID(), input.farmId, input.animalId, labelId, now, now, input.userId, input.userId],
+      );
+    }
+  });
 }
 
 export async function createBuyer(input: CreateBuyerInput) {
