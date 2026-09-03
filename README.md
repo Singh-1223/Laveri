@@ -129,6 +129,8 @@ Restart Metro after changing `.env`. A release build must be rebuilt to include 
 
 Share [Docs/CLIENT_TESTING_GUIDE.md](Docs/CLIENT_TESTING_GUIDE.md) with the client for a plain-language walkthrough of every app screen and the complete acceptance checklist. Use [Docs/RELEASE_AND_PILOT_TESTING.md](Docs/RELEASE_AND_PILOT_TESTING.md) to create and share an EAS-signed APK and run the family pilot checklist. Use [Docs/TESTING.md](Docs/TESTING.md) for the full technical Mode 02, second-device, correction, CSV-export, and conflict checks.
 
+Track client-requested changes in [Docs/CLIENT_CORRECTIONS_TRACKER.md](Docs/CLIENT_CORRECTIONS_TRACKER.md). It records each correction, its implementation status, dependencies, and decisions required before development.
+
 ## Guide for later updates
 
 Use the smallest applicable checklist. Never modify an already-applied migration to alter a deployed database; create a new migration instead.
