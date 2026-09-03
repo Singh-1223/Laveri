@@ -1,4 +1,4 @@
-export type CorrectionAction = 'update' | 'deactivate' | 'reactivate' | 'void';
+export type CorrectionAction = 'update' | 'deactivate' | 'reactivate' | 'void' | 'reorder';
 
 export type CorrectionEntity =
   | 'farm_settings'

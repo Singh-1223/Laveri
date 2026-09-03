@@ -9,6 +9,7 @@ import {
   createBuyer,
   createItem,
   listMasterData,
+  reorderMasterRecord,
   setMasterRecordActive,
   updateAnimal,
   updateBuyer,
@@ -140,6 +141,20 @@ export default function MasterDataScreen() {
     }
   };
 
+  const reorder = async (row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number], direction: 'up' | 'down') => {
+    if (!farmId || !session) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await reorderMasterRecord({ farmId, userId: session.user.id, id: row.id, kind: 'tag' in row ? 'animal' : 'buyer', direction });
+      await refresh();
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : 'Unable to change the display order.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <AppScreen title="Master data" subtitle="Saved locally first and synchronized when online">
       <View style={styles.tabs}>
@@ -204,14 +219,14 @@ export default function MasterDataScreen() {
 
       <SectionCard title={`${tabLabel(tab)} (${rows.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : rows.length === 0 ? <EmptyState>No {tabLabel(tab).toLowerCase()} added yet.</EmptyState> : rows.map((row) => (
-          <MasterRow key={row.id} row={row} busy={busy} onEdit={() => startEdit(row)} onToggle={() => void toggleActive(row)} />
+          <MasterRow key={row.id} row={row} busy={busy} onEdit={() => startEdit(row)} onToggle={() => void toggleActive(row)} onReorder={'base_unit' in row ? undefined : (direction) => void reorder(row, direction)} />
         ))}
       </SectionCard>
     </AppScreen>
   );
 }
 
-function MasterRow({ row, busy, onEdit, onToggle }: { row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow; busy: boolean; onEdit: () => void; onToggle: () => void }) {
+function MasterRow({ row, busy, onEdit, onToggle, onReorder }: { row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow; busy: boolean; onEdit: () => void; onToggle: () => void; onReorder?: (direction: 'up' | 'down') => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const name = 'tag' in row ? row.tag : row.name;
@@ -222,6 +237,7 @@ function MasterRow({ row, busy, onEdit, onToggle }: { row: MasterDataSnapshot['a
       <Text style={[styles.rowName, { color: colors.text }]}>{name}</Text>
       <Text style={[styles.rowDetail, { color: colors.textSecondary }]}>{detail}</Text>
       <View style={styles.rowActions}>
+        {onReorder ? <><Pressable disabled={busy} onPress={() => onReorder('up')} style={[styles.rowAction, { borderColor: colors.border }]}><Text style={[styles.rowActionText, { color: colors.textSecondary }]}>Move up</Text></Pressable><Pressable disabled={busy} onPress={() => onReorder('down')} style={[styles.rowAction, { borderColor: colors.border }]}><Text style={[styles.rowActionText, { color: colors.textSecondary }]}>Move down</Text></Pressable></> : null}
         <Pressable disabled={busy} onPress={onEdit} style={[styles.rowAction, { borderColor: colors.primary }]}><Text style={[styles.rowActionText, { color: colors.primary }]}>Edit</Text></Pressable>
         <Pressable disabled={busy} onPress={onToggle} style={[styles.rowAction, { borderColor: active ? colors.danger : colors.primary }]}><Text style={[styles.rowActionText, { color: active ? colors.danger : colors.primary }]}>{active ? 'Deactivate' : 'Reactivate'}</Text></Pressable>
       </View>

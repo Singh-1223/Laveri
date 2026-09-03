@@ -6,6 +6,7 @@ export type AnimalRow = {
   status: 'active' | 'inactive' | 'sold' | 'deceased';
   is_milking: number;
   breed: string | null;
+  display_order: number;
 };
 
 export type BuyerRow = {
@@ -14,6 +15,7 @@ export type BuyerRow = {
   phone: string | null;
   default_rate_paise_per_litre: number | null;
   active: number;
+  display_order: number;
 };
 
 export type ItemRow = {
@@ -65,4 +67,10 @@ export type SetMasterRecordActiveInput = AuditContext & {
   id: string;
   kind: 'animal' | 'buyer' | 'item';
   active: boolean;
+};
+
+export type ReorderMasterRecordInput = AuditContext & {
+  id: string;
+  kind: 'animal' | 'buyer';
+  direction: 'up' | 'down';
 };

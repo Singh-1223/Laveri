@@ -8,6 +8,7 @@ import type {
   CreateBuyerInput,
   CreateItemInput,
   MasterDataSnapshot,
+  ReorderMasterRecordInput,
   SetMasterRecordActiveInput,
   UpdateAnimalInput,
   UpdateBuyerInput,
@@ -23,12 +24,12 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
   const database = await getPowerSyncDatabase();
   const [animals, buyers, items] = await Promise.all([
     database.getAll<MasterDataSnapshot['animals'][number]>(
-      `SELECT id, tag, category, sex, status, is_milking, breed
-       FROM animals WHERE deleted_at IS NULL ORDER BY status, tag COLLATE NOCASE`,
+      `SELECT id, tag, category, sex, status, is_milking, breed, display_order
+       FROM animals WHERE deleted_at IS NULL ORDER BY display_order, tag COLLATE NOCASE`,
     ),
     database.getAll<MasterDataSnapshot['buyers'][number]>(
-      `SELECT id, name, phone, default_rate_paise_per_litre, active
-       FROM buyers WHERE deleted_at IS NULL ORDER BY active DESC, name COLLATE NOCASE`,
+      `SELECT id, name, phone, default_rate_paise_per_litre, active, display_order
+       FROM buyers WHERE deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`,
     ),
     database.getAll<MasterDataSnapshot['items'][number]>(
       `SELECT id, type, name, base_unit, default_rate_paise_per_unit, active
@@ -43,10 +44,10 @@ export async function createAnimal(input: CreateAnimalInput) {
   const audit = auditValues(input);
   await database.execute(
     `INSERT INTO animals (
-      id, farm_id, tag, category, sex, status, is_milking, breed,
+      id, farm_id, tag, category, sex, status, is_milking, breed, display_order,
       created_at, updated_at, created_by, updated_by, deleted_at, version
-    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, ...audit.slice(2)],
+    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animals WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.farmId, ...audit.slice(2)],
   );
 }
 
@@ -55,10 +56,10 @@ export async function createBuyer(input: CreateBuyerInput) {
   const audit = auditValues(input);
   await database.execute(
     `INSERT INTO buyers (
-      id, farm_id, name, phone, default_rate_paise_per_litre, active, notes,
+      id, farm_id, name, phone, default_rate_paise_per_litre, active, notes, display_order,
       created_at, updated_at, created_by, updated_by, deleted_at, version
-    ) VALUES (?, ?, ?, ?, ?, 1, NULL, ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], input.name.trim(), input.phone?.trim() || null, input.defaultRatePaisePerLitre ?? null, ...audit.slice(2)],
+    ) VALUES (?, ?, ?, ?, ?, 1, NULL, (SELECT coalesce(max(display_order), 0) + 1 FROM buyers WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], input.name.trim(), input.phone?.trim() || null, input.defaultRatePaisePerLitre ?? null, input.farmId, ...audit.slice(2)],
   );
 }
 
@@ -158,5 +159,40 @@ export async function setMasterRecordActive(input: SetMasterRecordActiveInput) {
     );
     const after = await transaction.get<Record<string, unknown>>(`SELECT * FROM ${table} WHERE id = ?`, [input.id]);
     await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: table, recordId: input.id, action: input.active ? 'reactivate' : 'deactivate', before, after });
+  });
+}
+
+export async function reorderMasterRecord(input: ReorderMasterRecordInput) {
+  const database = await getPowerSyncDatabase();
+  const table = input.kind === 'animal' ? 'animals' : 'buyers';
+  const nameColumn = input.kind === 'animal' ? 'tag' : 'name';
+  await database.writeTransaction(async (transaction) => {
+    const rows = await transaction.getAll<{ id: string; display_order: number }>(
+      `SELECT id, display_order FROM ${table}
+       WHERE farm_id = ? AND deleted_at IS NULL
+       ORDER BY display_order, ${nameColumn} COLLATE NOCASE`,
+      [input.farmId],
+    );
+    const index = rows.findIndex((row) => row.id === input.id);
+    const swapIndex = input.direction === 'up' ? index - 1 : index + 1;
+    if (index < 0 || swapIndex < 0 || swapIndex >= rows.length) return;
+
+    const current = rows[index];
+    const adjacent = rows[swapIndex];
+    const before = { current, adjacent };
+    const now = new Date().toISOString();
+    await transaction.execute(
+      `UPDATE ${table} SET display_order = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND farm_id = ?`,
+      [adjacent.display_order, now, input.userId, current.id, input.farmId],
+    );
+    await transaction.execute(
+      `UPDATE ${table} SET display_order = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND farm_id = ?`,
+      [current.display_order, now, input.userId, adjacent.id, input.farmId],
+    );
+    const after = await transaction.getAll<Record<string, unknown>>(
+      `SELECT id, display_order FROM ${table} WHERE id IN (?, ?) ORDER BY display_order`,
+      [current.id, adjacent.id],
+    );
+    await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: table, recordId: current.id, action: 'reorder', before, after });
   });
 }

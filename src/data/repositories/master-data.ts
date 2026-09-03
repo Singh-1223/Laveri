@@ -42,3 +42,7 @@ export async function updateItem(_input: UpdateItemInput) {
 export async function setMasterRecordActive(_input: SetMasterRecordActiveInput) {
   throw unavailable();
 }
+
+export async function reorderMasterRecord(_input: import('./master-data.types').ReorderMasterRecordInput) {
+  throw unavailable();
+}

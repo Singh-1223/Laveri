@@ -11,7 +11,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 5 implemented awaiting retest, 2 partial, 11 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 6 implemented awaiting retest, 2 partial, 10 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -28,7 +28,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 | ID | Status | Client request | Current state / scope |
 |---|---|---|---|
 | C-01 | [ ] Open | Keep the currently edited input visible above the keyboard on all screens. | Add keyboard-aware layout and scroll-to-focused-input behaviour to entry forms. |
-| C-02 | [ ] Open | Allow the user to choose the order of cows and buyers in Milk entry. | Add a stored display-order field plus up/down or drag reordering in Master data. |
+| C-02 | [>] Implemented | Allow the user to choose the order of cows and buyers in Milk entry. | Master data now provides Move up/Move down for Animals and Buyers. The persisted order is used by Milk entry. Migration `202609030001_master_display_order.sql` must be pushed to Supabase before building/testing this change. Awaiting client retest. |
 | C-03 | [>] Implemented | Remove the remaining-milk field and automatically put remaining milk into Household consumption. | Buyer allocations are the only editable allocations. The repository calculates, displays, and saves Household consumption as produced minus buyer litres; it also removes a former Household allocation when the calculated value becomes zero. Awaiting client retest. |
 | C-04 | [–] Not applicable | Remove Product categories Operating and Investment. | **Clarified:** this is not a required change. Product, Feed, Medicine, and Treatment are all production costs; do not add Investment handling or an inference rule. |
 | C-05 | [ ] Open | Display dates as `DD-MM-YY`. | Store ISO dates internally for safe calculations/sync, but display `DD-MM-YY` consistently in the app and reports. |
