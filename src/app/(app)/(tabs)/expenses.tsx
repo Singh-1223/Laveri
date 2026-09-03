@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
+import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { createItem, listMasterData } from '@/data/repositories/master-data';
@@ -243,7 +244,7 @@ export default function ExpensesScreen() {
       </View>
 
       <SectionCard title={`${editingRow ? 'Edit' : 'Add'} ${kindLabel(kind).toLowerCase()}`}>
-        <TextInput accessibilityLabel="Operation date" onChangeText={setBusinessDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={businessDate} />
+        <DateField label="Operation date" onChange={setBusinessDate} value={businessDate} />
 
         {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind === 'treatment' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Animals treated</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Select all</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}

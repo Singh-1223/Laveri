@@ -79,7 +79,7 @@ Choose one pricing mode:
 - **Flat rate:** one price per litre, for example ₹50/L.
 - **FAT + SNF quality rate:** enter CMFAT and CMSNF values. On every milk session, enter FAT% and SNF%; the app calculates the rate automatically.
 
-Enter the effective date and save. The price used is stored with each milk record, so later price changes do not alter old records.
+Choose the effective date from the calendar and save. The price used is stored with each milk record, so later price changes do not alter old records.
 
 ## 4. Daily use: Milk entry
 
@@ -107,11 +107,11 @@ Open the **Expenses** tab (its screen heading is **Farm operations**) and choose
 
 ### Feed
 
-Use for feed purchased or used for an animal. Select the date, animal, feed item, quantity, rate, and optional comment. The app calculates the total.
+Use for feed purchased or used for the farm. Select the date from the calendar, feed item, quantity, rate, and optional comment. The app calculates the total.
 
 ### Treatment
 
-Use for doctor/veterinary visits and medicine costs. Select the animal, optional medicine, doctor fee, medicine cost, date, and comment. The total includes doctor fee plus medicine cost.
+Use for doctor/veterinary visits and medicine costs. Select one or more animals, optional medicine, doctor fee, medicine cost, date from the calendar, and comment. The total includes doctor fee plus medicine cost.
 
 ### Product
 
@@ -122,7 +122,7 @@ Use for other farm spending. Select the product, quantity, rate, and whether it 
 
 ### Heat
 
-Use to record that an animal was observed in heat. Select the animal, date, and observed signs/note.
+Use to record that an animal was observed in heat. Select the animal, date from the calendar, and observed signs/note.
 
 Every operation can be edited later. If it should not count, use **Void record** with a reason rather than deleting it.
 
@@ -151,7 +151,7 @@ Use this screen to open Master data, milk pricing, correction history, or Sync s
 
 Open the **Reports** tab.
 
-1. Enter a **From date** and **To date**.
+1. Choose a **From date** and **To date** from the calendars.
 2. Tap **Refresh report**.
 3. Review production, revenue, operating cost, profit, household milk, and investment.
 4. Review milk source entries, buyer sales, cost breakdown, and animal productivity.

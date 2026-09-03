@@ -1,9 +1,10 @@
 import { useFocusEffect } from 'expo-router';
 import { Directory } from 'expo-file-system';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
+import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { getPeriodReport } from '@/data/repositories/reports';
@@ -82,8 +83,8 @@ export default function ReportsScreen() {
     <AppScreen title="Reports" subtitle="Calculated locally from source transactions">
       <SectionCard title="Date range">
         <View style={styles.dateRow}>
-          <TextInput accessibilityLabel="From date" onChangeText={setFromDate} placeholder="From YYYY-MM-DD" placeholderTextColor={colors.textSecondary} style={[styles.dateInput, { color: colors.text, borderColor: colors.border }]} value={fromDate} />
-          <TextInput accessibilityLabel="To date" onChangeText={setToDate} placeholder="To YYYY-MM-DD" placeholderTextColor={colors.textSecondary} style={[styles.dateInput, { color: colors.text, borderColor: colors.border }]} value={toDate} />
+          <View style={styles.dateInput}><DateField label="From date" onChange={setFromDate} value={fromDate} /></View>
+          <View style={styles.dateInput}><DateField label="To date" onChange={setToDate} value={toDate} /></View>
         </View>
         <Pressable onPress={refresh} style={({ pressed }) => [styles.refresh, { backgroundColor: colors.primary }, pressed && styles.pressed]}><Text style={styles.refreshText}>Refresh report</Text></Pressable>
       </SectionCard>
@@ -238,7 +239,7 @@ function ReportLine({ label, value, danger = false }: { label: string; value: st
 
 const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', gap: 10 },
-  dateInput: { flex: 1, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, fontSize: 14 },
+  dateInput: { flex: 1 },
   refresh: { minHeight: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   refreshText: { color: '#FFFFFF', fontWeight: '700' },
   pressed: { opacity: 0.75 },

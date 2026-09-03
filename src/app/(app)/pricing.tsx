@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
+import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { loadPricingSettings, saveMilkPricingConfig, setMilkPricingMode } from '@/data/repositories/pricing';
@@ -123,7 +124,7 @@ export default function PricingScreen() {
       </SectionCard>
 
       <SectionCard title={mode === 'flat' ? 'Flat-rate configuration' : 'Quality configuration'}>
-        <Field label="Effective from" value={effectiveFrom} onChangeText={setEffectiveFrom} placeholder="YYYY-MM-DD" invalid={!validDate} />
+        <DateField label="Effective from" onChange={setEffectiveFrom} value={effectiveFrom} />
         {mode === 'flat' ? (
           <Field label="Rate per litre (₹)" value={flatRate} onChangeText={setFlatRate} placeholder="Example: 42.50" invalid={flatRate.length > 0 && flatRatePaise === null} numeric />
         ) : (
