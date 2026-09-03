@@ -11,7 +11,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 10 implemented awaiting retest, 1 partial, 7 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 10 implemented awaiting retest, 2 partial, 6 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -58,7 +58,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 | ID | Status | Client request | Current state / scope |
 |---|---|---|
 | C-13 | [~] Partial | Make animal categories editable; allow more than one category per animal; add coloured category tags. | **Approved:** labels are user-created custom labels. Current categories are one fixed value: Cow, Heifer, or Calf. The selected type remains visible correctly, but editable/multiple labels and colours are not implemented. Requires tags/categories data model and UI. |
-| C-14 | [ ] Open | Simplify Herd: keep All, remove the redundant Cows tab, and show category tags/colours next to every animal. | Update Herd filters and implement the tag display after C-13. |
+| C-14 | [~] Partial | Simplify Herd: keep All, remove the redundant Cows tab, and show category tags/colours next to every animal. | Herd now opens as one All-animals list without the redundant category filter. Coloured custom-label display will be completed with C-13. |
 | C-15 | [>] Implemented | Suggest previously entered Heat observed signs. | Non-voided Heat notes are loaded from local history and shown as one-tap suggestions in the Heat form. Awaiting client retest. |
 | C-16 | [ ] Open | Give every animal a detailed history/profile: birth, purchase, lactation, calving, heat, treatment, all relevant expense events, custom events, and photos. | Major animal-profile module. Requires new lifecycle/event tables, animal-event timeline, photo storage, new profile screen, and links from treatment/heat/expenses. |
 

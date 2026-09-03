@@ -7,13 +7,10 @@ import { Colors } from '@/constants/theme';
 import { listMasterData } from '@/data/repositories/master-data';
 import type { AnimalRow } from '@/data/repositories/master-data.types';
 
-type HerdFilter = 'all' | AnimalRow['category'];
-
 export default function HerdScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [animals, setAnimals] = useState<AnimalRow[]>([]);
-  const [filter, setFilter] = useState<HerdFilter>('all');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,20 +36,12 @@ export default function HerdScreen() {
 
   const visible = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
-    return animals.filter((animal) => (filter === 'all' || animal.category === filter) && (!query || animal.tag.toLocaleLowerCase().includes(query) || animal.breed?.toLocaleLowerCase().includes(query)));
-  }, [animals, filter, search]);
+    return animals.filter((animal) => !query || animal.tag.toLocaleLowerCase().includes(query) || animal.breed?.toLocaleLowerCase().includes(query));
+  }, [animals, search]);
 
   return (
     <AppScreen title="Herd" subtitle={`${animals.filter((animal) => animal.status === 'active').length} active animals`}>
       <TextInput accessibilityLabel="Search herd" onChangeText={setSearch} placeholder="Search tag or breed" placeholderTextColor={colors.textSecondary} style={[styles.search, { color: colors.text, borderColor: colors.border }]} value={search} />
-      <View style={styles.filters}>
-        {(['all', 'cow', 'heifer', 'calf'] as const).map((value) => (
-          <Pressable key={value} onPress={() => setFilter(value)} style={[styles.filter, { backgroundColor: filter === value ? colors.primary : colors.backgroundSelected }]}>
-            <Text style={{ color: filter === value ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{value === 'all' ? 'All' : `${value.charAt(0).toUpperCase()}${value.slice(1)}s`}</Text>
-          </Pressable>
-        ))}
-      </View>
-
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       <SectionCard title={`Animals (${visible.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : visible.length === 0 ? <EmptyState>No animals match this filter.</EmptyState> : visible.map((animal) => (
@@ -75,8 +64,6 @@ export default function HerdScreen() {
 
 const styles = StyleSheet.create({
   search: { minHeight: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 15 },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  filter: { minHeight: 40, borderRadius: 20, justifyContent: 'center', paddingHorizontal: 14 },
   error: { fontSize: 14, lineHeight: 20 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
   avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
