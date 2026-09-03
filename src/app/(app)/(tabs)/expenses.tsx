@@ -50,11 +50,13 @@ export default function ExpensesScreen() {
   const [historySearch, setHistorySearch] = useState('');
   const [businessDate, setBusinessDate] = useState(todayAtFarm);
   const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
+  const [selectedTreatmentAnimalIds, setSelectedTreatmentAnimalIds] = useState<string[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [rate, setRate] = useState('');
   const [doctorFee, setDoctorFee] = useState('');
   const [medicineCost, setMedicineCost] = useState('');
+  const [doseQuantity, setDoseQuantity] = useState('');
   const [notes, setNotes] = useState('');
   const [quickItemName, setQuickItemName] = useState('');
   const [quickItemUnit, setQuickItemUnit] = useState('');
@@ -96,6 +98,7 @@ export default function ExpensesScreen() {
   const ratePaise = parseDecimal(rate, 100);
   const doctorFeePaise = doctorFee.trim() ? parseDecimal(doctorFee, 100) : 0;
   const medicineCostPaise = medicineCost.trim() ? parseDecimal(medicineCost, 100) : 0;
+  const doseMilliUnits = doseQuantity.trim() ? parseDecimal(doseQuantity, 1_000) : null;
   const visibleHistory = useMemo(() => {
     const query = historySearch.trim().toLocaleLowerCase();
     return history.filter((row) => {
@@ -113,11 +116,13 @@ export default function ExpensesScreen() {
 
   const clearForm = () => {
     setSelectedAnimalId(null);
+    setSelectedTreatmentAnimalIds([]);
     setSelectedItemId(null);
     setQuantity('');
     setRate('');
     setDoctorFee('');
     setMedicineCost('');
+    setDoseQuantity('');
     setNotes('');
     setQuickItemName('');
     setQuickItemUnit('');
@@ -155,9 +160,9 @@ export default function ExpensesScreen() {
         if (editingRow) await updateFeedTransaction({ ...input, id: editingRow.id });
         else await createFeedTransaction(input);
       } else if (kind === 'treatment') {
-        if (!selectedAnimal || !Number.isSafeInteger(doctorFeePaise) || !Number.isSafeInteger(medicineCostPaise)) throw new Error('Select an animal and enter valid treatment costs.');
-        if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedAnimal.id, medicineItemId: selectedItem?.id ?? null, doctorFeePaise, medicineCostPaise });
-        else await createTreatment({ ...context, animalIds: [selectedAnimal.id], medicineItemId: selectedItem?.id ?? null, doseMilliUnits: null, doseUnit: null, doctorFeePaise, medicineCostPaise });
+        if (selectedTreatmentAnimalIds.length === 0 || !Number.isSafeInteger(doctorFeePaise) || !Number.isSafeInteger(medicineCostPaise) || (doseMilliUnits !== null && !Number.isSafeInteger(doseMilliUnits))) throw new Error('Select at least one animal and enter valid treatment values.');
+        if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedTreatmentAnimalIds[0], medicineItemId: selectedItem?.id ?? null, doctorFeePaise, medicineCostPaise });
+        else await createTreatment({ ...context, animalIds: selectedTreatmentAnimalIds, medicineItemId: selectedItem?.id ?? null, doseMilliUnits, doseUnit: doseMilliUnits === null ? null : selectedItem?.base_unit ?? 'unit', doctorFeePaise, medicineCostPaise });
       } else if (kind === 'product') {
         if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a product, then enter quantity and rate.');
         const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
@@ -182,16 +187,16 @@ export default function ExpensesScreen() {
   };
 
   const createQuickItem = async () => {
-    if (!farmId || !session || (kind !== 'feed' && kind !== 'product') || !quickItemName.trim()) return;
+    if (!farmId || !session || (kind !== 'feed' && kind !== 'product' && kind !== 'treatment') || !quickItemName.trim()) return;
     setBusy(true);
     setMessage(null);
     try {
       await createItem({
         farmId,
         userId: session.user.id,
-        type: kind,
+        type: kind === 'treatment' ? 'medicine' : kind,
         name: quickItemName,
-        baseUnit: quickItemUnit.trim() || (kind === 'feed' ? 'kg' : 'unit'),
+        baseUnit: quickItemUnit.trim() || (kind === 'feed' ? 'kg' : kind === 'treatment' ? 'ml' : 'unit'),
       });
       setQuickItemName('');
       setQuickItemUnit('');
@@ -240,9 +245,10 @@ export default function ExpensesScreen() {
       <SectionCard title={`${editingRow ? 'Edit' : 'Add'} ${kindLabel(kind).toLowerCase()}`}>
         <TextInput accessibilityLabel="Operation date" onChangeText={setBusinessDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={businessDate} />
 
-        {kind === 'treatment' || kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
+        {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
+        {kind === 'treatment' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Animals treated</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Select all</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
         {kind !== 'heat' ? <ChoiceList label={neededItemType} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={setSelectedItemId} /> : null}
-        {kind === 'feed' || kind === 'product' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
+        {kind === 'feed' || kind === 'product' || kind === 'treatment' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
           <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>New {kindLabel(kind).toLowerCase()} item</Text>
           <View style={styles.numericRow}>
             <TextInput accessibilityLabel={`New ${kind} item name`} onChangeText={setQuickItemName} placeholder="Item name" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemName} />
@@ -260,6 +266,7 @@ export default function ExpensesScreen() {
 
         {kind === 'treatment' ? (
           <View style={styles.numericRow}>
+            <TextInput accessibilityLabel="Medicine quantity" keyboardType="decimal-pad" onChangeText={setDoseQuantity} placeholder={`Quantity (${selectedItem?.base_unit ?? 'unit'})`} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={doseQuantity} />
             <TextInput accessibilityLabel="Doctor fee" keyboardType="decimal-pad" onChangeText={setDoctorFee} placeholder="Doctor fee ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={doctorFee} />
             <TextInput accessibilityLabel="Medicine cost" keyboardType="decimal-pad" onChangeText={setMedicineCost} placeholder="Medicine ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={medicineCost} />
           </View>

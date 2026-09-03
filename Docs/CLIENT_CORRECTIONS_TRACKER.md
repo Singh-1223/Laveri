@@ -11,7 +11,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 12 implemented awaiting retest, 1 partial, 5 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 13 implemented awaiting retest, 0 partial, 5 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -51,7 +51,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 | ID | Status | Client request | Current state / scope |
 |---|---|---|
 | C-11 | [>] Implemented | Feed/Product entry should be common to all animals; do not require an animal. Enter name, quantity, unit, price/unit, visible comment. Allow new items directly in Expenses and save them for future suggestions. | Feed and Product are farm-wide, without an animal choice. The form can create new Feed/Product items directly, saved items are available as reusable choices, and comments display in recent activity. Awaiting client retest. |
-| C-12 | [~] Partial | Treatment should allow multiple animals and Select all. Enter medicine name, quantity/unit, units, and price/unit; allow quick-create medicine and prior-item suggestions. | Shared-treatment storage is implemented: one treatment record can link to multiple animals without duplicating medicine cost in reports. Remaining: the multi-select/Select all form, quantity/price fields, and quick medicine creation UI. |
+| C-12 | [>] Implemented | Treatment should allow multiple animals and Select all. Enter medicine name, quantity/unit, units, and price/unit; allow quick-create medicine and prior-item suggestions. | One treatment record links multiple selected animals, including Select all. Quantity/unit and shared cost are stored once; medicine items can be created directly in the form and retained as reusable choices. Awaiting client retest. |
 
 ## Phase 4 - Animal organization and history
 
