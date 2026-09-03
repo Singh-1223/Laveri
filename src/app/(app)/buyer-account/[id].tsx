@@ -1,0 +1,22 @@
+import { useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, Text, TextInput, View, useColorScheme } from 'react-native';
+import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
+import { Colors } from '@/constants/theme';
+import { getPowerSyncSnapshot } from '@/data/powersync/platform';
+import { createBuyerPayment, loadBuyerAccount } from '@/data/repositories/buyer-account';
+import type { BuyerAccountSnapshot } from '@/data/repositories/buyer-account.types';
+import { formatMilk, formatMoney } from '@/domain/calculations';
+import { formatFarmDate } from '@/domain/dates';
+import { useSession } from '@/features/auth/session-provider';
+
+const today = () => new Date().toISOString().slice(0, 10);
+export default function BuyerAccountScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>(); const { session } = useSession(); const scheme = useColorScheme(); const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const [account, setAccount] = useState<BuyerAccountSnapshot | null>(null); const [farmId, setFarmId] = useState<string | null>(null); const [amount, setAmount] = useState(''); const [date, setDate] = useState(today); const [mode, setMode] = useState<'cash'|'online'|'other'>('cash'); const [busy, setBusy] = useState(false);
+  const refresh = useCallback(async () => { const sync = await getPowerSyncSnapshot(); setFarmId(sync.farmId); if (sync.farmId && id) setAccount(await loadBuyerAccount(sync.farmId, id)); }, [id]);
+  useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
+  const totals = useMemo(() => ({ sales: account?.sales.reduce((sum, row) => sum + row.amountPaise, 0) ?? 0, paid: account?.payments.reduce((sum, row) => sum + row.amountPaise, 0) ?? 0 }), [account]);
+  const save = async () => { const paise = Math.round(Number(amount) * 100); if (!farmId || !session || !id || !Number.isSafeInteger(paise) || paise <= 0) return; setBusy(true); try { await createBuyerPayment({ farmId, userId: session.user.id, buyerId: id, paymentDate: date, amountPaise: paise, mode }); setAmount(''); await refresh(); } finally { setBusy(false); } };
+  return <AppScreen title={account?.buyer.name ?? 'Buyer account'} subtitle="Milk sales, payments, and pending balance"><SectionCard title="Account summary"><Text style={{ color: colors.text }}>Rate: {account?.buyer.defaultRatePaisePerLitre === null ? 'Not set' : `${formatMoney(account?.buyer.defaultRatePaisePerLitre ?? 0)}/L`}</Text><Text style={{ color: colors.text }}>Pending: {formatMoney(totals.sales - totals.paid)}</Text></SectionCard><SectionCard title="Record payment"><TextInput value={amount} onChangeText={setAmount} keyboardType="decimal-pad" placeholder="Amount ₹" placeholderTextColor={colors.textSecondary} style={{ borderWidth: 1, borderColor: colors.border, color: colors.text, borderRadius: 10, padding: 12 }}/><TextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" placeholderTextColor={colors.textSecondary} style={{ borderWidth: 1, borderColor: colors.border, color: colors.text, borderRadius: 10, padding: 12 }}/><View style={{ flexDirection: 'row', gap: 8 }}>{(['cash','online','other'] as const).map((value) => <Pressable key={value} onPress={() => setMode(value)} style={{ padding: 10, borderRadius: 10, backgroundColor: mode === value ? colors.primary : colors.backgroundSelected }}><Text style={{ color: mode === value ? '#fff' : colors.text }}>{value}</Text></Pressable>)}</View><Pressable disabled={busy || !amount} onPress={() => void save()} style={{ padding: 14, borderRadius: 10, backgroundColor: colors.primary }}><Text style={{ color: '#fff', textAlign: 'center' }}>{busy ? 'Saving…' : 'Add payment'}</Text></Pressable></SectionCard><SectionCard title="Recent milk"><>{account?.sales.length ? account.sales.slice(0, 20).map((row) => <Text key={row.id} style={{ color: colors.text }}>{formatFarmDate(row.milkDate)} · {row.session} · {formatMilk(row.volumeMl)} · {formatMoney(row.amountPaise)}</Text>) : <EmptyState>No milk sales yet.</EmptyState>}</></SectionCard><SectionCard title="Payments"><>{account?.payments.length ? account.payments.map((row) => <Text key={row.id} style={{ color: colors.text }}>{formatFarmDate(row.paymentDate)} · {formatMoney(row.amountPaise)} · {row.mode}</Text>) : <EmptyState>No payments yet.</EmptyState>}</></SectionCard></AppScreen>;
+}
