@@ -50,15 +50,16 @@ export type SaveMilkSessionInput = {
   flatRatePaisePerLitre: number | null;
   fatHundredths: number | null;
   snfHundredths: number | null;
-  cmFatPaise: number | null;
-  cmSnfPaise: number | null;
-  ratePaisePerLitre: number;
+  cmFatPaise: null;
+  cmSnfPaise: null;
+  ratePaisePerLitre: 0;
   entries: SaveMilkEntry[];
   allocations: {
     allocationId: string | null;
     destination: 'buyer' | 'household';
     buyerId: string | null;
     volumeMl: number;
+    ratePaisePerLitre: number;
   }[];
   clearedAnimalIds: string[];
   deletedAllocationIds: string[];

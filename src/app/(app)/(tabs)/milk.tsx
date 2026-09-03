@@ -1,4 +1,4 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
@@ -7,7 +7,7 @@ import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { loadMilkSession, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
 import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
-import { calculateQualityRatePaise, formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
+import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
 import type { MilkSession } from '@/domain/types';
 import { useSession } from '@/features/auth/session-provider';
@@ -52,12 +52,8 @@ export default function MilkScreen() {
   const [allocations, setAllocations] = useState<MilkAllocationEntry[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [allocationValues, setAllocationValues] = useState<Record<string, string>>({});
-  const [pricingMode, setPricingMode] = useState<'flat' | 'quality'>('flat');
-  const [rate, setRate] = useState('');
   const [fat, setFat] = useState('');
   const [snf, setSnf] = useState('');
-  const [cmFatPaise, setCmFatPaise] = useState<number | null>(null);
-  const [cmSnfPaise, setCmSnfPaise] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -85,16 +81,9 @@ export default function MilkScreen() {
       setAllocations(snapshot.allocations);
       setValues(Object.fromEntries(snapshot.entries.map((entry) => [entry.animalId, entry.volumeMl === null ? '' : String(entry.volumeMl / 1_000)])));
       setAllocationValues(Object.fromEntries(snapshot.allocations.map((allocation) => [allocation.key, allocation.volumeMl === null ? '' : String(allocation.volumeMl / 1_000)])));
-      setPricingMode(snapshot.pricingMode);
       const existingPricing = snapshot.entries.find((entry) => entry.entryId !== null);
-      const existingRate = snapshot.entries.find((entry) => entry.ratePaisePerLitre !== null)?.ratePaisePerLitre
-        ?? snapshot.allocations.find((allocation) => allocation.ratePaisePerLitre !== null)?.ratePaisePerLitre;
-      const ratePaise = existingRate ?? snapshot.suggestedRatePaisePerLitre;
-      setRate(ratePaise === null ? '' : String(ratePaise / 100));
       setFat(existingPricing?.fatHundredths === null || existingPricing?.fatHundredths === undefined ? '' : String(existingPricing.fatHundredths / 100));
       setSnf(existingPricing?.snfHundredths === null || existingPricing?.snfHundredths === undefined ? '' : String(existingPricing.snfHundredths / 100));
-      setCmFatPaise(existingPricing?.cmFatPaise ?? snapshot.suggestedCmFatPaise);
-      setCmSnfPaise(existingPricing?.cmSnfPaise ?? snapshot.suggestedCmSnfPaise);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load milk entries.');
     } finally {
@@ -129,22 +118,15 @@ export default function MilkScreen() {
       .map(({ allocation, volumeMl }) => ({ destination: allocation.destination, volumeMl })),
   );
   const householdMl = Math.max(0, allocationSummary.unallocatedMl);
-  const flatRatePaise = /^\d+(\.\d{0,2})?$/.test(rate.trim()) ? Math.round(Number(rate) * 100) : Number.NaN;
   const fatHundredths = parseHundredths(fat);
   const snfHundredths = parseHundredths(snf);
-  const qualityConfigured = cmFatPaise !== null && cmSnfPaise !== null;
-  const qualityInputsValid = fatHundredths !== null && snfHundredths !== null
-    && Number.isSafeInteger(fatHundredths) && Number.isSafeInteger(snfHundredths)
-    && fatHundredths <= 1_500 && snfHundredths <= 1_500;
-  const qualityRatePaise = pricingMode === 'quality' && qualityConfigured && qualityInputsValid
-    ? calculateQualityRatePaise(fatHundredths, snfHundredths, cmFatPaise, cmSnfPaise)
-    : Number.NaN;
-  const ratePaise = pricingMode === 'flat' ? flatRatePaise : qualityRatePaise;
+  const dailyQualityValid = [fatHundredths, snfHundredths].every((value) => value === null || (Number.isSafeInteger(value) && value >= 0 && value <= 1_500));
+  const buyerRateMissing = buyerAllocations.some((item) => item.volumeMl !== null && item.volumeMl > 0 && item.allocation.ratePaisePerLitre === null && item.allocation.label.trim().toLocaleLowerCase() !== 'verka');
   const enteredCount = parsedEntries.filter((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl)).length;
   const hasSavedSession = entries.some((entry) => entry.entryId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
 
   const save = async (automatic = false, fingerprint?: string) => {
-    if (!farmId || !session || invalidVolume || invalidAllocation || allocationSummary.exceedsProduction || !Number.isSafeInteger(ratePaise) || ratePaise < 0) return;
+    if (!farmId || !session || invalidVolume || invalidAllocation || !dailyQualityValid || allocationSummary.exceedsProduction || buyerRateMissing) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -153,13 +135,13 @@ export default function MilkScreen() {
         userId: session.user.id,
         milkDate,
         session: milkSession,
-        pricingMode,
-        flatRatePaisePerLitre: pricingMode === 'flat' ? ratePaise : null,
-        fatHundredths: pricingMode === 'quality' ? fatHundredths : null,
-        snfHundredths: pricingMode === 'quality' ? snfHundredths : null,
-        cmFatPaise: pricingMode === 'quality' ? cmFatPaise : null,
-        cmSnfPaise: pricingMode === 'quality' ? cmSnfPaise : null,
-        ratePaisePerLitre: ratePaise,
+        pricingMode: 'flat',
+        flatRatePaisePerLitre: 0,
+        fatHundredths,
+        snfHundredths,
+        cmFatPaise: null,
+        cmSnfPaise: null,
+        ratePaisePerLitre: 0,
         entries: parsedEntries
           .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl))
           .map(({ entry, volumeMl }) => ({ animalId: entry.animalId, entryId: entry.entryId, volumeMl })),
@@ -170,12 +152,14 @@ export default function MilkScreen() {
             destination: allocation.destination,
             buyerId: allocation.buyerId,
             volumeMl,
+            ratePaisePerLitre: allocation.ratePaisePerLitre ?? 0,
           }))
           .concat(householdMl > 0 ? [{
             allocationId: allocations.find((allocation) => allocation.destination === 'household')?.allocationId ?? null,
             destination: 'household' as const,
             buyerId: null,
             volumeMl: householdMl,
+            ratePaisePerLitre: 0,
           }] : []),
         clearedAnimalIds: parsedEntries
           .filter((item) => item.volumeMl === null)
@@ -198,19 +182,15 @@ export default function MilkScreen() {
   };
 
   const autoSaveReady = !busy && !loading && hydrated && enteredCount > 0
-    && !invalidVolume && !invalidAllocation && !allocationSummary.exceedsProduction
-    && Number.isSafeInteger(ratePaise) && ratePaise >= 0;
+    && !invalidVolume && !invalidAllocation && dailyQualityValid && !allocationSummary.exceedsProduction && !buyerRateMissing;
   const autoSaveFingerprint = useMemo(() => JSON.stringify({
     allocationValues,
-    cmFatPaise,
     fat,
     milkDate,
     milkSession,
-    pricingMode,
-    rate,
     snf,
     values,
-  }), [allocationValues, cmFatPaise, fat, milkDate, milkSession, pricingMode, rate, snf, values]);
+  }), [allocationValues, fat, milkDate, milkSession, snf, values]);
 
   // `save` intentionally uses this render's snapshot. Adding it as a dependency
   // would reschedule after its own busy-state updates and repeatedly save unchanged data.
@@ -261,35 +241,6 @@ export default function MilkScreen() {
         ))}
       </View>
 
-      <SectionCard title={pricingMode === 'flat' ? 'Flat rate' : 'Quality rate · FAT + SNF'}>
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>The complete pricing formula is copied into every entry so later configuration changes do not alter history.</Text>
-        {pricingMode === 'flat' ? (
-          <View style={styles.rateRow}>
-            <Text style={[styles.currency, { color: colors.text }]}>₹</Text>
-            <TextInput accessibilityLabel="Rate per litre" keyboardType="decimal-pad" onChangeText={setRate} placeholder="Rate per litre" placeholderTextColor={colors.textSecondary} style={[styles.rateInput, { color: colors.text, borderColor: colors.border }]} value={rate} />
-            <Text style={[styles.unit, { color: colors.textSecondary }]}>/ litre</Text>
-          </View>
-        ) : (
-          <>
-            <View style={styles.qualityRow}>
-              <QualityField label="FAT %" value={fat} onChangeText={setFat} invalid={Number.isNaN(fatHundredths)} />
-              <QualityField label="SNF %" value={snf} onChangeText={setSnf} invalid={Number.isNaN(snfHundredths)} />
-            </View>
-            {qualityConfigured ? (
-              <View style={[styles.formula, { backgroundColor: colors.backgroundSelected }]}>
-                <Text style={[styles.helper, { color: colors.textSecondary }]}>CMFAT {formatMoney(cmFatPaise)} · CMSNF {formatMoney(cmSnfPaise)}</Text>
-                <Text style={[styles.calculatedRate, { color: colors.text }]}>{Number.isSafeInteger(qualityRatePaise) ? `${formatMoney(qualityRatePaise)} / litre` : 'Enter FAT and SNF'}</Text>
-              </View>
-            ) : (
-              <View style={styles.missingPricing}>
-                <Text style={[styles.error, { color: colors.danger }]}>No quality-pricing configuration applies on {formatFarmDate(milkDate)}.</Text>
-                <Link href="../pricing" asChild><Pressable><Text style={[styles.pricingLink, { color: colors.primary }]}>Configure milk pricing</Text></Pressable></Link>
-              </View>
-            )}
-          </>
-        )}
-      </SectionCard>
-
       <SectionCard title={`Animals (${entries.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add a cow in Master data first.</EmptyState> : entries.map((entry) => (
           <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }]}>
@@ -311,12 +262,20 @@ export default function MilkScreen() {
         ))}
       </SectionCard>
 
+      <SectionCard title="Daily milk quality (reference only)">
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>FAT and SNF are recorded for the day. Buyer rates are managed separately and are not calculated from these values.</Text>
+        <View style={styles.qualityRow}>
+          <QualityField label="FAT %" value={fat} onChangeText={setFat} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
+          <QualityField label="SNF %" value={snf} onChangeText={setSnf} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
+        </View>
+      </SectionCard>
+
       <SectionCard title="Buyer allocation">
         {allocations.filter((allocation) => allocation.destination === 'buyer').map((allocation) => (
           <View key={allocation.key} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
               <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>
-              <Text style={[styles.entryState, { color: colors.textSecondary }]}>{allocation.allocationId ? 'Saved' : allocation.destination === 'buyer' ? 'Buyer' : 'Internal use'}</Text>
+              <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
             <TextInput
               accessibilityLabel={`${allocation.label} litres`}
@@ -340,7 +299,8 @@ export default function MilkScreen() {
 
       {invalidVolume ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for litres.</Text> : null}
       {invalidAllocation ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for allocation litres.</Text> : null}
-      {pricingMode === 'quality' && (!qualityInputsValid || !qualityConfigured) ? <Text style={[styles.error, { color: colors.danger }]}>Quality mode requires valid FAT, SNF, CMFAT, and CMSNF values.</Text> : null}
+      {!dailyQualityValid ? <Text style={[styles.error, { color: colors.danger }]}>FAT and SNF must be between 0 and 15 with up to two decimal places.</Text> : null}
+      {buyerRateMissing ? <Text style={[styles.error, { color: colors.danger }]}>Set a fixed per-litre rate for every buyer in Master data before allocating milk to them.</Text> : null}
       {allocationSummary.exceedsProduction ? <Text style={[styles.error, { color: colors.danger }]}>Allocated milk cannot exceed produced milk.</Text> : null}
       {message ? <Text style={[styles.helper, { color: message.includes('saved') || message.includes('voided') ? colors.primary : colors.danger }]}>{message}</Text> : null}
       {busy ? <View style={[styles.autoSave, { backgroundColor: colors.backgroundSelected }]}><ActivityIndicator color={colors.primary} /><Text style={[styles.helper, { color: colors.textSecondary }]}>Saving changes locally…</Text></View> : null}
@@ -393,18 +353,10 @@ const styles = StyleSheet.create({
   session: { flex: 1, minHeight: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sessionText: { fontSize: 15, fontWeight: '700' },
   helper: { fontSize: 13, lineHeight: 19 },
-  rateRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  currency: { fontSize: 20, fontWeight: '700' },
-  rateInput: { flex: 1, minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, fontSize: 17 },
-  unit: { fontSize: 14 },
   qualityRow: { flexDirection: 'row', gap: 10 },
   qualityField: { flex: 1, gap: 6 },
   qualityLabel: { fontSize: 13, fontWeight: '700' },
   qualityInput: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, fontSize: 17 },
-  formula: { borderRadius: 12, padding: 12, gap: 4 },
-  calculatedRate: { fontSize: 20, fontWeight: '800' },
-  missingPricing: { gap: 4 },
-  pricingLink: { fontSize: 14, fontWeight: '800' },
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
   animalCopy: { flex: 1, gap: 2 },
   animalName: { fontSize: 16, fontWeight: '700' },

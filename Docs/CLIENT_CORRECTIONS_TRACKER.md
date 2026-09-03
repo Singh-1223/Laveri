@@ -11,7 +11,7 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 - `[?] Decision needed` - client confirmation is needed before implementation because it changes business rules or data behaviour.
 - `[–] Not applicable` - superseded by a clarified client requirement; no implementation is needed for this item.
 
-**Current summary:** 0 done, 3 implemented awaiting retest, 3 partial, 12 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
+**Current summary:** 0 done, 5 implemented awaiting retest, 2 partial, 11 open, 1 not applicable. No item is marked done until it is implemented and the client retests it.
 
 ## Confirmed client decisions - 2026-09-03
 
@@ -41,8 +41,8 @@ Source: `App Corrections_260903_121256.pdf`, received 2026-09-03.
 
 | ID | Status | Client request | Current state / scope |
 |---|---|---|---|
-| C-10 | [ ] Open | Milk rates are buyer-specific; remove the common Flat/Quality pricing choice from Milk entry and keep the rate calculation only as a simple calculator. | **Approved:** each buyer has a fixed manual per-litre rate; Verka is the only delayed-rate exception. Save rate and amount per buyer allocation. |
-| C-10.1 | [~] Partial | Record FAT% and SNF% daily for reference, not to calculate the common milk rate. Show it between Animals and Allocation. | Current app captures FAT/SNF only in Quality pricing and uses it for rate calculation. Move it to a separate daily quality section and preserve it independently of billing. |
+| C-10 | [>] Implemented | Milk rates are buyer-specific; remove the common Flat/Quality pricing choice from Milk entry and keep the rate calculation only as a simple calculator. | Buyer rates are maintained in Master data and copied into every buyer allocation with its calculated amount. The shared Milk rate flow is removed. Verka can be allocated at ₹0 until billing-cycle pricing is finalized. Awaiting client retest. |
+| C-10.1 | [>] Implemented | Record FAT% and SNF% daily for reference, not to calculate the common milk rate. Show it between Animals and Allocation. | FAT% and SNF% are now a separate Daily milk quality section between Animals and Buyer allocation. They are saved with milk production and do not calculate buyer pricing. Awaiting client retest. |
 | C-10.2 | [ ] Open | Tapping a buyer opens that buyer’s account: rate input, payment entries with date, pending balance, 10-day milk table, and payment table. | New buyer-ledger module: buyer details, per-allocation rate, payments, pending-balance calculation, and 10-day navigation. |
 | C-10.3 | [ ] Open | Special **Verka** billing: rate known after each 10-day billing cycle; commission/increments/deductions; edit previous-cycle rate; retain prior rate until updated; upload bill. | **Approved:** Verka covers Cow milk only. Build a Cow-milk 10-day billing-cycle module with adjustments, bill attachment in Supabase Storage, and controlled correction history. This depends on C-10.2. |
 

@@ -2,7 +2,7 @@ import * as Crypto from 'expo-crypto';
 
 import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import { recordCorrection } from '@/data/repositories/corrections.native';
-import { calculateFlatMilkAmountPaise, calculateQualityRatePaise } from '@/domain/calculations';
+import { calculateFlatMilkAmountPaise } from '@/domain/calculations';
 
 import type { MilkSessionSnapshot, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
 
@@ -12,7 +12,7 @@ export async function loadMilkSession(
   session: 'morning' | 'evening',
 ): Promise<MilkSessionSnapshot> {
   const database = await getPowerSyncDatabase();
-  const [entries, buyerAllocations, householdAllocation, settings] = await Promise.all([
+  const [entries, buyerAllocations, householdAllocation] = await Promise.all([
     database.getAll<MilkSessionSnapshot['entries'][number]>(
       `SELECT
         animal.id AS animalId,
@@ -77,30 +77,7 @@ export async function loadMilkSession(
        LIMIT 1`,
       [farmId, milkDate, session],
     ),
-    database.getOptional<{ milk_mode: 'flat' | 'quality' }>(
-      `SELECT milk_mode FROM farm_settings
-       WHERE farm_id = ? AND deleted_at IS NULL LIMIT 1`,
-      [farmId],
-    ),
   ]);
-
-  const existingPricing = entries.find((entry) => entry.entryId !== null);
-  const pricingMode = existingPricing?.pricingMode ?? settings?.milk_mode ?? 'flat';
-  const pricing = await database.getOptional<{
-    flat_rate_paise_per_litre: number | null;
-    cmfat_paise: number | null;
-    cmsnf_paise: number | null;
-  }>(
-    `SELECT flat_rate_paise_per_litre, cmfat_paise, cmsnf_paise
-     FROM milk_pricing_configs
-     WHERE farm_id = ? AND mode = ? AND buyer_id IS NULL
-       AND effective_from <= ?
-       AND (effective_to IS NULL OR effective_to >= ?)
-       AND deleted_at IS NULL
-     ORDER BY effective_from DESC, updated_at DESC
-     LIMIT 1`,
-    [farmId, pricingMode, milkDate, milkDate],
-  );
 
   return {
     entries,
@@ -116,26 +93,18 @@ export async function loadMilkSession(
         ratePaisePerLitre: householdAllocation?.rate_paise_per_litre ?? null,
       },
     ],
-    pricingMode,
-    suggestedRatePaisePerLitre: pricing?.flat_rate_paise_per_litre ?? null,
-    suggestedCmFatPaise: pricing?.cmfat_paise ?? null,
-    suggestedCmSnfPaise: pricing?.cmsnf_paise ?? null,
+    pricingMode: 'flat',
+    suggestedRatePaisePerLitre: null,
+    suggestedCmFatPaise: null,
+    suggestedCmSnfPaise: null,
   };
 }
 
 export async function saveMilkSession(input: SaveMilkSessionInput) {
   const database = await getPowerSyncDatabase();
   const now = new Date().toISOString();
-  if (input.pricingMode === 'flat') {
-    if (!Number.isSafeInteger(input.flatRatePaisePerLitre) || input.flatRatePaisePerLitre !== input.ratePaisePerLitre) {
-      throw new Error('The flat-rate pricing snapshot is invalid.');
-    }
-  } else {
-    if (
-      input.fatHundredths === null || input.snfHundredths === null
-      || input.cmFatPaise === null || input.cmSnfPaise === null
-      || calculateQualityRatePaise(input.fatHundredths, input.snfHundredths, input.cmFatPaise, input.cmSnfPaise) !== input.ratePaisePerLitre
-    ) throw new Error('The quality-pricing snapshot is invalid.');
+  if (input.pricingMode !== 'flat' || input.flatRatePaisePerLitre !== 0 || input.ratePaisePerLitre !== 0) {
+    throw new Error('Milk production no longer stores a shared sales rate.');
   }
   const isCorrection = input.entries.some((entry) => entry.entryId !== null)
     || input.allocations.some((allocation) => allocation.allocationId !== null);
@@ -228,14 +197,17 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
         throw new RangeError('Milk allocation must be a positive safe integer.');
       }
 
-      const amountPaise = calculateFlatMilkAmountPaise(allocation.volumeMl, input.ratePaisePerLitre);
+      if (!Number.isSafeInteger(allocation.ratePaisePerLitre) || allocation.ratePaisePerLitre < 0) {
+        throw new RangeError('Allocation rate must be a non-negative safe integer.');
+      }
+      const amountPaise = calculateFlatMilkAmountPaise(allocation.volumeMl, allocation.ratePaisePerLitre);
       if (allocation.allocationId) {
         await transaction.execute(
           `UPDATE milk_allocations
            SET volume_ml = ?, rate_paise_per_litre = ?, amount_paise = ?,
                updated_at = ?, updated_by = ?, version = version + 1
            WHERE id = ?`,
-          [allocation.volumeMl, input.ratePaisePerLitre, amountPaise, now, input.userId, allocation.allocationId],
+          [allocation.volumeMl, allocation.ratePaisePerLitre, amountPaise, now, input.userId, allocation.allocationId],
         );
       } else {
         const existing = await transaction.getOptional<{ id: string }>(
@@ -252,7 +224,7 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
              SET volume_ml = ?, rate_paise_per_litre = ?, amount_paise = ?,
                  updated_at = ?, updated_by = ?, version = version + 1
              WHERE id = ?`,
-            [allocation.volumeMl, input.ratePaisePerLitre, amountPaise, now, input.userId, existing.id],
+            [allocation.volumeMl, allocation.ratePaisePerLitre, amountPaise, now, input.userId, existing.id],
           );
         } else await transaction.execute(
           `INSERT INTO milk_allocations (
@@ -269,7 +241,7 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
             allocation.destination,
             allocation.buyerId,
             allocation.volumeMl,
-            input.ratePaisePerLitre,
+            allocation.ratePaisePerLitre,
             amountPaise,
             now,
             now,

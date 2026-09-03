@@ -21,6 +21,14 @@ type MasterTab = 'animals' | 'buyers' | 'feed' | 'medicine' | 'product';
 
 const initialSnapshot: MasterDataSnapshot = { animals: [], buyers: [], items: [] };
 
+function parseRupees(value: string): number | null {
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (!/^\d+(\.\d{0,2})?$/.test(normalized)) return Number.NaN;
+  const paise = Math.round(Number(normalized) * 100);
+  return Number.isSafeInteger(paise) ? paise : Number.NaN;
+}
+
 export default function MasterDataScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -30,6 +38,7 @@ export default function MasterDataScreen() {
   const [farmId, setFarmId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [secondary, setSecondary] = useState('');
+  const [buyerRate, setBuyerRate] = useState('');
   const [animalCategory, setAnimalCategory] = useState<'cow' | 'heifer' | 'calf'>('cow');
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -62,6 +71,7 @@ export default function MasterDataScreen() {
   const resetForm = () => {
     setName('');
     setSecondary('');
+    setBuyerRate('');
     setAnimalCategory('cow');
     setAnimalIsMilking(true);
     setEditingId(null);
@@ -78,8 +88,10 @@ export default function MasterDataScreen() {
         if (editingId) await updateAnimal({ ...input, id: editingId });
         else await createAnimal(input);
       } else if (tab === 'buyers') {
-        if (editingId) await updateBuyer({ ...context, id: editingId, name, phone: secondary });
-        else await createBuyer({ ...context, name, phone: secondary });
+        const defaultRatePaisePerLitre = parseRupees(buyerRate);
+        if (Number.isNaN(defaultRatePaisePerLitre)) throw new Error('Use a valid buyer rate with up to two decimal places.');
+        if (editingId) await updateBuyer({ ...context, id: editingId, name, phone: secondary, defaultRatePaisePerLitre });
+        else await createBuyer({ ...context, name, phone: secondary, defaultRatePaisePerLitre });
       } else {
         const input = { ...context, type: tab, name, baseUnit: secondary || defaultUnit(tab) };
         if (editingId) await updateItem({ ...input, id: editingId });
@@ -98,6 +110,7 @@ export default function MasterDataScreen() {
 
   const startEdit = (row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow) => {
     setEditingId(row.id);
+    setBuyerRate('');
     if ('tag' in row) {
       setName(row.tag);
       setSecondary(row.breed ?? '');
@@ -106,6 +119,7 @@ export default function MasterDataScreen() {
     } else {
       setName(row.name);
       setSecondary('base_unit' in row ? row.base_unit : row.phone ?? '');
+      if (!('base_unit' in row)) setBuyerRate(row.default_rate_paise_per_litre === null ? '' : String(row.default_rate_paise_per_litre / 100));
     }
   };
 
@@ -171,6 +185,15 @@ export default function MasterDataScreen() {
           style={[styles.input, { color: colors.text, borderColor: colors.border }]}
           value={secondary}
         />
+        {tab === 'buyers' ? <TextInput
+          accessibilityLabel="Buyer rate per litre"
+          keyboardType="decimal-pad"
+          onChangeText={setBuyerRate}
+          placeholder="Fixed rate per litre ₹ (Verka can be left blank)"
+          placeholderTextColor={colors.textSecondary}
+          style={[styles.input, { color: colors.text, borderColor: Number.isNaN(parseRupees(buyerRate)) ? colors.danger : colors.border }]}
+          value={buyerRate}
+        /> : null}
         <Pressable disabled={busy || !farmId || !name.trim()} onPress={save} style={({ pressed }) => [styles.save, { backgroundColor: colors.primary }, (busy || !farmId || !name.trim()) && styles.disabled, pressed && styles.pressed]}>
           {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>{editingId ? 'Update' : 'Save'} {singularLabel(tab)}</Text>}
         </Pressable>
@@ -193,7 +216,7 @@ function MasterRow({ row, busy, onEdit, onToggle }: { row: MasterDataSnapshot['a
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const name = 'tag' in row ? row.tag : row.name;
   const active = 'tag' in row ? row.status === 'active' : row.active === 1;
-  const detail = 'category' in row ? `${row.category} • ${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • ${row.base_unit} • ${active ? 'active' : 'inactive'}` : `${row.phone || 'No phone'} • ${active ? 'active' : 'inactive'}`;
+  const detail = 'category' in row ? `${row.category} • ${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • ${row.base_unit} • ${active ? 'active' : 'inactive'}` : `${row.phone || 'No phone'} • ${row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
   return (
     <View style={[styles.row, { borderTopColor: colors.border }]}>
       <Text style={[styles.rowName, { color: colors.text }]}>{name}</Text>

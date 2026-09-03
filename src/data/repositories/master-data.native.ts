@@ -100,7 +100,7 @@ export async function updateBuyer(input: UpdateBuyerInput) {
     await transaction.execute(
       `UPDATE buyers
        SET name = ?, phone = ?,
-           default_rate_paise_per_litre = coalesce(?, default_rate_paise_per_litre),
+           default_rate_paise_per_litre = ?,
            updated_at = ?, updated_by = ?, version = version + 1
        WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
       [input.name.trim(), input.phone?.trim() || null, input.defaultRatePaisePerLitre ?? null, new Date().toISOString(), input.userId, input.id, input.farmId],
