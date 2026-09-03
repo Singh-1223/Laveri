@@ -89,6 +89,10 @@ Open the **Milk** tab.
 
 From the Milk screen, tap **Configure milk reminders**. Turn on Morning and/or Evening, choose the time, and tap **Save reminders**. Allow notifications when Android asks. These reminders belong to that phone only; completing a milk session moves its reminder to the next day.
 
+### Verka billing
+
+In **Master data → Buyers**, tap **Verka**. Choose the 10-day period, enter its final per-litre rate and any commission, increment, or deduction. You may attach an invoice PDF/image (maximum 10 MB), then save the billing cycle. The saved cycle can open its attached bill later.
+
 1. Check the date at the top. Use `‹` and `›` for the previous/next day, or **Go to today**.
 2. Select **Morning** or **Evening**.
 3. Enter litres for each animal. Leave an animal blank only when no entry should be recorded for that session.
