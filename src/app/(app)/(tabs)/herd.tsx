@@ -53,7 +53,7 @@ export default function HerdScreen() {
           <View key={animal.id} style={[styles.row, { borderTopColor: colors.border }]}>
             <View style={[styles.avatar, { backgroundColor: colors.backgroundSelected }]}><Text style={styles.avatarText}>🐄</Text></View>
             <View style={styles.rowCopy}>
-              <Text style={[styles.name, { color: colors.text }]}>{animal.tag}</Text>
+              <Link href={{ pathname: '/animal-profile/[id]', params: { id: animal.id } }}><Text style={[styles.name, { color: colors.primary }]}>{animal.tag}</Text></Link>
               <Text style={[styles.detail, { color: colors.textSecondary }]}>{animal.category} • {animal.breed || 'breed not set'} • {animal.is_milking ? 'milking' : animal.status}</Text>
               <View style={styles.labels}>{labelLinks.filter((link) => link.animal_id === animal.id).map((link) => labels.find((label) => label.id === link.label_id)).filter((label): label is AnimalLabelRow => Boolean(label)).map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text style={styles.labelText}>{label.name}</Text></View>)}</View>
             </View>

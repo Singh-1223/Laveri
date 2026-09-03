@@ -7,6 +7,7 @@ export default function AppLayout() {
       <Stack.Screen name="master-data" options={{ title: 'Master data', headerShown: true }} />
       <Stack.Screen name="buyer-account/[id]" options={{ title: 'Buyer account', headerShown: true }} />
       <Stack.Screen name="verka-billing/[buyerId]" options={{ title: 'Verka billing', headerShown: true }} />
+      <Stack.Screen name="animal-profile/[id]" options={{ title: 'Animal profile', headerShown: true }} />
       <Stack.Screen name="pricing" options={{ title: 'Milk pricing', headerShown: true }} />
       <Stack.Screen name="reminders" options={{ title: 'Milk reminders', headerShown: true }} />
       <Stack.Screen name="sync-status" options={{ title: 'Sync status', headerShown: true }} />
