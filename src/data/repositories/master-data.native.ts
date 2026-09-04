@@ -152,6 +152,7 @@ export async function createItem(input: CreateItemInput) {
     ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, NULL, 1)`,
     [audit[0], audit[1], input.type, input.name.trim(), input.baseUnit.trim(), input.defaultRatePaisePerUnit ?? null, input.notes?.trim() || null, ...audit.slice(2)],
   );
+  return audit[0];
 }
 
 export async function updateAnimal(input: UpdateAnimalInput) {

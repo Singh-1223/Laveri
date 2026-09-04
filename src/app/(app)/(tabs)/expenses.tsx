@@ -192,17 +192,18 @@ export default function ExpensesScreen() {
     setBusy(true);
     setMessage(null);
     try {
-      await createItem({
+      const itemId = await createItem({
         farmId,
         userId: session.user.id,
         type: kind === 'treatment' ? 'medicine' : kind,
         name: quickItemName,
         baseUnit: quickItemUnit.trim() || (kind === 'feed' ? 'kg' : kind === 'treatment' ? 'ml' : 'unit'),
       });
+      setSelectedItemId(itemId);
       setQuickItemName('');
       setQuickItemUnit('');
       await refresh();
-      setMessage(`${kindLabel(kind)} item added locally. Select it below to record this purchase.`);
+      setMessage(`${kindLabel(kind)} item added and selected locally.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to add the item.');
     } finally {
@@ -255,7 +256,7 @@ export default function ExpensesScreen() {
             <TextInput accessibilityLabel={`New ${kind} item name`} onChangeText={setQuickItemName} placeholder="Item name" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemName} />
             <TextInput accessibilityLabel={`New ${kind} unit`} onChangeText={setQuickItemUnit} placeholder={kind === 'feed' ? 'Unit (kg)' : 'Unit'} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemUnit} />
           </View>
-          <Pressable disabled={busy || !quickItemName.trim()} onPress={() => void createQuickItem()} style={[styles.quickItemButton, { borderColor: colors.primary }, (busy || !quickItemName.trim()) && styles.disabled]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Add and save for future suggestions</Text></Pressable>
+          <Pressable disabled={busy || !quickItemName.trim()} onPress={() => void createQuickItem()} style={[styles.quickItemButton, { borderColor: colors.primary }, (busy || !quickItemName.trim()) && styles.disabled]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Add item</Text></Pressable>
         </View> : null}
 
         {kind === 'feed' || kind === 'product' ? (

@@ -43,7 +43,7 @@ export async function createBuyer(_input: CreateBuyerInput) {
   throw unavailable();
 }
 
-export async function createItem(_input: CreateItemInput) {
+export async function createItem(_input: CreateItemInput): Promise<string> {
   throw unavailable();
 }
 

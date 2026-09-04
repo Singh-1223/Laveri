@@ -63,9 +63,9 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R2-20 | [ ] Open | Simplify Feed entry and its suggestions. | Automatically save a new feed to Master data; remove “add and save for future suggestions”; use Packaging (kg), Units (number of bags), remove Feed comment, allow deleting suggestions, and make a tapped suggestion populate the form. |
-| R2-21 | [ ] Open | Simplify Treatment entry and its suggestions. | Automatically save a new medicine to Master data; remove the explicit future-suggestion control; allow deleting suggestions; make a tapped suggestion populate the form. |
-| R2-22 | [ ] Open | Simplify Product entry and its suggestions. | Automatically save a new product to Master data; use Packaging and Units; allow deleting suggestions; make a tapped suggestion populate the form. |
+| R2-20 | [~] Reopened | Simplify Feed entry and its suggestions. | New Feed items are now added and selected immediately, and saved Feed items can be deleted in Master data. Packaging terminology is in place. Units, Feed comment removal, and full suggestion-flow refinement remain. |
+| R2-21 | [~] Reopened | Simplify Treatment entry and its suggestions. | New Medicine items are now added and selected immediately, and saved Medicine items can be deleted in Master data. Full suggestion-flow refinement remains. |
+| R2-22 | [~] Reopened | Simplify Product entry and its suggestions. | New Product items are now added and selected immediately, and saved Product items can be deleted in Master data. Packaging terminology is in place; Units and full suggestion-flow refinement remain. |
 | R2-23 | [ ] Open | Add Silage. | New farm-wide Silage operation with the same workflow and data fields as Product. It is included in production cost. |
 | R2-26 | [ ] Open | Add Investment. | New farm-wide Investment operation with the same workflow and data fields as Product. It is tracked separately from production cost, and Reports show the total investment in rupees. |
 | R2-25 | [>] Implemented | Animal history is incorrect/incomplete. | Animal history now excludes Milk entries and includes lifecycle events, Heat events, and Treatment amounts/comments. Photo/document uploads remain available. Awaiting client retest. |
