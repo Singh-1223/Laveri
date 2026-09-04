@@ -10,7 +10,14 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 24 open/reopened tasks, 2 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 25 open/reopened tasks, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+
+## Confirmed client decisions — 2026-09-04
+
+1. **Investment** is a real, separate farm operation and reporting category. It is the only entry type not treated as a production cost.
+2. Investment entry has the same data-entry workflow and fields as Product. Reports show total investment in rupees.
+3. **Silage** is a separate farm operation with the same workflow and fields as Product, but it is included in production cost.
+4. The Verka bill tally compares only Morning milk, Evening milk, and Total milk. It does not compare FAT/SNF, commission, deductions, adjustments, or final payable amount.
 
 ## Confirmed working
 
@@ -23,7 +30,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
 | R2-01 | [ ] Open | Remove the separate Home page and treat Milk entry as the app home page. | Start on Milk; remove the Home tab/screen from normal navigation. |
-| R2-02 | [ ] Open | Move today’s milk, unallocated/household milk, turnover, operating cost, operating profit, and investment to Reports. | Consolidate these dashboard figures into Reports. Investment is subject to R2-26. |
+| R2-02 | [ ] Open | Move today’s milk, unallocated/household milk, turnover, operating cost, operating profit, and investment to Reports. | Consolidate these dashboard figures into Reports. Investment is a separate total in rupees, not a production cost. |
 | R2-03 | [ ] Open | Add a three-dot button on Milk that opens a slide-out menu with Master data, Price calculator, Correction history, and Milk reminder settings. | Create a compact Milk-page menu/drawer and move these utilities there. |
 | R2-04 | [ ] Open | Replace “Configure milk pricing” with a Price calculator. | Calculator inputs: CMFAT coefficient, SMFAT coefficient, FAT%, SNF%, then calculated price. This is a calculator only, not the fixed buyer-rate configuration. |
 
@@ -48,7 +55,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-14 | [ ] Open | Add more label colours. | Include white, black, pink, yellow, sky blue, and brown, with accessible text/border contrast. |
 | R2-15 | [~] Reopened | Add animal profile picture, date of birth, and optional date of purchase. | Ensure a primary image can be selected and displayed before the animal name; capture both dates. |
 | R2-16 | [~] Reopened | A Verka buyer with no fixed rate shows “Set rate in master data.” | Make the Verka card clearly use billing-cycle pricing and avoid the fixed-rate warning. |
-| R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verify/complete the special billing input, retained provisional rate, uploaded bill, and displayed difference. Client sample bill is the implementation reference. |
+| R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verify/complete the special billing input, retained provisional rate, uploaded bill, and a bill-vs-app comparison for Morning milk, Evening milk, and Total milk only. |
 | R2-18 | [ ] Open | Feed, Medicine, and Product masters should use Delete instead of Activate/Deactivate. | Replace deactivate UI with safe delete/archive behaviour that preserves historical records. |
 | R2-19 | [ ] Open | Improve master fields for Feed, Medicine, and Product. | Rename Base unit to Packaging (kg or kg/ml as applicable); Feed also gets fixed price; Medicine/Product show a visible use/comment. |
 
@@ -59,24 +66,18 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-20 | [ ] Open | Simplify Feed entry and its suggestions. | Automatically save a new feed to Master data; remove “add and save for future suggestions”; use Packaging (kg), Units (number of bags), remove Feed comment, allow deleting suggestions, and make a tapped suggestion populate the form. |
 | R2-21 | [ ] Open | Simplify Treatment entry and its suggestions. | Automatically save a new medicine to Master data; remove the explicit future-suggestion control; allow deleting suggestions; make a tapped suggestion populate the form. |
 | R2-22 | [ ] Open | Simplify Product entry and its suggestions. | Automatically save a new product to Master data; use Packaging and Units; allow deleting suggestions; make a tapped suggestion populate the form. |
-| R2-23 | [ ] Open | Add Silage. | New farm-wide Silage operation with the same workflow and data fields as Product. |
+| R2-23 | [ ] Open | Add Silage. | New farm-wide Silage operation with the same workflow and data fields as Product. It is included in production cost. |
+| R2-26 | [ ] Open | Add Investment. | New farm-wide Investment operation with the same workflow and data fields as Product. It is tracked separately from production cost, and Reports show the total investment in rupees. |
 | R2-25 | [ ] Open | Animal history is incorrect/incomplete. | Use the original animal photo instead of emoji; exclude Milk records from history; include Heat events; include Treatment details and comments. |
-
-## E. Decision needed
-
-| ID | Status | Question | Why it needs confirmation |
-|---|---|---|---|
-| R2-26 | [?] Decision needed | Should Investment now be a real operation and reporting category, with the same flow as Product? | The prior confirmed rule said Feed, Product, Medicine, and Treatment are all production costs and that Investment was not needed. This PDF asks for an Investment option and lists Investment on Reports. |
-| R2-27 | [?] Decision needed | What exactly should the Verka bill tally compare? | The sample bill contains milk quantity/FAT/SNF figures, per-kg amounts, commission, deductions, adjustments, and net amount. We need the required fields and formula for a correct “difference” result, rather than comparing only a final rate. |
 
 ## Suggested delivery order
 
 1. Navigation and Milk layout: R2-01 to R2-10.
 2. Milk suggestion picker: R2-11 (largest interaction change; test after the surrounding layout is stable).
-3. Master data and operation workflows: R2-12 to R2-23.
+3. Master data and operation workflows: R2-12 to R2-23, then R2-26.
 4. Herd profile/history: R2-15 and R2-25.
-5. Verka: R2-16 and R2-17 after R2-27 is answered.
-6. Investment/reporting: R2-02 and R2-26 after confirmation.
+5. Verka: R2-16 and R2-17.
+6. Reports: R2-02 after the Investment operation exists.
 
 ## Completion rule
 
