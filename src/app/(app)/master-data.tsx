@@ -290,7 +290,7 @@ function MasterRow({ row, busy, onEdit, onToggle, onDelete, onReorder }: { row: 
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const name = 'tag' in row ? row.tag : row.name;
   const active = 'tag' in row ? row.status === 'active' : row.active === 1;
-  const detail = 'category' in row ? `${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • Packaging: ${row.base_unit}${row.default_rate_paise_per_unit === null ? '' : ` • ₹${(row.default_rate_paise_per_unit / 100).toFixed(2)}`}` : `${row.phone || 'No phone'} • ${row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
+  const detail = 'category' in row ? `${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • Packaging: ${row.base_unit}${row.default_rate_paise_per_unit === null ? '' : ` • ₹${(row.default_rate_paise_per_unit / 100).toFixed(2)}`}` : `${row.phone || 'No phone'} • ${row.name.trim().toLocaleLowerCase() === 'verka' ? 'Billing-cycle rate' : row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
   return (
     <View style={[styles.row, { borderTopColor: colors.border }]}>
       {'default_rate_paise_per_litre' in row ? <Link href={row.name.trim().toLocaleLowerCase() === 'verka' ? { pathname: '/verka-billing/[buyerId]', params: { buyerId: row.id } } : { pathname: '/buyer-account/[id]', params: { id: row.id } }}><Text style={[styles.rowName, { color: colors.primary }]}>{name}</Text></Link> : <Text style={[styles.rowName, { color: colors.text }]}>{name}</Text>}
