@@ -58,11 +58,19 @@ export async function createAnimal(input: CreateAnimalInput) {
 
 export async function createAnimalLabel(input: CreateAnimalLabelInput) {
   const database = await getPowerSyncDatabase();
+  const name = input.name.trim();
+  const existing = await database.getOptional<{ id: string }>(
+    `SELECT id FROM animal_labels
+     WHERE farm_id = ? AND lower(trim(name)) = lower(trim(?)) AND deleted_at IS NULL
+     LIMIT 1`,
+    [input.farmId, name],
+  );
+  if (existing) return existing.id;
   const audit = auditValues(input);
   await database.execute(
     `INSERT INTO animal_labels (id, farm_id, name, color, created_at, updated_at, created_by, updated_by, deleted_at, version)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], input.name.trim(), input.color, ...audit.slice(2)],
+    [audit[0], audit[1], name, input.color, ...audit.slice(2)],
   );
   return audit[0];
 }

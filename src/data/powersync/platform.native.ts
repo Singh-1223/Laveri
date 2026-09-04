@@ -100,18 +100,38 @@ class SupabaseConnector implements PowerSyncBackendConnector {
     if (!transaction) return;
 
     const client = requireSupabase();
+    // A label can be created independently on two offline devices. Keep the
+    // first server label and remap its queued links during this upload batch.
+    const labelIdRemaps = new Map<string, string>();
 
     for (const operation of transaction.crud) {
       if (!UPLOADABLE_TABLES.has(operation.table)) {
         throw new Error(`Upload for table ${operation.table} is not allowed by the mobile connector.`);
       }
 
-      const record = { ...operation.opData, id: operation.id };
+      const record = { ...operation.opData, id: operation.id } as Record<string, unknown>;
+      if (operation.table === 'animal_label_links' && typeof record.label_id === 'string') {
+        record.label_id = labelIdRemaps.get(record.label_id) ?? record.label_id;
+      }
 
       if (operation.op === UpdateType.PUT) {
         const { error } = await client.from(operation.table).insert(record);
 
         if (error?.code === '23505') {
+          if (operation.table === 'animal_labels' && typeof record.farm_id === 'string' && typeof record.name === 'string') {
+            const { data: matchingLabel, error: matchingLabelError } = await client
+              .from('animal_labels')
+              .select('id')
+              .eq('farm_id', record.farm_id)
+              .ilike('name', record.name.trim())
+              .is('deleted_at', null)
+              .maybeSingle();
+            if (matchingLabelError) throw matchingLabelError;
+            if (matchingLabel) {
+              labelIdRemaps.set(operation.id, matchingLabel.id);
+              continue;
+            }
+          }
           const { data: existing, error: readError } = await client
             .from(operation.table)
             .select('id')
