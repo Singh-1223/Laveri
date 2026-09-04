@@ -6,6 +6,8 @@ export type AnimalRow = {
   status: 'active' | 'inactive' | 'sold' | 'deceased';
   is_milking: number;
   breed: string | null;
+  birth_date?: string | null;
+  acquisition_date?: string | null;
   display_order: number;
 };
 
@@ -49,6 +51,8 @@ export type CreateAnimalInput = AuditContext & {
   sex: AnimalRow['sex'];
   isMilking: boolean;
   breed?: string;
+  birthDate?: string | null;
+  acquisitionDate?: string | null;
 };
 
 export type CreateBuyerInput = AuditContext & {

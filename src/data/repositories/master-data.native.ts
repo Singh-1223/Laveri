@@ -50,10 +50,10 @@ export async function createAnimal(input: CreateAnimalInput) {
   const audit = auditValues(input);
   await database.execute(
     `INSERT INTO animals (
-      id, farm_id, tag, category, sex, status, is_milking, breed, display_order, milk_display_order,
+      id, farm_id, tag, category, sex, status, is_milking, breed, birth_date, acquisition_date, display_order, milk_display_order,
       created_at, updated_at, created_by, updated_by, deleted_at, version
-    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animals WHERE farm_id = ?), (SELECT coalesce(max(milk_display_order), 0) + 1 FROM animals WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.farmId, input.farmId, ...audit.slice(2)],
+    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animals WHERE farm_id = ?), (SELECT coalesce(max(milk_display_order), 0) + 1 FROM animals WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.birthDate ?? null, input.acquisitionDate ?? null, input.farmId, input.farmId, ...audit.slice(2)],
   );
   return audit[0];
 }
@@ -151,10 +151,10 @@ export async function updateAnimal(input: UpdateAnimalInput) {
     );
     await transaction.execute(
       `UPDATE animals
-       SET tag = ?, category = ?, sex = ?, is_milking = ?, breed = ?,
+       SET tag = ?, category = ?, sex = ?, is_milking = ?, breed = ?, birth_date = ?, acquisition_date = ?,
            updated_at = ?, updated_by = ?, version = version + 1
        WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
-      [input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, new Date().toISOString(), input.userId, input.id, input.farmId],
+      [input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.birthDate ?? null, input.acquisitionDate ?? null, new Date().toISOString(), input.userId, input.id, input.farmId],
     );
     const after = await transaction.get<Record<string, unknown>>(`SELECT * FROM animals WHERE id = ?`, [input.id]);
     await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: 'animals', recordId: input.id, action: 'update', before, after });

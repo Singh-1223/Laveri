@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
+import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import {
@@ -47,6 +48,8 @@ export default function MasterDataScreen() {
   const [secondary, setSecondary] = useState('');
   const [buyerRate, setBuyerRate] = useState('');
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
+  const [birthDate, setBirthDate] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(labelColors[0]);
@@ -83,6 +86,8 @@ export default function MasterDataScreen() {
     setSecondary('');
     setBuyerRate('');
     setAnimalIsMilking(true);
+    setBirthDate('');
+    setPurchaseDate('');
     setSelectedLabelIds([]);
     setNewLabelName('');
     setNewLabelColor(labelColors[0]);
@@ -97,7 +102,7 @@ export default function MasterDataScreen() {
     try {
       const context = { farmId, userId: session.user.id };
       if (tab === 'animals') {
-        const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary };
+        const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary, birthDate: birthDate || null, acquisitionDate: purchaseDate || null };
         const animalId = editingId ?? await createAnimal(input);
         if (editingId) await updateAnimal({ ...input, id: editingId });
         await setAnimalLabels({ ...context, animalId, labelIds: selectedLabelIds });
@@ -128,6 +133,8 @@ export default function MasterDataScreen() {
     if ('tag' in row) {
       setName(row.tag);
       setSecondary(row.breed ?? '');
+      setBirthDate(row.birth_date ?? '');
+      setPurchaseDate(row.acquisition_date ?? '');
       setAnimalIsMilking(row.is_milking === 1);
       setSelectedLabelIds(snapshot.animalLabelLinks.filter((link) => link.animal_id === row.id).map((link) => link.label_id));
     } else {
@@ -227,6 +234,7 @@ export default function MasterDataScreen() {
           style={[styles.input, { color: colors.text, borderColor: colors.border }]}
           value={name}
         />
+        {tab === 'animals' ? <><DateField label="Date of birth" value={birthDate} onChange={setBirthDate} /><DateField label="Date of purchase (optional)" value={purchaseDate} onChange={setPurchaseDate} /></> : null}
         <TextInput
           accessibilityLabel={tab === 'buyers' ? 'Phone' : tab === 'animals' ? 'Breed' : 'Base unit'}
           onChangeText={setSecondary}
