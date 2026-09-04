@@ -261,7 +261,7 @@ export default function ExpensesScreen() {
 
         {kind === 'feed' || kind === 'product' || kind === 'silage' || kind === 'investment' ? (
           <View style={styles.numericRow}>
-            <TextInput accessibilityLabel="Quantity" keyboardType="decimal-pad" onChangeText={setQuantity} placeholder={`Quantity (${selectedItem?.base_unit ?? 'unit'})`} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quantity} />
+            <TextInput accessibilityLabel="Units" keyboardType="decimal-pad" onChangeText={setQuantity} placeholder={`Units (${selectedItem?.base_unit ?? 'package'})`} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quantity} />
             <TextInput accessibilityLabel="Rate" keyboardType="decimal-pad" onChangeText={setRate} placeholder="Rate ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={rate} />
           </View>
         ) : null}
@@ -274,7 +274,7 @@ export default function ExpensesScreen() {
           </View>
         ) : null}
 
-        <TextInput accessibilityLabel="Notes" multiline onChangeText={setNotes} placeholder={kind === 'heat' ? 'Observed signs or note' : 'Comment (optional)'} placeholderTextColor={colors.textSecondary} style={[styles.notes, { color: colors.text, borderColor: colors.border }]} value={notes} />
+        {kind !== 'feed' ? <TextInput accessibilityLabel="Notes" multiline onChangeText={setNotes} placeholder={kind === 'heat' ? 'Observed signs or note' : 'Comment (optional)'} placeholderTextColor={colors.textSecondary} style={[styles.notes, { color: colors.text, borderColor: colors.border }]} value={notes} /> : null}
         {kind === 'heat' && heatSuggestions.length > 0 ? <View style={styles.choiceBlock}>
           <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Previously observed signs</Text>
           <View style={styles.choices}>{heatSuggestions.map((suggestion) => <Pressable key={suggestion} onPress={() => setNotes(suggestion)} style={[styles.choice, { backgroundColor: notes === suggestion ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: notes === suggestion ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{suggestion}</Text></Pressable>)}</View>

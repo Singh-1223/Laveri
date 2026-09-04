@@ -63,9 +63,9 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R2-20 | [~] Reopened | Simplify Feed entry and its suggestions. | New Feed items are now added and selected immediately, and saved Feed items can be deleted in Master data. Packaging terminology is in place. Units, Feed comment removal, and full suggestion-flow refinement remain. |
+| R2-20 | [~] Reopened | Simplify Feed entry and its suggestions. | New Feed items are added/selected immediately, saved Feed items can be deleted, Packaging terminology is in place, Units is used for quantity, and the Feed comment field is removed. Full suggestion-flow refinement remains. |
 | R2-21 | [~] Reopened | Simplify Treatment entry and its suggestions. | New Medicine items are now added and selected immediately, and saved Medicine items can be deleted in Master data. Full suggestion-flow refinement remains. |
-| R2-22 | [~] Reopened | Simplify Product entry and its suggestions. | New Product items are now added and selected immediately, and saved Product items can be deleted in Master data. Packaging terminology is in place; Units and full suggestion-flow refinement remain. |
+| R2-22 | [~] Reopened | Simplify Product entry and its suggestions. | New Product items are added/selected immediately, saved Product items can be deleted, and Packaging/Units terminology is in place. Full suggestion-flow refinement remains. |
 | R2-23 | [>] Implemented | Add Silage. | Farm Operations now has a dedicated Silage tab and history filter using Product-style fields. Silage is an operating cost. Migration `202609040002_silage_operation.sql` must be pushed with the final Round 2 migrations. Awaiting client retest. |
 | R2-26 | [>] Implemented | Add Investment. | Farm Operations now has a dedicated Investment tab and history filter. It uses the Product-style data-entry fields, saves as Investment, and Reports keeps it separate from operating cost. Awaiting client retest. |
 | R2-25 | [>] Implemented | Animal history is incorrect/incomplete. | Animal history now excludes Milk entries and includes lifecycle events, Heat events, and Treatment amounts/comments. Photo/document uploads remain available. Awaiting client retest. |
