@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 3 open/reopened tasks, 22 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 0 open/reopened tasks, 25 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -63,9 +63,9 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R2-20 | [~] Reopened | Simplify Feed entry and its suggestions. | New Feed items are added/selected immediately, saved Feed items can be deleted, Packaging terminology is in place, Units is used for quantity, and the Feed comment field is removed. Full suggestion-flow refinement remains. |
-| R2-21 | [~] Reopened | Simplify Treatment entry and its suggestions. | New Medicine items are now added and selected immediately, and saved Medicine items can be deleted in Master data. Full suggestion-flow refinement remains. |
-| R2-22 | [~] Reopened | Simplify Product entry and its suggestions. | New Product items are added/selected immediately, saved Product items can be deleted, and Packaging/Units terminology is in place. Full suggestion-flow refinement remains. |
+| R2-20 | [>] Implemented | Simplify Feed entry and its suggestions. | New Feed items are added/selected immediately, saved Feed items can be deleted, Packaging/Units terminology is in place, Feed comments are removed, and a tapped suggestion visibly selects the item/prefills its saved rate. Awaiting client retest. |
+| R2-21 | [>] Implemented | Simplify Treatment entry and its suggestions. | New Medicine items are added/selected immediately, saved Medicine items can be deleted, and a tapped suggestion visibly selects the medicine/prefills its saved rate. Awaiting client retest. |
+| R2-22 | [>] Implemented | Simplify Product entry and its suggestions. | New Product items are added/selected immediately, saved Product items can be deleted, Packaging/Units terminology is in place, and a tapped suggestion visibly selects the item/prefills its saved rate. Awaiting client retest. |
 | R2-23 | [>] Implemented | Add Silage. | Farm Operations now has a dedicated Silage tab and history filter using Product-style fields. Silage is an operating cost. Migration `202609040002_silage_operation.sql` must be pushed with the final Round 2 migrations. Awaiting client retest. |
 | R2-26 | [>] Implemented | Add Investment. | Farm Operations now has a dedicated Investment tab and history filter. It uses the Product-style data-entry fields, saves as Investment, and Reports keeps it separate from operating cost. Awaiting client retest. |
 | R2-25 | [>] Implemented | Animal history is incorrect/incomplete. | Animal history now excludes Milk entries and includes lifecycle events, Heat events, and Treatment amounts/comments. Photo/document uploads remain available. Awaiting client retest. |

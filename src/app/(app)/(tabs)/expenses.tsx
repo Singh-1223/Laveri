@@ -131,6 +131,12 @@ export default function ExpensesScreen() {
     setEditingRow(null);
   };
 
+  const selectOperationItem = (id: string) => {
+    const item = availableItems.find((candidate) => candidate.id === id);
+    setSelectedItemId(id);
+    if (item?.default_rate_paise_per_unit !== null && item?.default_rate_paise_per_unit !== undefined) setRate(String(item.default_rate_paise_per_unit / 100));
+  };
+
   const startEdit = (row: OperationHistoryRow) => {
     setKind(row.kind);
     setHistoryFilter(row.kind);
@@ -249,7 +255,7 @@ export default function ExpensesScreen() {
 
         {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind === 'treatment' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Animals treated</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Select all</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
-        {kind !== 'heat' ? <ChoiceList label={neededItemType} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={setSelectedItemId} /> : null}
+        {kind !== 'heat' ? <ChoiceList label={`${neededItemType} suggestions`} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={selectOperationItem} /> : null}
         {kind === 'feed' || kind === 'product' || kind === 'silage' || kind === 'investment' || kind === 'treatment' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
           <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>New {kindLabel(kind).toLowerCase()} item</Text>
           <View style={styles.numericRow}>
