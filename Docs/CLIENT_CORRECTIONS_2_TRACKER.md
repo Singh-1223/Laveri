@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 1 open/reopened task, 24 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 0 open/reopened tasks, 25 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -55,7 +55,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-14 | [>] Implemented | Add more label colours. | Added white, black, pink, yellow, sky blue, and brown. Selected label text automatically switches between dark and light contrast. Awaiting client retest. |
 | R2-15 | [>] Implemented | Add animal profile picture, date of birth, and optional date of purchase. | Add/Edit animal captures birth and optional purchase dates. The newest uploaded animal image is shown as the Herd thumbnail, with the icon used only when no image exists. Awaiting client retest. |
 | R2-16 | [>] Implemented | A Verka buyer with no fixed rate shows “Set rate in master data.” | Verka now displays “Billing-cycle rate” in Master data, while other buyers still show their fixed rate or Rate not set. Awaiting client retest. |
-| R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Bill Morning, Evening, and Total milk are now stored and compared against app totals. Migration `202609040003_verka_bill_milk_tally.sql` is pending final deployment. Prior-cycle handling and bill upload/open controls still need restoration in the cleaned-up billing screen. |
+| R2-17 | [>] Implemented | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Billing cycles can now be saved, reopened for editing, and updated without creating a new cycle. A PDF/image bill (up to 10 MB) can be attached and opened through a temporary secure link. Bill Morning, Evening, and Total milk are stored and compared against app totals. Migration `202609040003_verka_bill_milk_tally.sql` must be pushed before client retest. |
 | R2-18 | [>] Implemented | Feed, Medicine, and Product masters should use Delete instead of Activate/Deactivate. | Feed, Medicine, and Product now use Delete. The saved item is soft-deleted, so it disappears from future choices while historical transactions remain intact. Awaiting client retest. |
 | R2-19 | [>] Implemented | Improve master fields for Feed, Medicine, and Product. | Master data uses Packaging, supports an optional fixed Feed package price, and now saves/displays a visible use/comment for Medicine and Product. Awaiting client retest. |
 
