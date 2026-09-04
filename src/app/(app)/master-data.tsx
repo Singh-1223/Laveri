@@ -8,6 +8,7 @@ import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import {
   createAnimal,
   createAnimalLabel,
+  deleteAnimalLabel,
   createBuyer,
   createItem,
   listMasterData,
@@ -15,6 +16,7 @@ import {
   setMasterRecordActive,
   setAnimalLabels,
   updateAnimal,
+  updateAnimalLabel,
   updateBuyer,
   updateItem,
 } from '@/data/repositories/master-data';
@@ -48,6 +50,7 @@ export default function MasterDataScreen() {
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(labelColors[0]);
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -83,6 +86,7 @@ export default function MasterDataScreen() {
     setSelectedLabelIds([]);
     setNewLabelName('');
     setNewLabelColor(labelColors[0]);
+    setEditingLabelId(null);
     setEditingId(null);
   };
 
@@ -137,13 +141,23 @@ export default function MasterDataScreen() {
     if (!farmId || !session || !newLabelName.trim()) return;
     setBusy(true);
     try {
-      const labelId = await createAnimalLabel({ farmId, userId: session.user.id, name: newLabelName, color: newLabelColor });
+      const labelId = editingLabelId ?? await createAnimalLabel({ farmId, userId: session.user.id, name: newLabelName, color: newLabelColor });
+      if (editingLabelId) await updateAnimalLabel({ farmId, userId: session.user.id, id: editingLabelId, name: newLabelName, color: newLabelColor });
       setSelectedLabelIds((current) => [...current, labelId]);
       setNewLabelName('');
+      setEditingLabelId(null);
       await refresh();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to create the label.');
     } finally { setBusy(false); }
+  };
+
+  const removeLabel = async (id: string) => {
+    if (!farmId || !session) return;
+    setBusy(true);
+    try { await deleteAnimalLabel({ farmId, userId: session.user.id, id }); setSelectedLabelIds((current) => current.filter((value) => value !== id)); if (editingLabelId === id) { setEditingLabelId(null); setNewLabelName(''); } await refresh(); }
+    catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to delete the label.'); }
+    finally { setBusy(false); }
   };
 
   const toggleActive = async (row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow) => {
@@ -193,7 +207,8 @@ export default function MasterDataScreen() {
           <View style={styles.choiceRow}>{snapshot.animalLabels.map((label) => <Pressable key={label.id} onPress={() => setSelectedLabelIds((current) => current.includes(label.id) ? current.filter((id) => id !== label.id) : [...current, label.id])} style={[styles.choice, { backgroundColor: selectedLabelIds.includes(label.id) ? label.color : colors.backgroundSelected }]}><Text style={{ color: selectedLabelIds.includes(label.id) ? labelTextColor(label.color) : colors.text }}>{label.name}</Text></Pressable>)}</View>
           <TextInput accessibilityLabel="New custom label" onChangeText={setNewLabelName} placeholder="New label, e.g. Pregnant" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={newLabelName} />
           <View style={styles.choiceRow}>{labelColors.map((color) => <Pressable key={color} onPress={() => setNewLabelColor(color)} style={[styles.colorChoice, { backgroundColor: color, borderColor: newLabelColor === color ? colors.text : color }]} />)}</View>
-          <Pressable disabled={busy || !newLabelName.trim()} onPress={() => void addCustomLabel()} style={[styles.addLabel, { borderColor: colors.primary }, (busy || !newLabelName.trim()) && styles.disabled]}><Text style={[styles.cancelText, { color: colors.primary }]}>Add custom label</Text></Pressable>
+          <Pressable disabled={busy || !newLabelName.trim()} onPress={() => void addCustomLabel()} style={[styles.addLabel, { borderColor: colors.primary }, (busy || !newLabelName.trim()) && styles.disabled]}><Text style={[styles.cancelText, { color: colors.primary }]}>{editingLabelId ? 'Update custom label' : 'Add custom label'}</Text></Pressable>
+          {snapshot.animalLabels.map((label) => <View key={`manage-${label.id}`} style={styles.labelManageRow}><Text style={{ color: colors.text, flex: 1 }}>{label.name}</Text><Pressable onPress={() => { setEditingLabelId(label.id); setNewLabelName(label.name); setNewLabelColor(label.color); }}><Text style={{ color: colors.primary }}>Edit</Text></Pressable><Pressable onPress={() => void removeLabel(label.id)}><Text style={{ color: colors.danger }}>Delete</Text></Pressable></View>)}
         </View> : null}
         {tab === 'animals' ? (
           <View style={styles.choiceRow}>
@@ -299,6 +314,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '700' },
   colorChoice: { width: 30, height: 30, borderRadius: 15, borderWidth: 3 },
   addLabel: { minHeight: 40, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  labelManageRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
   input: { minHeight: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 16 },
   save: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },

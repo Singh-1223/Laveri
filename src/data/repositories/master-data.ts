@@ -23,6 +23,14 @@ export async function createAnimalLabel(_input: import('./master-data.types').Cr
   throw unavailable();
 }
 
+export async function updateAnimalLabel(_input: import('./master-data.types').UpdateAnimalLabelInput) {
+  throw unavailable();
+}
+
+export async function deleteAnimalLabel(_input: import('./master-data.types').DeleteAnimalLabelInput) {
+  throw unavailable();
+}
+
 export async function setAnimalLabels(_input: import('./master-data.types').SetAnimalLabelsInput) {
   throw unavailable();
 }

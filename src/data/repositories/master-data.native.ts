@@ -6,6 +6,7 @@ import { recordCorrection } from '@/data/repositories/corrections.native';
 import type {
   CreateAnimalInput,
   CreateAnimalLabelInput,
+  DeleteAnimalLabelInput,
   CreateBuyerInput,
   CreateItemInput,
   MasterDataSnapshot,
@@ -13,6 +14,7 @@ import type {
   ReorderMasterRecordInput,
   SetMasterRecordActiveInput,
   UpdateAnimalInput,
+  UpdateAnimalLabelInput,
   UpdateBuyerInput,
   UpdateItemInput,
 } from './master-data.types';
@@ -73,6 +75,25 @@ export async function createAnimalLabel(input: CreateAnimalLabelInput) {
     [audit[0], audit[1], name, input.color, ...audit.slice(2)],
   );
   return audit[0];
+}
+
+export async function updateAnimalLabel(input: UpdateAnimalLabelInput) {
+  const database = await getPowerSyncDatabase();
+  await database.execute(
+    `UPDATE animal_labels SET name = ?, color = ?, updated_at = ?, updated_by = ?, version = version + 1
+     WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+    [input.name.trim(), input.color, new Date().toISOString(), input.userId, input.id, input.farmId],
+  );
+}
+
+export async function deleteAnimalLabel(input: DeleteAnimalLabelInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.execute(
+    `UPDATE animal_labels SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1
+     WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+    [now, now, input.userId, input.id, input.farmId],
+  );
 }
 
 export async function setAnimalLabels(input: SetAnimalLabelsInput) {

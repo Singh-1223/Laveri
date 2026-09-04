@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 13 open/reopened tasks, 12 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 12 open/reopened tasks, 13 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -51,7 +51,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
 | R2-12 | [>] Implemented | Remove Cow, Heifer, and Calf categories from Add animal. | Add/Edit animal no longer presents Cow, Heifer, or Calf choices. All records use custom lifecycle labels; the legacy internal category remains Cow for compatibility with existing data. Awaiting client retest. |
-| R2-13 | [~] Reopened | Saved custom labels cannot be edited/deleted and overflow horizontally. | Add edit/delete actions and wrap label chips onto additional lines. |
+| R2-13 | [>] Implemented | Saved custom labels cannot be edited/deleted and overflow horizontally. | Custom label chips wrap within the screen. A label-management list now provides Edit and Delete controls; deletion hides the label without removing historical records. Awaiting client retest. |
 | R2-14 | [>] Implemented | Add more label colours. | Added white, black, pink, yellow, sky blue, and brown. Selected label text automatically switches between dark and light contrast. Awaiting client retest. |
 | R2-15 | [~] Reopened | Add animal profile picture, date of birth, and optional date of purchase. | Ensure a primary image can be selected and displayed before the animal name; capture both dates. |
 | R2-16 | [~] Reopened | A Verka buyer with no fixed rate shows “Set rate in master data.” | Make the Verka card clearly use billing-cycle pricing and avoid the fixed-rate warning. |
