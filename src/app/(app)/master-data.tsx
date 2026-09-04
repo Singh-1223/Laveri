@@ -24,7 +24,7 @@ import { useSession } from '@/features/auth/session-provider';
 type MasterTab = 'animals' | 'buyers' | 'feed' | 'medicine' | 'product';
 
 const initialSnapshot: MasterDataSnapshot = { animals: [], buyers: [], items: [], animalLabels: [], animalLabelLinks: [] };
-const labelColors = ['#2E7D32', '#1565C0', '#6A1B9A', '#C62828', '#EF6C00'];
+const labelColors = ['#2E7D32', '#1565C0', '#6A1B9A', '#C62828', '#EF6C00', '#FFFFFF', '#1B1B1B', '#EC407A', '#FDD835', '#29B6F6', '#795548'];
 
 function parseRupees(value: string): number | null {
   const normalized = value.trim();
@@ -44,7 +44,6 @@ export default function MasterDataScreen() {
   const [name, setName] = useState('');
   const [secondary, setSecondary] = useState('');
   const [buyerRate, setBuyerRate] = useState('');
-  const [animalCategory, setAnimalCategory] = useState<'cow' | 'heifer' | 'calf'>('cow');
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [newLabelName, setNewLabelName] = useState('');
@@ -80,7 +79,6 @@ export default function MasterDataScreen() {
     setName('');
     setSecondary('');
     setBuyerRate('');
-    setAnimalCategory('cow');
     setAnimalIsMilking(true);
     setSelectedLabelIds([]);
     setNewLabelName('');
@@ -95,7 +93,7 @@ export default function MasterDataScreen() {
     try {
       const context = { farmId, userId: session.user.id };
       if (tab === 'animals') {
-        const input = { ...context, tag: name, category: animalCategory, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary };
+        const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary };
         const animalId = editingId ?? await createAnimal(input);
         if (editingId) await updateAnimal({ ...input, id: editingId });
         await setAnimalLabels({ ...context, animalId, labelIds: selectedLabelIds });
@@ -126,7 +124,6 @@ export default function MasterDataScreen() {
     if ('tag' in row) {
       setName(row.tag);
       setSecondary(row.breed ?? '');
-      setAnimalCategory(row.category);
       setAnimalIsMilking(row.is_milking === 1);
       setSelectedLabelIds(snapshot.animalLabelLinks.filter((link) => link.animal_id === row.id).map((link) => link.label_id));
     } else {
@@ -191,18 +188,9 @@ export default function MasterDataScreen() {
       </View>
 
       <SectionCard title={`${editingId ? 'Edit' : 'Add'} ${singularLabel(tab)}`}>
-        {tab === 'animals' ? (
-          <View style={styles.choiceRow}>
-            {(['cow', 'heifer', 'calf'] as const).map((category) => (
-              <Pressable key={category} onPress={() => { setAnimalCategory(category); if (category !== 'cow') setAnimalIsMilking(false); }} style={[styles.choice, { backgroundColor: animalCategory === category ? colors.primary : colors.backgroundSelected }]}>
-                <Text style={{ color: animalCategory === category ? '#FFFFFF' : colors.text }}>{tabLabel(category)}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : null}
         {tab === 'animals' ? <View style={styles.labelBlock}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>Custom labels</Text>
-          <View style={styles.choiceRow}>{snapshot.animalLabels.map((label) => <Pressable key={label.id} onPress={() => setSelectedLabelIds((current) => current.includes(label.id) ? current.filter((id) => id !== label.id) : [...current, label.id])} style={[styles.choice, { backgroundColor: selectedLabelIds.includes(label.id) ? label.color : colors.backgroundSelected }]}><Text style={{ color: selectedLabelIds.includes(label.id) ? '#FFFFFF' : colors.text }}>{label.name}</Text></Pressable>)}</View>
+          <View style={styles.choiceRow}>{snapshot.animalLabels.map((label) => <Pressable key={label.id} onPress={() => setSelectedLabelIds((current) => current.includes(label.id) ? current.filter((id) => id !== label.id) : [...current, label.id])} style={[styles.choice, { backgroundColor: selectedLabelIds.includes(label.id) ? label.color : colors.backgroundSelected }]}><Text style={{ color: selectedLabelIds.includes(label.id) ? labelTextColor(label.color) : colors.text }}>{label.name}</Text></Pressable>)}</View>
           <TextInput accessibilityLabel="New custom label" onChangeText={setNewLabelName} placeholder="New label, e.g. Pregnant" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={newLabelName} />
           <View style={styles.choiceRow}>{labelColors.map((color) => <Pressable key={color} onPress={() => setNewLabelColor(color)} style={[styles.colorChoice, { backgroundColor: color, borderColor: newLabelColor === color ? colors.text : color }]} />)}</View>
           <Pressable disabled={busy || !newLabelName.trim()} onPress={() => void addCustomLabel()} style={[styles.addLabel, { borderColor: colors.primary }, (busy || !newLabelName.trim()) && styles.disabled]}><Text style={[styles.cancelText, { color: colors.primary }]}>Add custom label</Text></Pressable>
@@ -293,11 +281,19 @@ function singularLabel(tab: MasterTab) {
   return tab;
 }
 
+function labelTextColor(color: string) {
+  const hex = color.replace('#', '');
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  return (red * 299 + green * 587 + blue * 114) / 1_000 > 160 ? '#1B1B1B' : '#FFFFFF';
+}
+
 const styles = StyleSheet.create({
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tab: { minHeight: 40, borderWidth: 1, borderRadius: 20, justifyContent: 'center', paddingHorizontal: 14 },
   tabText: { fontSize: 13, fontWeight: '700' },
-  choiceRow: { flexDirection: 'row', gap: 8 },
+  choiceRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   choice: { minHeight: 40, borderRadius: 10, justifyContent: 'center', paddingHorizontal: 14 },
   labelBlock: { gap: 8 },
   label: { fontSize: 13, fontWeight: '700' },
