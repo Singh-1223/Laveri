@@ -7,6 +7,8 @@ import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
+import { getDailyDashboardSummary } from '@/data/repositories/dashboard';
+import type { DailyDashboardSummary } from '@/data/repositories/dashboard.types';
 import { getPeriodReport } from '@/data/repositories/reports';
 import type { PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
@@ -21,6 +23,8 @@ function currentMonthRange() {
   return { fromDate, toDate: `${year}-${String(month + 1).padStart(2, '0')}-${last}` };
 }
 
+function todayAtFarm() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
+
 export default function ReportsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -28,6 +32,7 @@ export default function ReportsScreen() {
   const [fromDate, setFromDate] = useState(initial.fromDate);
   const [toDate, setToDate] = useState(initial.toDate);
   const [report, setReport] = useState<PeriodReport | null>(null);
+  const [todaySummary, setTodaySummary] = useState<DailyDashboardSummary | null>(null);
   const [animalFilter, setAnimalFilter] = useState('all');
   const [buyerFilter, setBuyerFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -41,7 +46,7 @@ export default function ReportsScreen() {
     setMessage(null);
     try {
       const sync = await getPowerSyncSnapshot();
-      setReport(sync.farmId ? await getPeriodReport(sync.farmId, fromDate, toDate) : null);
+      if (sync.farmId) { const [period, today] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm())]); setReport(period); setTodaySummary(today); } else { setReport(null); setTodaySummary(null); }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to calculate reports.');
     } finally {
@@ -93,6 +98,16 @@ export default function ReportsScreen() {
       {message ? <Text style={[styles.message, { color: colors.primary }]}>{message}</Text> : null}
       {loading ? <ActivityIndicator color={colors.primary} /> : !report ? <EmptyState>Complete farm setup to calculate reports.</EmptyState> : (
         <>
+          <SectionCard title="Today">
+            <View style={styles.grid}>
+              <ReportCard label="Today’s milk" value={formatMilk(todaySummary?.producedMl ?? 0)} />
+              <ReportCard label="Household milk" value={formatMilk(Math.max(0, todaySummary?.unallocatedMl ?? 0))} />
+              <ReportCard label="Turnover" value={formatMoney(todaySummary?.turnoverPaise ?? 0)} />
+              <ReportCard label="Operating cost" value={formatMoney(todaySummary?.operatingCostPaise ?? 0)} />
+              <ReportCard label="Operating profit" value={formatMoney(todaySummary?.operatingProfitPaise ?? 0)} />
+              <ReportCard label="Investment" value={formatMoney(todaySummary?.investmentPaise ?? 0)} />
+            </View>
+          </SectionCard>
           <View style={styles.grid}>
             <ReportCard label="Production" value={formatMilk(report.producedMl)} />
             <ReportCard label="Milk revenue" value={formatMoney(report.milkRevenuePaise)} />

@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 9 open/reopened tasks, 16 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 8 open/reopened tasks, 17 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -30,7 +30,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
 | R2-01 | [>] Implemented | Remove the separate Home page and treat Milk entry as the app home page. | The Home tab is hidden. The former Home route remains only as the first-run farm-setup gate; existing farms are immediately redirected to Milk. Awaiting client retest. |
-| R2-02 | [ ] Open | Move today’s milk, unallocated/household milk, turnover, operating cost, operating profit, and investment to Reports. | Consolidate these dashboard figures into Reports. Investment is a separate total in rupees, not a production cost. |
+| R2-02 | [>] Implemented | Move today’s milk, unallocated/household milk, turnover, operating cost, operating profit, and investment to Reports. | Reports now has a Today summary for milk, household milk, turnover, operating cost, operating profit, and Investment, in addition to the selected date-range report. Awaiting client retest. |
 | R2-03 | [>] Implemented | Add a three-dot button on Milk that opens a slide-out menu with Master data, Price calculator, Correction history, and Milk reminder settings. | Milk now has a three-dot slide-out menu with all four utilities. Awaiting client retest. |
 | R2-04 | [>] Implemented | Replace “Configure milk pricing” with a Price calculator. | The former farm-wide pricing configuration screen is now a non-persistent Price calculator with CMFAT, SMFAT, FAT%, SNF%, and the calculated per-litre price. Buyer rates remain separate. Awaiting client retest. |
 
