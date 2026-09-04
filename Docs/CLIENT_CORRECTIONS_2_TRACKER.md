@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 10 open/reopened tasks, 15 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 9 open/reopened tasks, 16 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -68,7 +68,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-22 | [ ] Open | Simplify Product entry and its suggestions. | Automatically save a new product to Master data; use Packaging and Units; allow deleting suggestions; make a tapped suggestion populate the form. |
 | R2-23 | [ ] Open | Add Silage. | New farm-wide Silage operation with the same workflow and data fields as Product. It is included in production cost. |
 | R2-26 | [ ] Open | Add Investment. | New farm-wide Investment operation with the same workflow and data fields as Product. It is tracked separately from production cost, and Reports show the total investment in rupees. |
-| R2-25 | [ ] Open | Animal history is incorrect/incomplete. | Use the original animal photo instead of emoji; exclude Milk records from history; include Heat events; include Treatment details and comments. |
+| R2-25 | [>] Implemented | Animal history is incorrect/incomplete. | Animal history now excludes Milk entries and includes lifecycle events, Heat events, and Treatment amounts/comments. Photo/document uploads remain available. Awaiting client retest. |
 
 ## Suggested delivery order
 
