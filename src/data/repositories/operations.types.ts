@@ -1,6 +1,6 @@
 import type { AnimalRow, ItemRow } from './master-data.types';
 
-export type OperationKind = 'feed' | 'treatment' | 'product' | 'heat';
+export type OperationKind = 'feed' | 'treatment' | 'product' | 'investment' | 'heat';
 
 export type OperationHistoryRow = {
   id: string;

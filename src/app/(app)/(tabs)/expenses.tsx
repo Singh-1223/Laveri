@@ -164,9 +164,9 @@ export default function ExpensesScreen() {
         if (selectedTreatmentAnimalIds.length === 0 || !Number.isSafeInteger(doctorFeePaise) || !Number.isSafeInteger(medicineCostPaise) || (doseMilliUnits !== null && !Number.isSafeInteger(doseMilliUnits))) throw new Error('Select at least one animal and enter valid treatment values.');
         if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedTreatmentAnimalIds[0], medicineItemId: selectedItem?.id ?? null, doctorFeePaise, medicineCostPaise });
         else await createTreatment({ ...context, animalIds: selectedTreatmentAnimalIds, medicineItemId: selectedItem?.id ?? null, doseMilliUnits, doseUnit: doseMilliUnits === null ? null : selectedItem?.base_unit ?? 'unit', doctorFeePaise, medicineCostPaise });
-      } else if (kind === 'product') {
+      } else if (kind === 'product' || kind === 'investment') {
         if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a product, then enter quantity and rate.');
-        const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
+        const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: kind === 'investment' ? 'investment' as const : productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
         if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
         else await createProductTransaction(input);
       } else {
@@ -188,14 +188,14 @@ export default function ExpensesScreen() {
   };
 
   const createQuickItem = async () => {
-    if (!farmId || !session || (kind !== 'feed' && kind !== 'product' && kind !== 'treatment') || !quickItemName.trim()) return;
+    if (!farmId || !session || (kind !== 'feed' && kind !== 'product' && kind !== 'investment' && kind !== 'treatment') || !quickItemName.trim()) return;
     setBusy(true);
     setMessage(null);
     try {
       const itemId = await createItem({
         farmId,
         userId: session.user.id,
-        type: kind === 'treatment' ? 'medicine' : kind,
+        type: kind === 'treatment' ? 'medicine' : kind === 'investment' ? 'product' : kind,
         name: quickItemName,
         baseUnit: quickItemUnit.trim() || (kind === 'feed' ? 'kg' : kind === 'treatment' ? 'ml' : 'unit'),
       });
@@ -237,7 +237,7 @@ export default function ExpensesScreen() {
   return (
     <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, health, and heat records">
       <View style={styles.tabs}>
-        {(['feed', 'treatment', 'product', 'heat'] as const).map((value) => (
+        {(['feed', 'treatment', 'product', 'investment', 'heat'] as const).map((value) => (
           <Pressable key={value} onPress={() => { setKind(value); setHistoryFilter(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
             <Text style={{ color: kind === value ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{kindLabel(value)}</Text>
           </Pressable>
@@ -250,7 +250,7 @@ export default function ExpensesScreen() {
         {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind === 'treatment' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Animals treated</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Select all</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
         {kind !== 'heat' ? <ChoiceList label={neededItemType} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={setSelectedItemId} /> : null}
-        {kind === 'feed' || kind === 'product' || kind === 'treatment' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
+        {kind === 'feed' || kind === 'product' || kind === 'investment' || kind === 'treatment' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
           <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>New {kindLabel(kind).toLowerCase()} item</Text>
           <View style={styles.numericRow}>
             <TextInput accessibilityLabel={`New ${kind} item name`} onChangeText={setQuickItemName} placeholder="Item name" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemName} />
@@ -259,7 +259,7 @@ export default function ExpensesScreen() {
           <Pressable disabled={busy || !quickItemName.trim()} onPress={() => void createQuickItem()} style={[styles.quickItemButton, { borderColor: colors.primary }, (busy || !quickItemName.trim()) && styles.disabled]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Add item</Text></Pressable>
         </View> : null}
 
-        {kind === 'feed' || kind === 'product' ? (
+        {kind === 'feed' || kind === 'product' || kind === 'investment' ? (
           <View style={styles.numericRow}>
             <TextInput accessibilityLabel="Quantity" keyboardType="decimal-pad" onChangeText={setQuantity} placeholder={`Quantity (${selectedItem?.base_unit ?? 'unit'})`} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quantity} />
             <TextInput accessibilityLabel="Rate" keyboardType="decimal-pad" onChangeText={setRate} placeholder="Rate ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={rate} />
@@ -288,7 +288,7 @@ export default function ExpensesScreen() {
       <SectionCard title={`Recent activity (${visibleHistory.length})`}>
         <TextInput accessibilityLabel="Search operation history" onChangeText={setHistorySearch} placeholder="Search date, animal, item, or void reason" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={historySearch} />
         <View style={styles.historyFilters}>
-          {(['all', 'feed', 'treatment', 'product', 'heat'] as const).map((value) => (
+          {(['all', 'feed', 'treatment', 'product', 'investment', 'heat'] as const).map((value) => (
             <Pressable key={value} onPress={() => setHistoryFilter(value)} style={[styles.historyFilter, { backgroundColor: historyFilter === value ? colors.primary : colors.backgroundSelected }]}>
               <Text style={{ color: historyFilter === value ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '700' }}>{value === 'all' ? 'All' : kindLabel(value)}</Text>
             </Pressable>
@@ -347,6 +347,7 @@ function ChoiceList({ label, rows, selectedId, onSelect }: { label: string; rows
 function kindLabel(kind: OperationKind) {
   if (kind === 'treatment') return 'Treatment';
   if (kind === 'product') return 'Product';
+  if (kind === 'investment') return 'Investment';
   if (kind === 'heat') return 'Heat event';
   return 'Feed';
 }

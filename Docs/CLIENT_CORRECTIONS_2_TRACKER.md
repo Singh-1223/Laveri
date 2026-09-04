@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 6 open/reopened tasks, 19 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 5 open/reopened tasks, 20 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -67,7 +67,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-21 | [~] Reopened | Simplify Treatment entry and its suggestions. | New Medicine items are now added and selected immediately, and saved Medicine items can be deleted in Master data. Full suggestion-flow refinement remains. |
 | R2-22 | [~] Reopened | Simplify Product entry and its suggestions. | New Product items are now added and selected immediately, and saved Product items can be deleted in Master data. Packaging terminology is in place; Units and full suggestion-flow refinement remain. |
 | R2-23 | [ ] Open | Add Silage. | New farm-wide Silage operation with the same workflow and data fields as Product. It is included in production cost. |
-| R2-26 | [ ] Open | Add Investment. | New farm-wide Investment operation with the same workflow and data fields as Product. It is tracked separately from production cost, and Reports show the total investment in rupees. |
+| R2-26 | [>] Implemented | Add Investment. | Farm Operations now has a dedicated Investment tab and history filter. It uses the Product-style data-entry fields, saves as Investment, and Reports keeps it separate from operating cost. Awaiting client retest. |
 | R2-25 | [>] Implemented | Animal history is incorrect/incomplete. | Animal history now excludes Milk entries and includes lifecycle events, Heat events, and Treatment amounts/comments. Photo/document uploads remain available. Awaiting client retest. |
 
 ## Suggested delivery order
