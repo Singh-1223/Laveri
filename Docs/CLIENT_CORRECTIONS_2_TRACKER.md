@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 4 open/reopened tasks, 21 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 3 open/reopened tasks, 22 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -55,7 +55,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-14 | [>] Implemented | Add more label colours. | Added white, black, pink, yellow, sky blue, and brown. Selected label text automatically switches between dark and light contrast. Awaiting client retest. |
 | R2-15 | [>] Implemented | Add animal profile picture, date of birth, and optional date of purchase. | Add/Edit animal captures birth and optional purchase dates. The newest uploaded animal image is shown as the Herd thumbnail, with the icon used only when no image exists. Awaiting client retest. |
 | R2-16 | [>] Implemented | A Verka buyer with no fixed rate shows “Set rate in master data.” | Verka now displays “Billing-cycle rate” in Master data, while other buyers still show their fixed rate or Rate not set. Awaiting client retest. |
-| R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verify/complete the special billing input, retained provisional rate, uploaded bill, and a bill-vs-app comparison for Morning milk, Evening milk, and Total milk only. |
+| R2-17 | [>] Implemented | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verka billing now stores bill Morning, Evening, and Total milk and displays the app-versus-bill difference for exactly those three values. Migration `202609040003_verka_bill_milk_tally.sql` is pending final deployment. Awaiting client retest. |
 | R2-18 | [>] Implemented | Feed, Medicine, and Product masters should use Delete instead of Activate/Deactivate. | Feed, Medicine, and Product now use Delete. The saved item is soft-deleted, so it disappears from future choices while historical transactions remain intact. Awaiting client retest. |
 | R2-19 | [>] Implemented | Improve master fields for Feed, Medicine, and Product. | Master data uses Packaging, supports an optional fixed Feed package price, and now saves/displays a visible use/comment for Medicine and Product. Awaiting client retest. |
 

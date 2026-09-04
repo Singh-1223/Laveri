@@ -128,7 +128,7 @@ const buyerPayments = new Table(
 );
 
 const verkaBillingCycles = new Table(
-  { farm_id: column.text, buyer_id: column.text, cycle_start: column.text, cycle_end: column.text, final_rate_paise_per_litre: column.integer, commission_paise: column.integer, increment_paise: column.integer, deduction_paise: column.integer, notes: column.text, bill_path: column.text, bill_name: column.text, ...auditColumns },
+  { farm_id: column.text, buyer_id: column.text, cycle_start: column.text, cycle_end: column.text, final_rate_paise_per_litre: column.integer, commission_paise: column.integer, increment_paise: column.integer, deduction_paise: column.integer, notes: column.text, bill_path: column.text, bill_name: column.text, bill_morning_ml: column.integer, bill_evening_ml: column.integer, bill_total_ml: column.integer, ...auditColumns },
   { ...versioned, indexes: { by_buyer_cycle: ['buyer_id', '-cycle_start'] } },
 );
 
