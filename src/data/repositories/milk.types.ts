@@ -14,6 +14,7 @@ export type MilkAnimalEntry = {
   cmSnfPaise: number | null;
   ratePaisePerLitre: number | null;
   state: 'draft' | 'complete' | null;
+  labels: { id: string; name: string; color: string }[];
 };
 
 export type MilkSessionSnapshot = {
@@ -76,4 +77,11 @@ export type VoidMilkSessionInput = {
 export type MilkLaunchTarget = {
   milkDate: string;
   session: MilkSession;
+};
+
+export type ReorderMilkAnimalsInput = {
+  farmId: string;
+  userId: string;
+  animalId: string;
+  direction: 'up' | 'down';
 };

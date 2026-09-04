@@ -82,6 +82,7 @@ const animals = new Table(
     acquisition_date: column.text,
     notes: column.text,
     display_order: column.integer,
+    milk_display_order: column.integer,
     ...auditColumns,
   },
   { ...versioned, indexes: { by_farm_status: ['farm_id', 'status'], by_farm_tag: ['farm_id', 'tag'] } },

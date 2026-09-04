@@ -48,10 +48,10 @@ export async function createAnimal(input: CreateAnimalInput) {
   const audit = auditValues(input);
   await database.execute(
     `INSERT INTO animals (
-      id, farm_id, tag, category, sex, status, is_milking, breed, display_order,
+      id, farm_id, tag, category, sex, status, is_milking, breed, display_order, milk_display_order,
       created_at, updated_at, created_by, updated_by, deleted_at, version
-    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animals WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.farmId, ...audit.slice(2)],
+    ) VALUES (?, ?, ?, ?, ?, 'active', ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animals WHERE farm_id = ?), (SELECT coalesce(max(milk_display_order), 0) + 1 FROM animals WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], input.tag.trim(), input.category, input.sex, input.isMilking ? 1 : 0, input.breed?.trim() || null, input.farmId, input.farmId, ...audit.slice(2)],
   );
   return audit[0];
 }

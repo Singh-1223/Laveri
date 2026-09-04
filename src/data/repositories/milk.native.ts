@@ -4,7 +4,7 @@ import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import { recordCorrection } from '@/data/repositories/corrections.native';
 import { calculateFlatMilkAmountPaise } from '@/domain/calculations';
 
-import type { MilkLaunchTarget, MilkSessionSnapshot, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
+import type { MilkLaunchTarget, MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
 
 function todayAtFarm(): string {
   const now = new Date();
@@ -42,7 +42,7 @@ export async function loadMilkSession(
   session: 'morning' | 'evening',
 ): Promise<MilkSessionSnapshot> {
   const database = await getPowerSyncDatabase();
-  const [entries, buyerAllocations, householdAllocation] = await Promise.all([
+  const [entries, buyerAllocations, householdAllocation, labelRows] = await Promise.all([
     database.getAll<MilkSessionSnapshot['entries'][number]>(
       `SELECT
         animal.id AS animalId,
@@ -67,7 +67,7 @@ export async function loadMilkSession(
       WHERE animal.farm_id = ?
         AND animal.deleted_at IS NULL
         AND ((animal.status = 'active' AND animal.is_milking = 1) OR entry.id IS NOT NULL)
-      ORDER BY animal.tag COLLATE NOCASE`,
+      ORDER BY animal.milk_display_order, animal.tag COLLATE NOCASE`,
       [milkDate, session, farmId],
     ),
     database.getAll<MilkSessionSnapshot['allocations'][number]>(
@@ -107,10 +107,21 @@ export async function loadMilkSession(
        LIMIT 1`,
       [farmId, milkDate, session],
     ),
+    database.getAll<{ animalId: string; id: string; name: string; color: string }>(
+      `SELECT link.animal_id AS animalId, label.id, label.name, label.color
+       FROM animal_label_links link
+       INNER JOIN animal_labels label ON label.id = link.label_id
+       WHERE link.farm_id = ? AND link.deleted_at IS NULL AND label.deleted_at IS NULL
+       ORDER BY label.name COLLATE NOCASE`,
+      [farmId],
+    ),
   ]);
 
+  const labelsByAnimal = new Map<string, { id: string; name: string; color: string }[]>();
+  for (const label of labelRows) labelsByAnimal.set(label.animalId, [...(labelsByAnimal.get(label.animalId) ?? []), { id: label.id, name: label.name, color: label.color }]);
+
   return {
-    entries,
+    entries: entries.map((entry) => ({ ...entry, labels: labelsByAnimal.get(entry.animalId) ?? [] })),
     allocations: [
       ...buyerAllocations,
       {
@@ -128,6 +139,32 @@ export async function loadMilkSession(
     suggestedCmFatPaise: null,
     suggestedCmSnfPaise: null,
   };
+}
+
+export async function reorderMilkAnimals(input: ReorderMilkAnimalsInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    const rows = await transaction.getAll<{ id: string; milk_display_order: number }>(
+      `SELECT id, milk_display_order FROM animals
+       WHERE farm_id = ? AND status = 'active' AND is_milking = 1 AND deleted_at IS NULL
+       ORDER BY milk_display_order, tag COLLATE NOCASE`,
+      [input.farmId],
+    );
+    const index = rows.findIndex((row) => row.id === input.animalId);
+    const targetIndex = index + (input.direction === 'up' ? -1 : 1);
+    if (index < 0 || targetIndex < 0 || targetIndex >= rows.length) return;
+    const current = rows[index];
+    const adjacent = rows[targetIndex];
+    await transaction.execute(
+      `UPDATE animals SET milk_display_order = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND farm_id = ?`,
+      [adjacent.milk_display_order, now, input.userId, current.id, input.farmId],
+    );
+    await transaction.execute(
+      `UPDATE animals SET milk_display_order = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND farm_id = ?`,
+      [current.milk_display_order, now, input.userId, adjacent.id, input.farmId],
+    );
+  });
 }
 
 export async function saveMilkSession(input: SaveMilkSessionInput) {

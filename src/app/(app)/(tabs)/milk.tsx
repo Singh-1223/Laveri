@@ -5,7 +5,7 @@ import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View,
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { getMilkLaunchTarget, loadMilkSession, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
+import { getMilkLaunchTarget, loadMilkSession, reorderMilkAnimals, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
 import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
 import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
@@ -241,6 +241,20 @@ export default function MilkScreen() {
     }
   };
 
+  const moveAnimal = async (animalId: string, direction: 'up' | 'down') => {
+    if (!farmId || !session) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await reorderMilkAnimals({ farmId, userId: session.user.id, animalId, direction });
+      await refresh();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to change Milk order.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <AppScreen title="Milk" action={<Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable>}>
       <MilkMenu open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={(path) => { setMenuOpen(false); router.push(path); }} />
@@ -264,10 +278,15 @@ export default function MilkScreen() {
       </View>
 
       <SectionCard>
-        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add a cow in Master data first.</EmptyState> : entries.map((entry) => (
+        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : entries.map((entry, index) => (
           <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
               <Text style={[styles.animalName, { color: colors.text }]}>{entry.tag}</Text>
+              {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
+            </View>
+            <View style={styles.orderControls}>
+              <Pressable disabled={busy || index === 0} accessibilityLabel={`Move ${entry.tag} up in Milk`} onPress={() => void moveAnimal(entry.animalId, 'up')} style={[styles.orderButton, { borderColor: colors.border }, (busy || index === 0) && styles.disabled]}><Text style={[styles.orderButtonText, { color: colors.textSecondary }]}>↑</Text></Pressable>
+              <Pressable disabled={busy || index === entries.length - 1} accessibilityLabel={`Move ${entry.tag} down in Milk`} onPress={() => void moveAnimal(entry.animalId, 'down')} style={[styles.orderButton, { borderColor: colors.border }, (busy || index === entries.length - 1) && styles.disabled]}><Text style={[styles.orderButtonText, { color: colors.textSecondary }]}>↓</Text></Pressable>
             </View>
             <TextInput
               accessibilityLabel={`${entry.tag} litres`}
@@ -404,6 +423,12 @@ const styles = StyleSheet.create({
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
   animalCopy: { flex: 1, gap: 2 },
   animalName: { fontSize: 16, fontWeight: '700' },
+  labelList: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, maxHeight: 36, overflow: 'hidden' },
+  labelChip: { maxWidth: 90, borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
+  labelText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  orderControls: { gap: 3 },
+  orderButton: { width: 26, height: 21, borderWidth: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  orderButtonText: { fontSize: 14, fontWeight: '800', lineHeight: 16 },
   entryState: { fontSize: 12 },
   volumeInput: { width: 96, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, textAlign: 'right', fontSize: 17 },
   litre: { width: 16, fontSize: 14 },
