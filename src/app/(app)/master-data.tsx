@@ -47,6 +47,7 @@ export default function MasterDataScreen() {
   const [name, setName] = useState('');
   const [secondary, setSecondary] = useState('');
   const [buyerRate, setBuyerRate] = useState('');
+  const [itemRate, setItemRate] = useState('');
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
   const [birthDate, setBirthDate] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
@@ -85,6 +86,7 @@ export default function MasterDataScreen() {
     setName('');
     setSecondary('');
     setBuyerRate('');
+    setItemRate('');
     setAnimalIsMilking(true);
     setBirthDate('');
     setPurchaseDate('');
@@ -112,7 +114,9 @@ export default function MasterDataScreen() {
         if (editingId) await updateBuyer({ ...context, id: editingId, name, phone: secondary, defaultRatePaisePerLitre });
         else await createBuyer({ ...context, name, phone: secondary, defaultRatePaisePerLitre });
       } else {
-        const input = { ...context, type: tab, name, baseUnit: secondary || defaultUnit(tab) };
+        const defaultRatePaisePerUnit = parseRupees(itemRate);
+        if (Number.isNaN(defaultRatePaisePerUnit)) throw new Error('Use a valid fixed price with up to two decimal places.');
+        const input = { ...context, type: tab, name, baseUnit: secondary || defaultUnit(tab), defaultRatePaisePerUnit };
         if (editingId) await updateItem({ ...input, id: editingId });
         else await createItem(input);
       }
@@ -140,6 +144,7 @@ export default function MasterDataScreen() {
     } else {
       setName(row.name);
       setSecondary('base_unit' in row ? row.base_unit : row.phone ?? '');
+      if ('base_unit' in row) setItemRate(row.default_rate_paise_per_unit === null ? '' : String(row.default_rate_paise_per_unit / 100));
       if (!('base_unit' in row)) setBuyerRate(row.default_rate_paise_per_litre === null ? '' : String(row.default_rate_paise_per_litre / 100));
     }
   };
@@ -236,13 +241,14 @@ export default function MasterDataScreen() {
         />
         {tab === 'animals' ? <><DateField label="Date of birth" value={birthDate} onChange={setBirthDate} /><DateField label="Date of purchase (optional)" value={purchaseDate} onChange={setPurchaseDate} /></> : null}
         <TextInput
-          accessibilityLabel={tab === 'buyers' ? 'Phone' : tab === 'animals' ? 'Breed' : 'Base unit'}
+          accessibilityLabel={tab === 'buyers' ? 'Phone' : tab === 'animals' ? 'Breed' : 'Packaging'}
           onChangeText={setSecondary}
-          placeholder={tab === 'buyers' ? 'Phone (optional)' : tab === 'animals' ? 'Breed (optional)' : `Base unit, e.g. ${defaultUnit(tab)}`}
+          placeholder={tab === 'buyers' ? 'Phone (optional)' : tab === 'animals' ? 'Breed (optional)' : `Packaging, e.g. ${defaultUnit(tab)}`}
           placeholderTextColor={colors.textSecondary}
           style={[styles.input, { color: colors.text, borderColor: colors.border }]}
           value={secondary}
         />
+        {tab === 'feed' ? <TextInput accessibilityLabel="Fixed feed price" keyboardType="decimal-pad" onChangeText={setItemRate} placeholder="Fixed price per package ₹ (optional)" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: Number.isNaN(parseRupees(itemRate)) ? colors.danger : colors.border }]} value={itemRate} /> : null}
         {tab === 'buyers' ? <TextInput
           accessibilityLabel="Buyer rate per litre"
           keyboardType="decimal-pad"
@@ -274,7 +280,7 @@ function MasterRow({ row, busy, onEdit, onToggle, onReorder }: { row: MasterData
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const name = 'tag' in row ? row.tag : row.name;
   const active = 'tag' in row ? row.status === 'active' : row.active === 1;
-  const detail = 'category' in row ? `${row.category} • ${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • ${row.base_unit} • ${active ? 'active' : 'inactive'}` : `${row.phone || 'No phone'} • ${row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
+  const detail = 'category' in row ? `${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • Packaging: ${row.base_unit}${row.default_rate_paise_per_unit === null ? '' : ` • ₹${(row.default_rate_paise_per_unit / 100).toFixed(2)}`}` : `${row.phone || 'No phone'} • ${row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
   return (
     <View style={[styles.row, { borderTopColor: colors.border }]}>
       {'default_rate_paise_per_litre' in row ? <Link href={row.name.trim().toLocaleLowerCase() === 'verka' ? { pathname: '/verka-billing/[buyerId]', params: { buyerId: row.id } } : { pathname: '/buyer-account/[id]', params: { id: row.id } }}><Text style={[styles.rowName, { color: colors.primary }]}>{name}</Text></Link> : <Text style={[styles.rowName, { color: colors.text }]}>{name}</Text>}

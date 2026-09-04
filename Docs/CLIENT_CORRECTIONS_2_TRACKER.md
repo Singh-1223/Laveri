@@ -57,7 +57,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-16 | [~] Reopened | A Verka buyer with no fixed rate shows “Set rate in master data.” | Make the Verka card clearly use billing-cycle pricing and avoid the fixed-rate warning. |
 | R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verify/complete the special billing input, retained provisional rate, uploaded bill, and a bill-vs-app comparison for Morning milk, Evening milk, and Total milk only. |
 | R2-18 | [ ] Open | Feed, Medicine, and Product masters should use Delete instead of Activate/Deactivate. | Replace deactivate UI with safe delete/archive behaviour that preserves historical records. |
-| R2-19 | [ ] Open | Improve master fields for Feed, Medicine, and Product. | Rename Base unit to Packaging (kg or kg/ml as applicable); Feed also gets fixed price; Medicine/Product show a visible use/comment. |
+| R2-19 | [~] Reopened | Improve master fields for Feed, Medicine, and Product. | Master data now calls Base unit “Packaging” and supports an optional fixed Feed package price. The visible Medicine/Product use-comment remains to be added with the operation suggestion redesign. |
 
 ## D. Farm operations
 
