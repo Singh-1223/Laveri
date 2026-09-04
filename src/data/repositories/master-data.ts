@@ -31,6 +31,10 @@ export async function deleteAnimalLabel(_input: import('./master-data.types').De
   throw unavailable();
 }
 
+export async function deleteItem(_input: import('./master-data.types').DeleteItemInput) {
+  throw unavailable();
+}
+
 export async function setAnimalLabels(_input: import('./master-data.types').SetAnimalLabelsInput) {
   throw unavailable();
 }

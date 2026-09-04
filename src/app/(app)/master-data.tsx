@@ -10,6 +10,7 @@ import {
   createAnimal,
   createAnimalLabel,
   deleteAnimalLabel,
+  deleteItem,
   createBuyer,
   createItem,
   listMasterData,
@@ -189,6 +190,15 @@ export default function MasterDataScreen() {
     }
   };
 
+  const removeItem = async (id: string) => {
+    if (!farmId || !session) return;
+    setBusy(true);
+    setError(null);
+    try { await deleteItem({ farmId, userId: session.user.id, id }); if (editingId === id) resetForm(); await refresh(); }
+    catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to delete this saved item.'); }
+    finally { setBusy(false); }
+  };
+
   const reorder = async (row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number], direction: 'up' | 'down') => {
     if (!farmId || !session) return;
     setBusy(true);
@@ -268,14 +278,14 @@ export default function MasterDataScreen() {
 
       <SectionCard title={`${tabLabel(tab)} (${rows.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : rows.length === 0 ? <EmptyState>No {tabLabel(tab).toLowerCase()} added yet.</EmptyState> : rows.map((row) => (
-          <MasterRow key={row.id} row={row} busy={busy} onEdit={() => startEdit(row)} onToggle={() => void toggleActive(row)} onReorder={'base_unit' in row ? undefined : (direction) => void reorder(row, direction)} />
+          <MasterRow key={row.id} row={row} busy={busy} onEdit={() => startEdit(row)} onToggle={() => void toggleActive(row)} onDelete={'base_unit' in row ? () => void removeItem(row.id) : undefined} onReorder={'base_unit' in row ? undefined : (direction) => void reorder(row, direction)} />
         ))}
       </SectionCard>
     </AppScreen>
   );
 }
 
-function MasterRow({ row, busy, onEdit, onToggle, onReorder }: { row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow; busy: boolean; onEdit: () => void; onToggle: () => void; onReorder?: (direction: 'up' | 'down') => void }) {
+function MasterRow({ row, busy, onEdit, onToggle, onDelete, onReorder }: { row: MasterDataSnapshot['animals'][number] | MasterDataSnapshot['buyers'][number] | ItemRow; busy: boolean; onEdit: () => void; onToggle: () => void; onDelete?: () => void; onReorder?: (direction: 'up' | 'down') => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const name = 'tag' in row ? row.tag : row.name;
@@ -288,7 +298,7 @@ function MasterRow({ row, busy, onEdit, onToggle, onReorder }: { row: MasterData
       <View style={styles.rowActions}>
         {onReorder ? <><Pressable disabled={busy} onPress={() => onReorder('up')} style={[styles.rowAction, { borderColor: colors.border }]}><Text style={[styles.rowActionText, { color: colors.textSecondary }]}>Move up</Text></Pressable><Pressable disabled={busy} onPress={() => onReorder('down')} style={[styles.rowAction, { borderColor: colors.border }]}><Text style={[styles.rowActionText, { color: colors.textSecondary }]}>Move down</Text></Pressable></> : null}
         <Pressable disabled={busy} onPress={onEdit} style={[styles.rowAction, { borderColor: colors.primary }]}><Text style={[styles.rowActionText, { color: colors.primary }]}>Edit</Text></Pressable>
-        <Pressable disabled={busy} onPress={onToggle} style={[styles.rowAction, { borderColor: active ? colors.danger : colors.primary }]}><Text style={[styles.rowActionText, { color: active ? colors.danger : colors.primary }]}>{active ? 'Deactivate' : 'Reactivate'}</Text></Pressable>
+        {onDelete ? <Pressable disabled={busy} onPress={onDelete} style={[styles.rowAction, { borderColor: colors.danger }]}><Text style={[styles.rowActionText, { color: colors.danger }]}>Delete</Text></Pressable> : <Pressable disabled={busy} onPress={onToggle} style={[styles.rowAction, { borderColor: active ? colors.danger : colors.primary }]}><Text style={[styles.rowActionText, { color: active ? colors.danger : colors.primary }]}>{active ? 'Deactivate' : 'Reactivate'}</Text></Pressable>}
       </View>
     </View>
   );

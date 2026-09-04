@@ -7,6 +7,7 @@ import type {
   CreateAnimalInput,
   CreateAnimalLabelInput,
   DeleteAnimalLabelInput,
+  DeleteItemInput,
   CreateBuyerInput,
   CreateItemInput,
   MasterDataSnapshot,
@@ -91,6 +92,16 @@ export async function deleteAnimalLabel(input: DeleteAnimalLabelInput) {
   const now = new Date().toISOString();
   await database.execute(
     `UPDATE animal_labels SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1
+     WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+    [now, now, input.userId, input.id, input.farmId],
+  );
+}
+
+export async function deleteItem(input: DeleteItemInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.execute(
+    `UPDATE items SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1
      WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
     [now, now, input.userId, input.id, input.farmId],
   );

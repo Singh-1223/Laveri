@@ -87,4 +87,5 @@ export type ReorderMasterRecordInput = AuditContext & {
 export type CreateAnimalLabelInput = AuditContext & { name: string; color: string };
 export type UpdateAnimalLabelInput = CreateAnimalLabelInput & { id: string };
 export type DeleteAnimalLabelInput = AuditContext & { id: string };
+export type DeleteItemInput = AuditContext & { id: string };
 export type SetAnimalLabelsInput = AuditContext & { animalId: string; labelIds: string[] };
