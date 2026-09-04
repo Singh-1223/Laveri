@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 5 open/reopened tasks, 20 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 4 open/reopened tasks, 21 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -66,7 +66,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-20 | [~] Reopened | Simplify Feed entry and its suggestions. | New Feed items are now added and selected immediately, and saved Feed items can be deleted in Master data. Packaging terminology is in place. Units, Feed comment removal, and full suggestion-flow refinement remain. |
 | R2-21 | [~] Reopened | Simplify Treatment entry and its suggestions. | New Medicine items are now added and selected immediately, and saved Medicine items can be deleted in Master data. Full suggestion-flow refinement remains. |
 | R2-22 | [~] Reopened | Simplify Product entry and its suggestions. | New Product items are now added and selected immediately, and saved Product items can be deleted in Master data. Packaging terminology is in place; Units and full suggestion-flow refinement remain. |
-| R2-23 | [ ] Open | Add Silage. | New farm-wide Silage operation with the same workflow and data fields as Product. It is included in production cost. |
+| R2-23 | [>] Implemented | Add Silage. | Farm Operations now has a dedicated Silage tab and history filter using Product-style fields. Silage is an operating cost. Migration `202609040002_silage_operation.sql` must be pushed with the final Round 2 migrations. Awaiting client retest. |
 | R2-26 | [>] Implemented | Add Investment. | Farm Operations now has a dedicated Investment tab and history filter. It uses the Product-style data-entry fields, saves as Investment, and Reports keeps it separate from operating cost. Awaiting client retest. |
 | R2-25 | [>] Implemented | Animal history is incorrect/incomplete. | Animal history now excludes Milk entries and includes lifecycle events, Heat events, and Treatment amounts/comments. Photo/document uploads remain available. Awaiting client retest. |
 

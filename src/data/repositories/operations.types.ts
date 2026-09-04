@@ -1,6 +1,6 @@
 import type { AnimalRow, ItemRow } from './master-data.types';
 
-export type OperationKind = 'feed' | 'treatment' | 'product' | 'investment' | 'heat';
+export type OperationKind = 'feed' | 'treatment' | 'product' | 'silage' | 'investment' | 'heat';
 
 export type OperationHistoryRow = {
   id: string;
@@ -51,7 +51,7 @@ export type CreateProductInput = OperationContext & {
   animalId: string | null;
   animalCategory: AnimalRow['category'] | null;
   itemId: string;
-  category: 'operating_expense' | 'investment' | 'byproduct_sale';
+  category: 'operating_expense' | 'silage' | 'investment' | 'byproduct_sale';
   quantityMilliUnits: number;
   unitCode: string;
   ratePaisePerUnit: number;

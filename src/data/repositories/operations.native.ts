@@ -24,6 +24,7 @@ const operationTables: Record<OperationKind, CorrectionEntity> = {
   feed: 'feed_transactions',
   treatment: 'treatments',
   product: 'product_transactions',
+  silage: 'product_transactions',
   investment: 'product_transactions',
   heat: 'heat_events',
 };
@@ -70,7 +71,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
 
       UNION ALL
 
-      SELECT product.id, CASE WHEN product.category = 'investment' THEN 'investment' ELSE 'product' END AS kind, product.transaction_date AS businessDate,
+      SELECT product.id, CASE WHEN product.category = 'investment' THEN 'investment' WHEN product.category = 'silage' THEN 'silage' ELSE 'product' END AS kind, product.transaction_date AS businessDate,
         item.name AS title, product.category AS detail,
         product.amount_paise AS amountPaise,
         CASE WHEN product.deleted_at IS NULL THEN 0 ELSE 1 END AS isVoided,
