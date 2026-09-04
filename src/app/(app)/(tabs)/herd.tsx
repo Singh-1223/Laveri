@@ -1,10 +1,11 @@
 import { Link, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { listMasterData } from '@/data/repositories/master-data';
+import { requireSupabase } from '@/data/supabase/client';
 import type { AnimalLabelLinkRow, AnimalLabelRow, AnimalRow } from '@/data/repositories/master-data.types';
 
 export default function HerdScreen() {
@@ -12,6 +13,7 @@ export default function HerdScreen() {
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [animals, setAnimals] = useState<AnimalRow[]>([]);
   const [labels, setLabels] = useState<AnimalLabelRow[]>([]);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [labelLinks, setLabelLinks] = useState<AnimalLabelLinkRow[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -25,6 +27,8 @@ export default function HerdScreen() {
       setAnimals(master.animals);
       setLabels(master.animalLabels);
       setLabelLinks(master.animalLabelLinks);
+      const signed = await Promise.all(master.animals.filter((animal) => animal.primary_photo_path).map(async (animal) => { const url = await requireSupabase().storage.from('animal-files').createSignedUrl(animal.primary_photo_path!, 600); return [animal.id, url.data?.signedUrl] as const; }));
+      setPhotoUrls(Object.fromEntries(signed.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))));
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to load the herd.');
     } finally {
@@ -51,7 +55,7 @@ export default function HerdScreen() {
       <SectionCard title={`Animals (${visible.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : visible.length === 0 ? <EmptyState>No animals match this filter.</EmptyState> : visible.map((animal) => (
           <View key={animal.id} style={[styles.row, { borderTopColor: colors.border }]}>
-            <View style={[styles.avatar, { backgroundColor: colors.backgroundSelected }]}><Text style={styles.avatarText}>🐄</Text></View>
+            <View style={[styles.avatar, { backgroundColor: colors.backgroundSelected }]}>{photoUrls[animal.id] ? <Image source={{ uri: photoUrls[animal.id] }} style={styles.photo} /> : <Text style={styles.avatarText}>🐄</Text>}</View>
             <View style={styles.rowCopy}>
               <Link href={{ pathname: '/animal-profile/[id]', params: { id: animal.id } }}><Text style={[styles.name, { color: colors.primary }]}>{animal.tag}</Text></Link>
               <Text style={[styles.detail, { color: colors.textSecondary }]}>{animal.category} • {animal.breed || 'breed not set'} • {animal.is_milking ? 'milking' : animal.status}</Text>
@@ -74,6 +78,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
   avatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 23 },
+  photo: { width: 46, height: 46, borderRadius: 23 },
   rowCopy: { flex: 1, gap: 3 },
   name: { fontSize: 16, fontWeight: '800' },
   detail: { fontSize: 13, lineHeight: 18, textTransform: 'capitalize' },

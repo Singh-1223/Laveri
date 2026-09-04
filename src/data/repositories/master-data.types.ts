@@ -8,6 +8,7 @@ export type AnimalRow = {
   breed: string | null;
   birth_date?: string | null;
   acquisition_date?: string | null;
+  primary_photo_path?: string | null;
   display_order: number;
 };
 

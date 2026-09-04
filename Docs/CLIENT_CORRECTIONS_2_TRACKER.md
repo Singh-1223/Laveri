@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 8 open/reopened tasks, 17 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 7 open/reopened tasks, 18 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -53,7 +53,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-12 | [>] Implemented | Remove Cow, Heifer, and Calf categories from Add animal. | Add/Edit animal no longer presents Cow, Heifer, or Calf choices. All records use custom lifecycle labels; the legacy internal category remains Cow for compatibility with existing data. Awaiting client retest. |
 | R2-13 | [>] Implemented | Saved custom labels cannot be edited/deleted and overflow horizontally. | Custom label chips wrap within the screen. A label-management list now provides Edit and Delete controls; deletion hides the label without removing historical records. Awaiting client retest. |
 | R2-14 | [>] Implemented | Add more label colours. | Added white, black, pink, yellow, sky blue, and brown. Selected label text automatically switches between dark and light contrast. Awaiting client retest. |
-| R2-15 | [~] Reopened | Add animal profile picture, date of birth, and optional date of purchase. | Date of birth and optional date of purchase are now captured and saved in Add/Edit animal. Primary photo selection/display remains to be completed. |
+| R2-15 | [>] Implemented | Add animal profile picture, date of birth, and optional date of purchase. | Add/Edit animal captures birth and optional purchase dates. The newest uploaded animal image is shown as the Herd thumbnail, with the icon used only when no image exists. Awaiting client retest. |
 | R2-16 | [>] Implemented | A Verka buyer with no fixed rate shows “Set rate in master data.” | Verka now displays “Billing-cycle rate” in Master data, while other buyers still show their fixed rate or Rate not set. Awaiting client retest. |
 | R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verify/complete the special billing input, retained provisional rate, uploaded bill, and a bill-vs-app comparison for Morning milk, Evening milk, and Total milk only. |
 | R2-18 | [>] Implemented | Feed, Medicine, and Product masters should use Delete instead of Activate/Deactivate. | Feed, Medicine, and Product now use Delete. The saved item is soft-deleted, so it disappears from future choices while historical transactions remain intact. Awaiting client retest. |
