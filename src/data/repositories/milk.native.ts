@@ -42,7 +42,7 @@ export async function loadMilkSession(
   session: 'morning' | 'evening',
 ): Promise<MilkSessionSnapshot> {
   const database = await getPowerSyncDatabase();
-  const [entries, buyerAllocations, householdAllocation, labelRows] = await Promise.all([
+  const [entries, buyerAllocations, householdAllocation, labelRows, previousEntries, previousAllocations, previousQuality] = await Promise.all([
     database.getAll<MilkSessionSnapshot['entries'][number]>(
       `SELECT
         animal.id AS animalId,
@@ -115,6 +115,37 @@ export async function loadMilkSession(
        ORDER BY label.name COLLATE NOCASE`,
       [farmId],
     ),
+    database.getAll<{ animalId: string; volumeMl: number }>(
+      `SELECT entry.animal_id AS animalId, entry.volume_ml AS volumeMl
+       FROM milk_entries entry
+       INNER JOIN (
+         SELECT animal_id, max(milk_date) AS milk_date
+         FROM milk_entries
+         WHERE farm_id = ? AND session = ? AND milk_date < ? AND deleted_at IS NULL
+         GROUP BY animal_id
+       ) previous ON previous.animal_id = entry.animal_id AND previous.milk_date = entry.milk_date
+       WHERE entry.farm_id = ? AND entry.session = ? AND entry.deleted_at IS NULL`,
+      [farmId, session, milkDate, farmId, session],
+    ),
+    database.getAll<{ buyerId: string; volumeMl: number }>(
+      `SELECT allocation.buyer_id AS buyerId, allocation.volume_ml AS volumeMl
+       FROM milk_allocations allocation
+       INNER JOIN (
+         SELECT buyer_id, max(milk_date) AS milk_date
+         FROM milk_allocations
+         WHERE farm_id = ? AND session = ? AND destination = 'buyer' AND milk_date < ? AND deleted_at IS NULL
+         GROUP BY buyer_id
+       ) previous ON previous.buyer_id = allocation.buyer_id AND previous.milk_date = allocation.milk_date
+       WHERE allocation.farm_id = ? AND allocation.session = ? AND allocation.destination = 'buyer' AND allocation.deleted_at IS NULL`,
+      [farmId, session, milkDate, farmId, session],
+    ),
+    database.getOptional<{ fatHundredths: number | null; snfHundredths: number | null }>(
+      `SELECT fat_hundredths AS fatHundredths, snf_hundredths AS snfHundredths
+       FROM milk_entries
+       WHERE farm_id = ? AND session = ? AND milk_date < ? AND deleted_at IS NULL
+       ORDER BY milk_date DESC LIMIT 1`,
+      [farmId, session, milkDate],
+    ),
   ]);
 
   const labelsByAnimal = new Map<string, { id: string; name: string; color: string }[]>();
@@ -138,6 +169,10 @@ export async function loadMilkSession(
     suggestedRatePaisePerLitre: null,
     suggestedCmFatPaise: null,
     suggestedCmSnfPaise: null,
+    previousVolumesMl: Object.fromEntries(previousEntries.map((entry) => [entry.animalId, entry.volumeMl])),
+    previousAllocationVolumesMl: Object.fromEntries(previousAllocations.map((allocation) => [allocation.buyerId, allocation.volumeMl])),
+    previousFatHundredths: previousQuality?.fatHundredths ?? null,
+    previousSnfHundredths: previousQuality?.snfHundredths ?? null,
   };
 }
 

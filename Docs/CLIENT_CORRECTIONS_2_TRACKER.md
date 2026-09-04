@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 17 open/reopened tasks, 8 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 15 open/reopened tasks, 10 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -38,13 +38,13 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R2-05 | [~] Reopened | The keyboard still hides most of the current entry. | Ensure the selected Milk field scrolls sufficiently above the keyboard on real Android devices. |
+| R2-05 | [>] Implemented | The keyboard still hides most of the current entry. | Milk numeric fields now use the in-app suggestion picker instead of the Android keyboard, so the selected value is always visible. Awaiting client retest. |
 | R2-06 | [>] Implemented | Allow a separate, editable cow order for Milk entry. | Milk now has independent up/down controls for every active milking animal. The order is separate from Herd order. Migration `202609040001_milk_display_order.sql` must be pushed with the final Round 2 migrations before retest. |
 | R2-07 | [>] Implemented | Mark the current date as “Today”; other dates already show Go to today. | The current selected farm date now visibly reads Today; other dates retain Go to today. Awaiting client retest. |
 | R2-08 | [>] Implemented | Remove Milk-page clutter. | Removed the auto-save sentence, Milk-page reminder button, and Animals/Daily milk quality/Buyer allocation headings. Reminder settings are in the Milk menu. Awaiting client retest. |
 | R2-09 | [>] Implemented | Keep only FAT% and SNF% fields; remove Daily milk quality heading/details. | FAT% and SNF% fields remain, while the Daily milk quality heading and explanatory text are removed. Awaiting client retest. |
 | R2-10 | [>] Implemented | Show coloured animal labels below each animal name in Milk, in a maximum of two lines. Remove “Missing entry”/“Saved” text. | Milk now uses compact coloured label chips below each animal name, clipped to two lines. Saved/Missing entry text is removed. Awaiting client retest. |
-| R2-11 | [ ] Open | Replace numeric keyboard entry with a scrollable suggestion picker. | Milk: 0.0–30.0 in 0.1 steps (301 values). FAT/SNF: 0.0–10.0 in 0.1 steps (101 values). Pre-fill from previous day in light text; open centered on that previous value; selecting a value moves automatically to the next field. |
+| R2-11 | [>] Implemented | Replace numeric keyboard entry with a scrollable suggestion picker. | Milk and buyer fields use 0.0–30.0 (301 values); FAT/SNF use 0.0–10.0 (101 values). Previous values appear in light text, each picker opens at that previous value, and animal selection advances automatically to the next animal, FAT, then SNF. Awaiting client retest. |
 
 ## C. Master data
 

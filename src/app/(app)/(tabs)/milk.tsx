@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
@@ -56,6 +56,11 @@ export default function MilkScreen() {
   const [allocationValues, setAllocationValues] = useState<Record<string, string>>({});
   const [fat, setFat] = useState('');
   const [snf, setSnf] = useState('');
+  const [previousVolumes, setPreviousVolumes] = useState<Record<string, number>>({});
+  const [previousAllocationVolumes, setPreviousAllocationVolumes] = useState<Record<string, number>>({});
+  const [previousFat, setPreviousFat] = useState<number | null>(null);
+  const [previousSnf, setPreviousSnf] = useState<number | null>(null);
+  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -98,6 +103,10 @@ export default function MilkScreen() {
       const existingPricing = snapshot.entries.find((entry) => entry.entryId !== null);
       setFat(existingPricing?.fatHundredths === null || existingPricing?.fatHundredths === undefined ? '' : String(existingPricing.fatHundredths / 100));
       setSnf(existingPricing?.snfHundredths === null || existingPricing?.snfHundredths === undefined ? '' : String(existingPricing.snfHundredths / 100));
+      setPreviousVolumes(snapshot.previousVolumesMl);
+      setPreviousAllocationVolumes(snapshot.previousAllocationVolumesMl);
+      setPreviousFat(snapshot.previousFatHundredths);
+      setPreviousSnf(snapshot.previousSnfHundredths);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load milk entries.');
     } finally {
@@ -255,6 +264,36 @@ export default function MilkScreen() {
     }
   };
 
+  const openPicker = (key: string, max: number, label: string, prior: number | null) => {
+    const current = key === 'fat' ? fat : key === 'snf' ? snf : values[key] ?? allocationValues[key] ?? '';
+    const initial = current ? Number(current) : prior === null ? 0 : prior / (max === 10 ? 100 : 1_000);
+    setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0 });
+  };
+
+  const selectSuggestion = (value: number) => {
+    if (!picker) return;
+    const valueText = value.toFixed(1);
+    if (picker.key === 'fat') setFat(valueText);
+    else if (picker.key === 'snf') setSnf(valueText);
+    else if (entries.some((entry) => entry.animalId === picker.key)) setValues((current) => ({ ...current, [picker.key]: valueText }));
+    else setAllocationValues((current) => ({ ...current, [picker.key]: valueText }));
+    const entryIndex = entries.findIndex((entry) => entry.animalId === picker.key);
+    if (entryIndex >= 0 && entryIndex < entries.length - 1) {
+      const next = entries[entryIndex + 1];
+      setPicker({ key: next.animalId, max: 30, label: `${next.tag} litres`, initial: (previousVolumes[next.animalId] ?? 0) / 1_000 });
+      return;
+    }
+    if (entryIndex === entries.length - 1) {
+      setPicker({ key: 'fat', max: 10, label: 'FAT %', initial: (previousFat ?? 0) / 100 });
+      return;
+    }
+    if (picker.key === 'fat') {
+      setPicker({ key: 'snf', max: 10, label: 'SNF %', initial: (previousSnf ?? 0) / 100 });
+      return;
+    }
+    setPicker(null);
+  };
+
   return (
     <AppScreen title="Milk" action={<Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable>}>
       <MilkMenu open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={(path) => { setMenuOpen(false); router.push(path); }} />
@@ -288,15 +327,7 @@ export default function MilkScreen() {
               <Pressable disabled={busy || index === 0} accessibilityLabel={`Move ${entry.tag} up in Milk`} onPress={() => void moveAnimal(entry.animalId, 'up')} style={[styles.orderButton, { borderColor: colors.border }, (busy || index === 0) && styles.disabled]}><Text style={[styles.orderButtonText, { color: colors.textSecondary }]}>↑</Text></Pressable>
               <Pressable disabled={busy || index === entries.length - 1} accessibilityLabel={`Move ${entry.tag} down in Milk`} onPress={() => void moveAnimal(entry.animalId, 'down')} style={[styles.orderButton, { borderColor: colors.border }, (busy || index === entries.length - 1) && styles.disabled]}><Text style={[styles.orderButtonText, { color: colors.textSecondary }]}>↓</Text></Pressable>
             </View>
-            <TextInput
-              accessibilityLabel={`${entry.tag} litres`}
-              keyboardType="decimal-pad"
-              onChangeText={(value) => setValues((current) => ({ ...current, [entry.animalId]: value }))}
-              placeholder="—"
-              placeholderTextColor={colors.textSecondary}
-              style={[styles.volumeInput, { color: colors.text, borderColor: Number.isNaN(parseLitres(values[entry.animalId] ?? '')) ? colors.danger : colors.border }]}
-              value={values[entry.animalId] ?? ''}
-            />
+            <SuggestionField accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : (previousVolumes[entry.animalId] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View>
         ))}
@@ -304,8 +335,8 @@ export default function MilkScreen() {
 
       <SectionCard>
         <View style={styles.qualityRow}>
-          <QualityField label="FAT %" value={fat} onChangeText={setFat} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
-          <QualityField label="SNF %" value={snf} onChangeText={setSnf} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
+          <QualityField label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0.0' : (previousFat / 100).toFixed(1)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
+          <QualityField label="SNF %" value={snf} onPress={() => openPicker('snf', 10, 'SNF %', previousSnf)} placeholder={previousSnf === null ? '0.0' : (previousSnf / 100).toFixed(1)} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
         </View>
       </SectionCard>
 
@@ -316,15 +347,7 @@ export default function MilkScreen() {
               <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
-            <TextInput
-              accessibilityLabel={`${allocation.label} litres`}
-              keyboardType="decimal-pad"
-              onChangeText={(value) => setAllocationValues((current) => ({ ...current, [allocation.key]: value }))}
-              placeholder="—"
-              placeholderTextColor={colors.textSecondary}
-              style={[styles.volumeInput, { color: colors.text, borderColor: Number.isNaN(parseLitres(allocationValues[allocation.key] ?? '')) ? colors.danger : colors.border }]}
-              value={allocationValues[allocation.key] ?? ''}
-            />
+            <SuggestionField accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 30, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View>
         ))}
@@ -360,6 +383,7 @@ export default function MilkScreen() {
           )}
         </SectionCard>
       ) : null}
+      <SuggestionPicker picker={picker} onClose={() => setPicker(null)} onSelect={selectSuggestion} />
     </AppScreen>
   );
 }
@@ -370,15 +394,29 @@ function SmallButton({ label, onPress }: { label: string; onPress: () => void })
   return <Pressable onPress={onPress} style={[styles.smallButton, { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.smallButtonText, { color: colors.text }]}>{label}</Text></Pressable>;
 }
 
-function QualityField({ label, value, onChangeText, invalid }: { label: string; value: string; onChangeText: (value: string) => void; invalid: boolean }) {
+function SuggestionField({ accessibilityLabel, onPress, value, placeholder, invalid }: { accessibilityLabel: string; onPress: () => void; value: string; placeholder: string; invalid: boolean }) {
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  return <Pressable accessibilityLabel={accessibilityLabel} onPress={onPress} style={[styles.volumeInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.text : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
+}
+
+function QualityField({ label, value, onPress, placeholder, invalid }: { label: string; value: string; onPress: () => void; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   return (
     <View style={styles.qualityField}>
       <Text style={[styles.qualityLabel, { color: colors.text }]}>{label}</Text>
-      <TextInput accessibilityLabel={label} keyboardType="decimal-pad" onChangeText={onChangeText} placeholder="0.00" placeholderTextColor={colors.textSecondary} style={[styles.qualityInput, { color: colors.text, borderColor: invalid ? colors.danger : colors.border }]} value={value} />
+      <Pressable accessibilityLabel={label} onPress={onPress} style={[styles.qualityInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.text : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
     </View>
   );
+}
+
+function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string } | null; onClose: () => void; onSelect: (value: number) => void }) {
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const values = picker ? Array.from({ length: picker.max * 10 + 1 }, (_, index) => index / 10) : [];
+  const initialIndex = picker ? Math.max(0, Math.min(values.length - 1, Math.round(picker.initial * 10))) : 0;
+  return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Select a value. The list starts at the previous entry when available.</Text><FlatList key={picker?.key} data={values} keyExtractor={(value) => String(value)} getItemLayout={(_, index) => ({ length: 46, offset: 46 * index, index })} initialScrollIndex={initialIndex} renderItem={({ item }) => <Pressable onPress={() => onSelect(item)} style={[styles.pickerValue, { borderTopColor: colors.border }, picker && Math.abs(item - picker.initial) < 0.01 && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: colors.text }]}>{item.toFixed(1)}</Text></Pressable>} /></View></View></Modal>;
 }
 
 function MilkMenu({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void }) {
@@ -431,6 +469,7 @@ const styles = StyleSheet.create({
   orderButtonText: { fontSize: 14, fontWeight: '800', lineHeight: 16 },
   entryState: { fontSize: 12 },
   volumeInput: { width: 96, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, textAlign: 'right', fontSize: 17 },
+  volumeText: { fontSize: 17, textAlign: 'right', lineHeight: 44 },
   litre: { width: 16, fontSize: 14 },
   total: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   totalLabel: { fontSize: 13, fontWeight: '600' },
@@ -457,4 +496,9 @@ const styles = StyleSheet.create({
   menuItem: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, gap: 4 },
   menuItemTitle: { fontSize: 16, fontWeight: '800' },
   menuItemDetail: { fontSize: 13, lineHeight: 18 },
+  pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
+  pickerPanel: { maxHeight: '72%', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24 },
+  pickerHint: { fontSize: 13, lineHeight: 18, paddingBottom: 10 },
+  pickerValue: { height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
+  pickerValueText: { fontSize: 19, fontWeight: '700' },
 });

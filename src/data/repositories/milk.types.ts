@@ -24,6 +24,10 @@ export type MilkSessionSnapshot = {
   suggestedRatePaisePerLitre: number | null;
   suggestedCmFatPaise: number | null;
   suggestedCmSnfPaise: number | null;
+  previousVolumesMl: Record<string, number>;
+  previousAllocationVolumesMl: Record<string, number>;
+  previousFatHundredths: number | null;
+  previousSnfHundredths: number | null;
 };
 
 export type MilkAllocationEntry = {
