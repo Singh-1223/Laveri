@@ -1,6 +1,6 @@
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, Text, TextInput, View, useColorScheme } from 'react-native';
+import { Pressable, Text, TextInput, useColorScheme } from 'react-native';
 import { AppScreen, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
