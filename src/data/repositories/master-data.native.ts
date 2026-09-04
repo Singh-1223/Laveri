@@ -38,7 +38,7 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
        FROM buyers WHERE deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`,
     ),
     database.getAll<MasterDataSnapshot['items'][number]>(
-      `SELECT id, type, name, base_unit, default_rate_paise_per_unit, active
+      `SELECT id, type, name, base_unit, default_rate_paise_per_unit, active, notes
        FROM items WHERE deleted_at IS NULL ORDER BY type, active DESC, name COLLATE NOCASE`,
     ),
     database.getAll<MasterDataSnapshot['animalLabels'][number]>(`SELECT id, name, color FROM animal_labels WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`),
@@ -149,8 +149,8 @@ export async function createItem(input: CreateItemInput) {
     `INSERT INTO items (
       id, farm_id, type, name, base_unit, default_rate_paise_per_unit, active, notes,
       created_at, updated_at, created_by, updated_by, deleted_at, version
-    ) VALUES (?, ?, ?, ?, ?, ?, 1, NULL, ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], input.type, input.name.trim(), input.baseUnit.trim(), input.defaultRatePaisePerUnit ?? null, ...audit.slice(2)],
+    ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], input.type, input.name.trim(), input.baseUnit.trim(), input.defaultRatePaisePerUnit ?? null, input.notes?.trim() || null, ...audit.slice(2)],
   );
 }
 
@@ -196,11 +196,11 @@ export async function updateItem(input: UpdateItemInput) {
     const before = await transaction.get<Record<string, unknown>>(`SELECT * FROM items WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`, [input.id, input.farmId]);
     await transaction.execute(
       `UPDATE items
-       SET type = ?, name = ?, base_unit = ?,
+       SET type = ?, name = ?, base_unit = ?, notes = ?,
            default_rate_paise_per_unit = coalesce(?, default_rate_paise_per_unit),
            updated_at = ?, updated_by = ?, version = version + 1
        WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
-      [input.type, input.name.trim(), input.baseUnit.trim(), input.defaultRatePaisePerUnit ?? null, new Date().toISOString(), input.userId, input.id, input.farmId],
+      [input.type, input.name.trim(), input.baseUnit.trim(), input.notes?.trim() || null, input.defaultRatePaisePerUnit ?? null, new Date().toISOString(), input.userId, input.id, input.farmId],
     );
     const after = await transaction.get<Record<string, unknown>>(`SELECT * FROM items WHERE id = ?`, [input.id]);
     await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: 'items', recordId: input.id, action: 'update', before, after });

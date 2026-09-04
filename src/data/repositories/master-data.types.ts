@@ -28,6 +28,7 @@ export type ItemRow = {
   base_unit: string;
   default_rate_paise_per_unit: number | null;
   active: number;
+  notes?: string | null;
 };
 
 export type AnimalLabelRow = { id: string; name: string; color: string };
@@ -67,6 +68,7 @@ export type CreateItemInput = AuditContext & {
   name: string;
   baseUnit: string;
   defaultRatePaisePerUnit?: number | null;
+  notes?: string;
 };
 
 export type UpdateAnimalInput = CreateAnimalInput & { id: string };

@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 7 open/reopened tasks, 18 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 6 open/reopened tasks, 19 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -57,7 +57,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 | R2-16 | [>] Implemented | A Verka buyer with no fixed rate shows “Set rate in master data.” | Verka now displays “Billing-cycle rate” in Master data, while other buyers still show their fixed rate or Rate not set. Awaiting client retest. |
 | R2-17 | [~] Reopened | Verka billing needs prior-cycle rate handling, bill upload, and bill-vs-app tally. | Verify/complete the special billing input, retained provisional rate, uploaded bill, and a bill-vs-app comparison for Morning milk, Evening milk, and Total milk only. |
 | R2-18 | [>] Implemented | Feed, Medicine, and Product masters should use Delete instead of Activate/Deactivate. | Feed, Medicine, and Product now use Delete. The saved item is soft-deleted, so it disappears from future choices while historical transactions remain intact. Awaiting client retest. |
-| R2-19 | [~] Reopened | Improve master fields for Feed, Medicine, and Product. | Master data now calls Base unit “Packaging” and supports an optional fixed Feed package price. The visible Medicine/Product use-comment remains to be added with the operation suggestion redesign. |
+| R2-19 | [>] Implemented | Improve master fields for Feed, Medicine, and Product. | Master data uses Packaging, supports an optional fixed Feed package price, and now saves/displays a visible use/comment for Medicine and Product. Awaiting client retest. |
 
 ## D. Farm operations
 
