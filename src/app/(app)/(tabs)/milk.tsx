@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
@@ -62,6 +62,7 @@ export default function MilkScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
   const lastAutoSaveFingerprint = useRef<string | null>(null);
   const hasChosenLaunchTarget = useRef(false);
 
@@ -241,12 +242,15 @@ export default function MilkScreen() {
   };
 
   return (
-    <AppScreen title="Milk" subtitle="Each valid field is saved locally automatically">
+    <AppScreen title="Milk" action={<Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable>}>
+      <MilkMenu open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={(path) => { setMenuOpen(false); router.push(path); }} />
       <View style={styles.dateRow}>
         <SmallButton label="‹" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
           <Text style={[styles.date, { color: colors.text }]}>{formatFarmDate(milkDate)}</Text>
-          {milkDate !== todayAtFarm() ? <Pressable onPress={() => { setHydrated(false); setMilkDate(todayAtFarm()); }}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable> : null}
+          {milkDate === todayAtFarm()
+            ? <Text style={[styles.today, { color: colors.primary }]}>Today</Text>
+            : <Pressable onPress={() => { setHydrated(false); setMilkDate(todayAtFarm()); }}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable>}
         </View>
         <SmallButton label="›" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, 1)); }} />
       </View>
@@ -259,14 +263,11 @@ export default function MilkScreen() {
         ))}
       </View>
 
-      <Pressable accessibilityLabel="Configure milk reminders" onPress={() => router.push('/reminders')} style={[styles.reminderLink, { borderColor: colors.border }]}><Text style={[styles.reminderText, { color: colors.primary }]}>Configure milk reminders</Text></Pressable>
-
-      <SectionCard title={`Animals (${entries.length})`}>
+      <SectionCard>
         {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add a cow in Master data first.</EmptyState> : entries.map((entry) => (
           <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
               <Text style={[styles.animalName, { color: colors.text }]}>{entry.tag}</Text>
-              <Text style={[styles.entryState, { color: colors.textSecondary }]}>{entry.entryId ? 'Saved' : 'Missing entry'}</Text>
             </View>
             <TextInput
               accessibilityLabel={`${entry.tag} litres`}
@@ -282,15 +283,14 @@ export default function MilkScreen() {
         ))}
       </SectionCard>
 
-      <SectionCard title="Daily milk quality (reference only)">
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>FAT and SNF are recorded for the day. Buyer rates are managed separately and are not calculated from these values.</Text>
+      <SectionCard>
         <View style={styles.qualityRow}>
           <QualityField label="FAT %" value={fat} onChangeText={setFat} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
           <QualityField label="SNF %" value={snf} onChangeText={setSnf} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
         </View>
       </SectionCard>
 
-      <SectionCard title="Buyer allocation">
+      <SectionCard>
         {allocations.filter((allocation) => allocation.destination === 'buyer').map((allocation) => (
           <View key={allocation.key} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
@@ -362,6 +362,28 @@ function QualityField({ label, value, onChangeText, invalid }: { label: string; 
   );
 }
 
+function MilkMenu({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void }) {
+  const scheme = useColorScheme();
+  const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const options: { label: string; detail: string; path: '/master-data' | '/pricing' | '/corrections' | '/reminders' }[] = [
+    { label: 'Manage master data', detail: 'Animals, buyers, feed, medicine, and products', path: '/master-data' },
+    { label: 'Price calculator', detail: 'Calculate a reference price from FAT and SNF', path: '/pricing' },
+    { label: 'Correction history', detail: 'Review saved edits, voids, and changes', path: '/corrections' },
+    { label: 'Milk reminder settings', detail: 'Set Morning and Evening reminders on this phone', path: '/reminders' },
+  ];
+  return (
+    <Modal transparent animationType="slide" visible={open} onRequestClose={onClose}>
+      <View style={styles.menuOverlay}>
+        <Pressable accessibilityLabel="Close Milk menu" onPress={onClose} style={StyleSheet.absoluteFill} />
+        <View style={[styles.menuPanel, { backgroundColor: colors.backgroundElement, borderColor: colors.border }]}>
+          <View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>Milk menu</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View>
+          {options.map((option) => <Pressable key={option.path} onPress={() => onNavigate(option.path)} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.text }]}>{option.label}</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>{option.detail}</Text></Pressable>)}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateCenter: { alignItems: 'center', gap: 3 },
@@ -372,8 +394,8 @@ const styles = StyleSheet.create({
   sessionRow: { flexDirection: 'row', gap: 10 },
   session: { flex: 1, minHeight: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sessionText: { fontSize: 15, fontWeight: '700' },
-  reminderLink: { minHeight: 42, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  reminderText: { fontSize: 14, fontWeight: '800' },
+  menuButton: { minHeight: 32, minWidth: 46, borderWidth: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  menuButtonText: { fontSize: 17, lineHeight: 16, fontWeight: '900', letterSpacing: 1 },
   helper: { fontSize: 13, lineHeight: 19 },
   qualityRow: { flexDirection: 'row', gap: 10 },
   qualityField: { flex: 1, gap: 6 },
@@ -402,4 +424,12 @@ const styles = StyleSheet.create({
   voidAction: { flex: 1, minHeight: 44, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   voidActionText: { fontSize: 14, fontWeight: '700' },
   voidSession: { minHeight: 46, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  menuOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-start' },
+  menuPanel: { width: '86%', maxWidth: 420, minHeight: '100%', borderRightWidth: StyleSheet.hairlineWidth, paddingTop: 58, paddingHorizontal: 20 },
+  menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 18 },
+  menuTitle: { fontSize: 24, fontWeight: '800' },
+  closeText: { fontSize: 14, fontWeight: '800' },
+  menuItem: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, gap: 4 },
+  menuItemTitle: { fontSize: 16, fontWeight: '800' },
+  menuItemDetail: { fontSize: 13, lineHeight: 18 },
 });

@@ -17,7 +17,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      initialRouteName="milk"
+      initialRouteName="index"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
@@ -26,7 +26,7 @@ export default function TabsLayout() {
         tabBarLabelStyle: styles.label,
         tabBarIcon: ({ color }) => <Text style={[styles.icon, { color }]}>{tabIcons[route.name] ?? '•'}</Text>,
       })}>
-      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="index" options={{ href: null }} />
       <Tabs.Screen name="milk" options={{ title: 'Milk' }} />
       <Tabs.Screen name="herd" options={{ title: 'Herd' }} />
       <Tabs.Screen name="expenses" options={{ title: 'Expenses' }} />

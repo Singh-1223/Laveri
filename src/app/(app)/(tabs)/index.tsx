@@ -1,4 +1,4 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, Redirect, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
@@ -70,6 +70,10 @@ export default function HomeScreen() {
       setBusy(false);
     }
   };
+
+  // This route is now only the first-run farm setup gate. Existing farms are
+  // immediately sent to Milk, which is the application's primary screen.
+  if (!loading && farmId) return <Redirect href="/milk" />;
 
   return (
     <AppScreen title="Good day" subtitle={session?.user.email ?? 'Family farm'}>

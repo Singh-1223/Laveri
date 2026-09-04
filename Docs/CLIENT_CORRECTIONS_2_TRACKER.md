@@ -10,7 +10,7 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 - `[x] Done` — implemented and accepted after client retest.
 - `[?] Decision needed` — conflicts with an earlier decision or needs a business-rule choice.
 
-**Current summary:** 25 open/reopened tasks, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
+**Current summary:** 19 open/reopened tasks, 6 implemented awaiting retest, 0 decisions needed, 1 confirmed working item. No item is marked done until the client retests it.
 
 ## Confirmed client decisions — 2026-09-04
 
@@ -29,10 +29,10 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R2-01 | [ ] Open | Remove the separate Home page and treat Milk entry as the app home page. | Start on Milk; remove the Home tab/screen from normal navigation. |
+| R2-01 | [>] Implemented | Remove the separate Home page and treat Milk entry as the app home page. | The Home tab is hidden. The former Home route remains only as the first-run farm-setup gate; existing farms are immediately redirected to Milk. Awaiting client retest. |
 | R2-02 | [ ] Open | Move today’s milk, unallocated/household milk, turnover, operating cost, operating profit, and investment to Reports. | Consolidate these dashboard figures into Reports. Investment is a separate total in rupees, not a production cost. |
-| R2-03 | [ ] Open | Add a three-dot button on Milk that opens a slide-out menu with Master data, Price calculator, Correction history, and Milk reminder settings. | Create a compact Milk-page menu/drawer and move these utilities there. |
-| R2-04 | [ ] Open | Replace “Configure milk pricing” with a Price calculator. | Calculator inputs: CMFAT coefficient, SMFAT coefficient, FAT%, SNF%, then calculated price. This is a calculator only, not the fixed buyer-rate configuration. |
+| R2-03 | [>] Implemented | Add a three-dot button on Milk that opens a slide-out menu with Master data, Price calculator, Correction history, and Milk reminder settings. | Milk now has a three-dot slide-out menu with all four utilities. Awaiting client retest. |
+| R2-04 | [>] Implemented | Replace “Configure milk pricing” with a Price calculator. | The former farm-wide pricing configuration screen is now a non-persistent Price calculator with CMFAT, SMFAT, FAT%, SNF%, and the calculated per-litre price. Buyer rates remain separate. Awaiting client retest. |
 
 ## B. Milk entry usability and layout
 
@@ -40,9 +40,9 @@ Source: `App correction 2_260904_140954.pdf`, received 2026-09-04.
 |---|---|---|---|
 | R2-05 | [~] Reopened | The keyboard still hides most of the current entry. | Ensure the selected Milk field scrolls sufficiently above the keyboard on real Android devices. |
 | R2-06 | [ ] Open | Allow a separate, editable cow order for Milk entry. | Provide Move up/Move down in Milk; do not reuse Herd order for this list. |
-| R2-07 | [ ] Open | Mark the current date as “Today”; other dates already show Go to today. | Add a clear Today label/action in the date navigator. |
-| R2-08 | [ ] Open | Remove Milk-page clutter. | Remove the auto-save sentence, the reminder button, and the section headings “Animals”, “Daily milk quality (reference only)”, and “Buyer allocation”. |
-| R2-09 | [ ] Open | Keep only FAT% and SNF% fields; remove Daily milk quality heading/details. | Preserve fields and saving behaviour while reducing vertical space. |
+| R2-07 | [>] Implemented | Mark the current date as “Today”; other dates already show Go to today. | The current selected farm date now visibly reads Today; other dates retain Go to today. Awaiting client retest. |
+| R2-08 | [>] Implemented | Remove Milk-page clutter. | Removed the auto-save sentence, Milk-page reminder button, and Animals/Daily milk quality/Buyer allocation headings. Reminder settings are in the Milk menu. Awaiting client retest. |
+| R2-09 | [>] Implemented | Keep only FAT% and SNF% fields; remove Daily milk quality heading/details. | FAT% and SNF% fields remain, while the Daily milk quality heading and explanatory text are removed. Awaiting client retest. |
 | R2-10 | [ ] Open | Show coloured animal labels below each animal name in Milk, in a maximum of two lines. Remove “Missing entry”/“Saved” text. | Reuse Herd label chips with compact two-line layout. |
 | R2-11 | [ ] Open | Replace numeric keyboard entry with a scrollable suggestion picker. | Milk: 0.0–30.0 in 0.1 steps (301 values). FAT/SNF: 0.0–10.0 in 0.1 steps (101 values). Pre-fill from previous day in light text; open centered on that previous value; selecting a value moves automatically to the next field. |
 
