@@ -1,6 +1,6 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
@@ -46,7 +46,7 @@ export default function MilkScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const router = useRouter();
-  const { session } = useSession();
+  const { session, signOut } = useSession();
   const [milkDate, setMilkDate] = useState(todayAtFarm);
   const [milkSession, setMilkSession] = useState<MilkSession>('morning');
   const [farmId, setFarmId] = useState<string | null>(null);
@@ -296,7 +296,22 @@ export default function MilkScreen() {
 
   return (
     <AppScreen title="Milk" action={<Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable>}>
-      <MilkMenu open={menuOpen} onClose={() => setMenuOpen(false)} onNavigate={(path) => { setMenuOpen(false); router.push(path); }} />
+      <MilkMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        onNavigate={(path) => { setMenuOpen(false); router.push(path); }}
+        onSignOut={() => {
+          setMenuOpen(false);
+          Alert.alert(
+            'Sign out?',
+            'Make sure pending uploads are zero before signing out. You can sign in again with the same Google account to access this farm.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
+            ],
+          );
+        }}
+      />
       <View style={styles.dateRow}>
         <SmallButton label="‹" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
@@ -419,7 +434,7 @@ function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string
   return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Select a value. The list starts at the previous entry when available.</Text><FlatList key={picker?.key} data={values} keyExtractor={(value) => String(value)} getItemLayout={(_, index) => ({ length: 46, offset: 46 * index, index })} initialScrollIndex={initialIndex} renderItem={({ item }) => <Pressable onPress={() => onSelect(item)} style={[styles.pickerValue, { borderTopColor: colors.border }, picker && Math.abs(item - picker.initial) < 0.01 && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: colors.text }]}>{item.toFixed(1)}</Text></Pressable>} /></View></View></Modal>;
 }
 
-function MilkMenu({ open, onClose, onNavigate }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void }) {
+function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const options: { label: string; detail: string; path: '/master-data' | '/pricing' | '/corrections' | '/reminders' }[] = [
@@ -432,9 +447,10 @@ function MilkMenu({ open, onClose, onNavigate }: { open: boolean; onClose: () =>
     <Modal transparent animationType="slide" visible={open} onRequestClose={onClose}>
       <View style={styles.menuOverlay}>
         <Pressable accessibilityLabel="Close Milk menu" onPress={onClose} style={StyleSheet.absoluteFill} />
-        <View style={[styles.menuPanel, { backgroundColor: colors.backgroundElement, borderColor: colors.border }]}>
+          <View style={[styles.menuPanel, { backgroundColor: colors.backgroundElement, borderColor: colors.border }]}>
           <View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>Milk menu</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View>
           {options.map((option) => <Pressable key={option.path} onPress={() => onNavigate(option.path)} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.text }]}>{option.label}</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>{option.detail}</Text></Pressable>)}
+          <Pressable onPress={onSignOut} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.danger }]}>Sign out</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>Sign out of this Google account on this device</Text></Pressable>
         </View>
       </View>
     </Modal>
