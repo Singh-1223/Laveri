@@ -37,8 +37,11 @@ export default function SyncStatusScreen() {
     setMessage(null);
     try {
       await connectPowerSync();
-      await refresh();
-      setMessage('Synchronization is active. Pending records upload automatically when the network is available.');
+      const updated = await getPowerSyncSnapshot();
+      setSnapshot(updated);
+      setMessage(updated.error
+        ? 'A queued record is still being rejected. Read the Sync issue above before trying again.'
+        : 'Synchronization is active. Pending records upload automatically when the network is available.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to start synchronization.');
     } finally {
@@ -56,7 +59,7 @@ export default function SyncStatusScreen() {
       </View>
 
       {snapshot?.error ? <Text style={[styles.error, { color: colors.danger }]}>{snapshot.error}</Text> : null}
-      {message ? <Text style={[styles.message, { color: message.includes('active') ? colors.primary : colors.danger }]}>{message}</Text> : null}
+      {message ? <Text style={[styles.message, { color: !snapshot?.error && message.includes('active') ? colors.primary : colors.danger }]}>{message}</Text> : null}
       <Pressable disabled={loading} onPress={() => void syncNow()} style={[styles.button, { backgroundColor: colors.primary }, loading && styles.disabled]}>
         {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.buttonText}>Sync now</Text>}
       </Pressable>

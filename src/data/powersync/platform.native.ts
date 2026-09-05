@@ -142,7 +142,13 @@ class SupabaseConnector implements PowerSyncBackendConnector {
           if (existing) continue;
         }
 
-        if (error) throw error;
+        if (error) {
+          if (operation.table === 'animals' && error.code === '23505') {
+            const tag = typeof record.tag === 'string' ? record.tag.trim() : 'unknown';
+            throw new Error(`Duplicate active animal tag “${tag}” is blocking upload. Rename or deactivate the duplicate animal, then sync again. (${error.message})`);
+          }
+          throw error;
+        }
         continue;
       }
 
