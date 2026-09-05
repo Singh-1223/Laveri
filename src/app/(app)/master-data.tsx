@@ -107,6 +107,15 @@ export default function MasterDataScreen() {
     try {
       const context = { farmId, userId: session.user.id };
       if (tab === 'animals') {
+        const normalizedTag = name.trim().toLocaleLowerCase();
+        const duplicateAnimal = snapshot.animals.find(
+          (animal) => animal.id !== editingId
+            && animal.status === 'active'
+            && animal.tag.trim().toLocaleLowerCase() === normalizedTag,
+        );
+        if (duplicateAnimal) {
+          throw new Error(`An active animal named “${duplicateAnimal.tag}” already exists. Use a different tag or edit the existing animal.`);
+        }
         const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary, birthDate: birthDate || null, acquisitionDate: purchaseDate || null };
         const animalId = editingId ?? await createAnimal(input);
         if (editingId) await updateAnimal({ ...input, id: editingId });
