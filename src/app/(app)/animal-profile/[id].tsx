@@ -23,6 +23,7 @@ export default function AnimalProfileScreen() {
   const colors = Colors[useColorScheme() === 'dark' ? 'dark' : 'light'];
   const [profile, setProfile] = useState<AnimalProfile | null>(null);
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
+  const [attachmentImageUrls, setAttachmentImageUrls] = useState<Record<string, string>>({});
   const [attachmentDate, setAttachmentDate] = useState(today());
   const [message, setMessage] = useState<string | null>(null);
   const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(7);
@@ -35,9 +36,17 @@ export default function AnimalProfileScreen() {
     const nextProfile = await loadAnimalProfile(sync.farmId, id);
     setProfile(nextProfile);
     const photo = nextProfile.photos.find((item) => item.isProfile === 1);
-    if (!photo) { setProfilePhotoUrl(null); return; }
-    const signed = await requireSupabase().storage.from('animal-files').createSignedUrl(photo.storagePath, 600);
-    setProfilePhotoUrl(signed.data?.signedUrl ?? null);
+    if (!photo) setProfilePhotoUrl(null);
+    else {
+      const signed = await requireSupabase().storage.from('animal-files').createSignedUrl(photo.storagePath, 600);
+      setProfilePhotoUrl(signed.data?.signedUrl ?? null);
+    }
+    const imageAttachments = nextProfile.photos.filter((item) => !item.isProfile && isImageFile(item.fileName));
+    const attachmentLinks = await Promise.all(imageAttachments.map(async (item) => {
+      const signed = await requireSupabase().storage.from('animal-files').createSignedUrl(item.storagePath, 600);
+      return [item.id, signed.data?.signedUrl] as const;
+    }));
+    setAttachmentImageUrls(Object.fromEntries(attachmentLinks.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))));
   }, [id]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -83,10 +92,14 @@ export default function AnimalProfileScreen() {
 
   return <AppScreen title={profile?.animal.tag ?? 'Animal profile'} subtitle="History and attachments">
     <SectionCard title="Profile"><View style={styles.profileRow}>{profilePhotoUrl && profilePhoto ? <Pressable onPress={() => void openFile(profilePhoto.storagePath)}><Image source={{ uri: profilePhotoUrl }} style={styles.profileImage} /></Pressable> : <View style={[styles.profileImage, styles.profilePlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={styles.cow}>🐄</Text></View>}<View style={styles.profileCopy}><Text style={{ color: colors.text }}>Birth: {profile?.animal.birthDate ? formatFarmDate(profile.animal.birthDate) : 'Not recorded'}</Text><Text style={{ color: colors.text }}>Purchase: {profile?.animal.acquisitionDate ? formatFarmDate(profile.animal.acquisitionDate) : 'Not recorded'}</Text><Pressable onPress={() => void attach(true)}><Text style={{ color: colors.primary }}>{profilePhoto ? 'Replace profile picture' : 'Set profile picture'}</Text></Pressable></View></View></SectionCard>
-    <SectionCard title="Photos and documents"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
+    <SectionCard title="Photos and documents"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{profile?.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).length ? <View style={styles.thumbnailGrid}>{profile.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).map((item) => <Pressable key={item.id} onPress={() => void openFile(item.storagePath)}>{attachmentImageUrls[item.id] ? <Image source={{ uri: attachmentImageUrls[item.id] }} style={styles.thumbnail} /> : <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={{ color: colors.textSecondary }}>Image</Text></View>}</Pressable>)}</View> : null}{profile?.photos.filter((item) => !item.isProfile && !isImageFile(item.fileName)).map((item) => <Pressable key={item.id} onPress={() => void openFile(item.storagePath)}><Text style={{ color: colors.primary }}>{item.fileName}</Text></Pressable>)}{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
     <SectionCard title="Milk history"><View style={styles.rangeButtons}>{([7, 30, 90] as const).map((value) => <Pressable key={value} onPress={() => { setRangeDays(value); setCustomFrom(''); setCustomTo(''); }} style={[styles.rangeButton, { backgroundColor: rangeDays === value && !customFrom && !customTo ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: rangeDays === value && !customFrom && !customTo ? '#fff' : colors.text }}>{value === 7 ? '7 days' : value === 30 ? '1 month' : '3 months'}</Text></Pressable>)}</View><DateField label="Custom from (optional)" value={customFrom} onChange={setCustomFrom} /><DateField label="Custom to (optional)" value={customTo} onChange={setCustomTo} />{milkPoints.length ? <ScrollView horizontal showsHorizontalScrollIndicator><View><Svg width={chartWidth} height={156}><Line x1="24" y1="136" x2={chartWidth - 8} y2="136" stroke={colors.border} /><Polyline points={linePoints} fill="none" stroke={colors.primary} strokeWidth="3" />{milkPoints.map((point, index) => <Circle key={point.date} cx={24 + index * 48} cy={136 - (point.volumeMl / maxMilk) * 112} r="4" fill={colors.primary} />)}</Svg><View style={styles.chartLabels}>{milkPoints.map((point) => <Text key={point.date} style={[styles.chartLabel, { color: colors.textSecondary }]}>{formatFarmDate(point.date)}</Text>)}</View></View></ScrollView> : <EmptyState>No milk records in this date range.</EmptyState>}</SectionCard>
     <SectionCard title="History (newest first)">{history.length ? history.map((entry) => <Pressable key={entry.key} onPress={entry.storagePath ? () => void openFile(entry.storagePath!) : undefined}><Text style={{ color: entry.storagePath ? colors.primary : colors.text }}>{formatFarmDate(entry.date)} · {entry.text}</Text></Pressable>) : <EmptyState>No animal history yet.</EmptyState>}</SectionCard>
   </AppScreen>;
+}
+
+function isImageFile(fileName: string) {
+  return /\.(avif|gif|heic|jpeg|jpg|png|webp)$/i.test(fileName);
 }
 
 const styles = StyleSheet.create({
@@ -99,4 +112,7 @@ const styles = StyleSheet.create({
   rangeButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
   chartLabels: { flexDirection: 'row', gap: 16, paddingHorizontal: 4 },
   chartLabel: { fontSize: 10, width: 32 },
+  thumbnailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  thumbnail: { borderRadius: 10, height: 76, width: 76 },
+  thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
 });
