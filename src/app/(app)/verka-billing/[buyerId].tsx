@@ -45,6 +45,8 @@ export default function VerkaBillingScreen() {
   const [billMorning, setBillMorning] = useState('');
   const [billEvening, setBillEvening] = useState('');
   const [billTotal, setBillTotal] = useState('');
+  const [billTotalAmount, setBillTotalAmount] = useState('');
+  const [billCorpus, setBillCorpus] = useState('');
   const [bill, setBill] = useState<BillFile | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -77,7 +79,7 @@ export default function VerkaBillingScreen() {
     setEditingCycleId(undefined);
     const priorRate = snapshot?.cycles[0]?.finalRatePaisePerLitre;
     setCycleStart(today()); setCycleEnd(today()); setRate(priorRate === null || priorRate === undefined ? '' : String(priorRate / 100)); setCommission(''); setIncrement(''); setDeduction('');
-    setNotes(''); setBillMorning(''); setBillEvening(''); setBillTotal(''); setBill(null); setMessage(null);
+    setNotes(''); setBillMorning(''); setBillEvening(''); setBillTotal(''); setBillTotalAmount(''); setBillCorpus(''); setBill(null); setMessage(null);
   };
 
   const attachBill = async () => {
@@ -113,7 +115,7 @@ export default function VerkaBillingScreen() {
     setCommission(cycle.commissionPaise ? String(cycle.commissionPaise / 100) : '');
     setIncrement(cycle.incrementPaise ? String(cycle.incrementPaise / 100) : '');
     setDeduction(cycle.deductionPaise ? String(cycle.deductionPaise / 100) : '');
-    setNotes(cycle.notes ?? ''); setBillMorning(asLitres(cycle.billMorningMl)); setBillEvening(asLitres(cycle.billEveningMl)); setBillTotal(asLitres(cycle.billTotalMl));
+    setNotes(cycle.notes ?? ''); setBillMorning(asLitres(cycle.billMorningMl)); setBillEvening(asLitres(cycle.billEveningMl)); setBillTotal(asLitres(cycle.billTotalMl)); setBillTotalAmount(cycle.billTotalAmountPaise === null ? '' : String(cycle.billTotalAmountPaise / 100)); setBillCorpus(cycle.billCorpusPaise === null ? '' : String(cycle.billCorpusPaise / 100));
     setBill(cycle.billPath ? { path: cycle.billPath, name: cycle.billName ?? 'Attached bill' } : null);
     setMessage('Editing saved cycle. Saving will update this same billing period.');
   };
@@ -123,13 +125,14 @@ export default function VerkaBillingScreen() {
     if (!farmId || !buyerId || !session || !Number.isFinite(rateValue) || rateValue < 0) { setMessage('Enter a valid final rate before saving.'); return; }
     try {
       setBusy(true); setMessage(null);
-      await saveVerkaCycle({ id: editingCycleId, farmId, buyerId, userId: session.user.id, cycleStart, cycleEnd, finalRatePaisePerLitre: Math.round(rateValue * 100), commissionPaise: Math.round((Number(commission) || 0) * 100), incrementPaise: Math.round((Number(increment) || 0) * 100), deductionPaise: Math.round((Number(deduction) || 0) * 100), notes: notes.trim() || undefined, billPath: bill?.path, billName: bill?.name, billMorningMl: toMl(billMorning), billEveningMl: toMl(billEvening), billTotalMl: toMl(billTotal) });
+      await saveVerkaCycle({ id: editingCycleId, farmId, buyerId, userId: session.user.id, cycleStart, cycleEnd, finalRatePaisePerLitre: calculatedBillRate ?? Math.round(rateValue * 100), commissionPaise: Math.round((Number(commission) || 0) * 100), incrementPaise: Math.round((Number(increment) || 0) * 100), deductionPaise: Math.round((Number(deduction) || 0) * 100), notes: notes.trim() || undefined, billPath: bill?.path, billName: bill?.name, billMorningMl: toMl(billMorning), billEveningMl: toMl(billEvening), billTotalMl: toMl(billTotal), billTotalAmountPaise: billTotalAmount.trim() ? Math.round(Number(billTotalAmount) * 100) : null, billCorpusPaise: billCorpus.trim() ? Math.round(Number(billCorpus) * 100) : null });
       await load(); setMessage(editingCycleId ? 'Billing cycle updated.' : 'Billing cycle saved.'); setEditingCycleId(undefined);
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the billing cycle.'); }
     finally { setBusy(false); }
   };
 
   const billMl = { morning: toMl(billMorning), evening: toMl(billEvening), total: toMl(billTotal) };
+  const calculatedBillRate = billMl.total && billTotalAmount.trim() && billCorpus.trim() && Number(billTotalAmount) >= 0 && Number(billCorpus) >= 0 ? Math.round(((Number(billTotalAmount) - Number(billCorpus)) * 100 * 1000) / billMl.total) : null;
   const expectedAmount = Math.round((appMilk.totalMl / 1000) * (Number(rate) || 0) * 100);
   const input = (value: string, onChangeText: (value: string) => void, placeholder: string) => <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={value} onChangeText={onChangeText} keyboardType="decimal-pad" placeholder={placeholder} placeholderTextColor={colors.textSecondary} />;
 
@@ -140,6 +143,8 @@ export default function VerkaBillingScreen() {
     <View style={styles.summary}><Text style={{ color: colors.text }}>App milk for this period</Text><Text style={{ color: colors.textSecondary }}>Morning {formatMilk(appMilk.morningMl)} · Evening {formatMilk(appMilk.eveningMl)} · Total {formatMilk(appMilk.totalMl)}</Text><Text style={{ color: colors.textSecondary }}>Expected value: {formatMoney(expectedAmount)}</Text></View>
     <Text style={[styles.label, { color: colors.text }]}>Bill milk (optional, litres)</Text>
     {input(billMorning, setBillMorning, 'Bill morning milk')}{input(billEvening, setBillEvening, 'Bill evening milk')}{input(billTotal, setBillTotal, 'Bill total milk')}
+    {input(billTotalAmount, setBillTotalAmount, 'Bill Total Amount ₹')}{input(billCorpus, setBillCorpus, 'Bill Corpus A/C ₹')}
+    {calculatedBillRate !== null ? <Text style={{ color: colors.primary }}>Calculated bill rate: {formatMoney(calculatedBillRate)} / litre</Text> : null}
     <Text style={{ color: colors.textSecondary }}>Difference: morning {formatMilk((billMl.morning ?? 0) - appMilk.morningMl)} · evening {formatMilk((billMl.evening ?? 0) - appMilk.eveningMl)} · total {formatMilk((billMl.total ?? 0) - appMilk.totalMl)}</Text>
     {input(commission, setCommission, 'Commission ₹ (optional)')}{input(increment, setIncrement, 'Increment ₹ (optional)')}{input(deduction, setDeduction, 'Deduction ₹ (optional)')}
     <TextInput style={[styles.input, { borderColor: colors.border, color: colors.text }]} value={notes} onChangeText={setNotes} multiline placeholder="Notes (optional)" placeholderTextColor={colors.textSecondary} />

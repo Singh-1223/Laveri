@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 3 open items, no verify/rework items, no decisions pending, and 21 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 2 open items, no verify/rework items, no decisions pending, and 22 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -52,7 +52,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | R3-19 | [>] Implemented | Simplify the 10-day buyer milk list. | Buyer account now shows one date row with `M - … | E - …` quantities and removes daily money amounts. Awaiting client retest. |
 | R3-20 | [>] Implemented | Verka needs a special prior-cycle rate input and must retain the previous rate until changed. | A new billing cycle now pre-fills the latest saved Verka rate and clearly explains that it is retained until Verka confirms a replacement. Existing cycles remain editable and their own saved rate is preserved. Awaiting client retest. |
 | R3-21 | [>] Implemented | Let Master Data update a buyer's rate for a selected inclusive date range. | While editing a non-Verka buyer, enter a rate and select inclusive start/end dates, then apply it to that buyer’s recorded milk allocations. The action is validated, recalculates the affected amounts, and is recorded in Correction history. Awaiting client retest. |
-| R3-22 | [ ] Open | Upload a milk bill and compare app data; calculate rate from bill totals. | Confirmed: this is **only for Verka**. Compare Morning, Evening, and Total milk. Capture bill `Total amount`, `Corpus A/C`, and `Total milk quantity`; calculate rate as `(Total amount - Corpus A/C) / Total milk quantity`. Retain bill attachment/opening. |
+| R3-22 | [>] Implemented | Upload a milk bill and compare app data; calculate rate from bill totals. | Verka billing now stores Bill Total Amount and Corpus A/C alongside the existing milk comparison/upload. When Total Amount, Corpus A/C, and bill Total milk are present, it calculates and saves `(Total Amount − Corpus A/C) / Total milk` as the Verka cycle rate. Requires the new bill-amount migration before device retest. |
 | R3-23 | [>] Implemented | Add a Verka daily balance/shortfall indicator on Milk. | Milk now shows the active 1-10, 11-20, or 21-end-of-month cycle; saved Verka-only allocations; cumulative 100 kg/day target; and above-target or shortfall value. Other buyers are excluded. Awaiting client retest. |
 
 ## E. Reports and formatting
