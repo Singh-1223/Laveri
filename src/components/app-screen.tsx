@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   content: { flex: 1, paddingHorizontal: 20, paddingBottom: 28, gap: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, paddingTop: 12 },
   headerText: { flex: 1, gap: 4 },
-  headerActions: { alignItems: 'flex-end', gap: 8 },
+  headerActions: { alignItems: 'center', flexDirection: 'row', gap: 8 },
   title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.6 },
   subtitle: { fontSize: 15, lineHeight: 21 },
   card: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 12 },

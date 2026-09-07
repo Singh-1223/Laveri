@@ -1,4 +1,4 @@
-import { useFocusEffect, useRouter } from 'expo-router';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
@@ -335,7 +335,9 @@ export default function MilkScreen() {
         {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : entries.map((entry, index) => (
           <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
-              <Text style={[styles.animalName, { color: colors.text }]}>{entry.tag}</Text>
+              <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild>
+                <Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable>
+              </Link>
               {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
             </View>
             <View style={styles.orderControls}>
@@ -359,10 +361,10 @@ export default function MilkScreen() {
         {allocations.filter((allocation) => allocation.destination === 'buyer').map((allocation) => (
           <View key={allocation.key} style={[styles.entryRow, { borderTopColor: colors.border }]}>
             <View style={styles.animalCopy}>
-              <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>
+              {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
-            <SuggestionField accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 30, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
+            <SuggestionField accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View>
         ))}
@@ -412,7 +414,7 @@ function SmallButton({ label, onPress }: { label: string; onPress: () => void })
 function SuggestionField({ accessibilityLabel, onPress, value, placeholder, invalid }: { accessibilityLabel: string; onPress: () => void; value: string; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  return <Pressable accessibilityLabel={accessibilityLabel} onPress={onPress} style={[styles.volumeInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.text : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
+  return <Pressable accessibilityLabel={accessibilityLabel} onPress={onPress} style={[styles.volumeInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.primary : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
 }
 
 function QualityField({ label, value, onPress, placeholder, invalid }: { label: string; value: string; onPress: () => void; placeholder: string; invalid: boolean }) {
@@ -431,7 +433,7 @@ function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const values = picker ? Array.from({ length: picker.max * 10 + 1 }, (_, index) => index / 10) : [];
   const initialIndex = picker ? Math.max(0, Math.min(values.length - 1, Math.round(picker.initial * 10))) : 0;
-  return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Select a value. The list starts at the previous entry when available.</Text><FlatList key={picker?.key} data={values} keyExtractor={(value) => String(value)} getItemLayout={(_, index) => ({ length: 46, offset: 46 * index, index })} initialScrollIndex={initialIndex} renderItem={({ item }) => <Pressable onPress={() => onSelect(item)} style={[styles.pickerValue, { borderTopColor: colors.border }, picker && Math.abs(item - picker.initial) < 0.01 && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: colors.text }]}>{item.toFixed(1)}</Text></Pressable>} /></View></View></Modal>;
+  return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Select a value. All three columns scroll together and start near the previous entry when available.</Text><FlatList key={picker?.key} data={values} keyExtractor={(value) => String(value)} numColumns={3} columnWrapperStyle={styles.pickerRow} getItemLayout={(_, index) => ({ length: 46, offset: 46 * Math.floor(index / 3), index })} initialScrollIndex={initialIndex} renderItem={({ item }) => <Pressable onPress={() => onSelect(item)} style={[styles.pickerValue, { borderTopColor: colors.border }, picker && Math.abs(item - picker.initial) < 0.01 && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: colors.text }]}>{item.toFixed(1)}</Text></Pressable>} /></View></View></Modal>;
 }
 
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
@@ -473,7 +475,7 @@ const styles = StyleSheet.create({
   qualityRow: { flexDirection: 'row', gap: 10 },
   qualityField: { flex: 1, gap: 6 },
   qualityLabel: { fontSize: 13, fontWeight: '700' },
-  qualityInput: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, fontSize: 17 },
+  qualityInput: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, fontSize: 17 },
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
   animalCopy: { flex: 1, gap: 2 },
   animalName: { fontSize: 16, fontWeight: '700' },
@@ -484,7 +486,7 @@ const styles = StyleSheet.create({
   orderButton: { width: 26, height: 21, borderWidth: 1, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   orderButtonText: { fontSize: 14, fontWeight: '800', lineHeight: 16 },
   entryState: { fontSize: 12 },
-  volumeInput: { width: 96, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, textAlign: 'right', fontSize: 17 },
+  volumeInput: { width: 52, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 6, textAlign: 'right', fontSize: 17 },
   volumeText: { fontSize: 17, textAlign: 'right', lineHeight: 44 },
   litre: { width: 16, fontSize: 14 },
   total: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
@@ -515,6 +517,7 @@ const styles = StyleSheet.create({
   pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   pickerPanel: { maxHeight: '72%', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24 },
   pickerHint: { fontSize: 13, lineHeight: 18, paddingBottom: 10 },
-  pickerValue: { height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
+  pickerRow: { gap: 8 },
+  pickerValue: { flex: 1, height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
   pickerValueText: { fontSize: 19, fontWeight: '700' },
 });

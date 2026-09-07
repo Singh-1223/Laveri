@@ -10,21 +10,21 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Initial summary:** 21 open items, 2 verify/rework items, and 2 decisions needed. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 14 open items, 2 verify/rework items, 2 decisions needed, and 7 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R3-01 | [ ] Open | Show quantity suggestions in three columns instead of one. | Keep the current configured ranges and selection logic. Display a single vertically scrollable, synchronized three-column grid; retain a clear selected-value highlight. |
+| R3-01 | [>] Implemented | Show quantity suggestions in three columns instead of one. | The picker now uses one vertically scrolling three-column grid, preserves the configured ranges and selection logic, and highlights the current value. Awaiting client retest. |
 | R3-02 | [ ] Open | Replace Milk animal up/down buttons with drag-and-drop row ordering. | Press/hold and drag the complete animal row. Persist the Milk-specific order. Remove the arrow controls. |
 | R3-03 | [ ] Open | Apply the same drag-and-drop ordering to buyers. | Press/hold and drag buyer allocation rows; persist the buyer order used on Milk. |
-| R3-04 | [ ] Open | Increase buyer-allocation suggestions to 0.0-100.0. | Use 0.1 litre increments: 1,001 values, while retaining the three-column vertically scrolling picker. |
-| R3-05 | [ ] Open | Put Sync and the three-dot menu side-by-side in the Milk top-right corner. | Preserve both actions and avoid overlap. |
-| R3-06 | [~] Verify/rework | Keep FAT% and SNF% beside each other on one row. | Confirm and correct responsive layout if either field wraps below the other. |
-| R3-07 | [ ] Open | Reduce milk, buyer, FAT%, and SNF% input widths to half their current width. | Keep input height and interaction unchanged; use recovered space for longer animal/buyer names. |
-| R3-08 | [ ] Open | Visually distinguish entered/saved quantity values from empty values. | Change only the value styling/colour; retain existing picker, autosave, and editing behaviour. |
-| R3-09 | [ ] Open | Make animal and buyer names on Milk directly clickable. | Animal name opens its Herd profile; buyer name opens its account/profile. Do not trigger the quantity picker. |
+| R3-04 | [>] Implemented | Increase buyer-allocation suggestions to 0.0-100.0. | Buyer allocation now uses 0.0-100.0 in 0.1 litre increments (1,001 values) within the three-column picker. Awaiting client retest. |
+| R3-05 | [>] Implemented | Put Sync and the three-dot menu side-by-side in the Milk top-right corner. | Header actions now share one horizontal row, preserving both actions with spacing. Awaiting client retest. |
+| R3-06 | [>] Implemented | Keep FAT% and SNF% beside each other on one row. | The existing shared-row layout is retained and compact field padding prevents unnecessary wrapping. Awaiting client retest. |
+| R3-07 | [>] Implemented | Reduce milk, buyer, FAT%, and SNF% input widths to half their current width. | Milk and buyer input boxes are reduced from 96 to 52 points; FAT/SNF fields retain their shared compact row. Awaiting client retest. |
+| R3-08 | [>] Implemented | Visually distinguish entered/saved quantity values from empty values. | Entered quantities now use the primary colour while empty fields retain secondary placeholder styling. Awaiting client retest. |
+| R3-09 | [>] Implemented | Make animal and buyer names on Milk directly clickable. | Animal names open the Herd profile; buyer names open the buyer account. Quantity picker actions remain separate. Awaiting client retest. |
 
 ## B. Herd and animal profile
 
