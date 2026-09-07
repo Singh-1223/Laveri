@@ -93,3 +93,4 @@ export type DeleteAnimalLabelInput = AuditContext & { id: string };
 export type DeleteItemInput = AuditContext & { id: string };
 export type SetAnimalLabelsInput = AuditContext & { animalId: string; labelIds: string[] };
 export type SaveAnimalLabelOrderInput = AuditContext & { labelIds: string[] };
+export type UpdateBuyerRateRangeInput = AuditContext & { buyerId: string; startDate: string; endDate: string; ratePaisePerLitre: number };

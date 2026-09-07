@@ -13,6 +13,7 @@ import type {
   MasterDataSnapshot,
   SetAnimalLabelsInput,
   SaveAnimalLabelOrderInput,
+  UpdateBuyerRateRangeInput,
   ReorderMasterRecordInput,
   SetMasterRecordActiveInput,
   UpdateAnimalInput,
@@ -203,6 +204,40 @@ export async function updateBuyer(input: UpdateBuyerInput) {
     );
     const after = await transaction.get<Record<string, unknown>>(`SELECT * FROM buyers WHERE id = ?`, [input.id]);
     await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: 'buyers', recordId: input.id, action: 'update', before, after });
+  });
+}
+
+export async function updateBuyerRateRange(input: UpdateBuyerRateRangeInput) {
+  if (input.startDate > input.endDate) throw new Error('The rate start date must be on or before the end date.');
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    const before = await transaction.getAll<Record<string, unknown>>(
+      `SELECT * FROM milk_allocations WHERE farm_id = ? AND buyer_id = ? AND destination = 'buyer'
+       AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL`,
+      [input.farmId, input.buyerId, input.startDate, input.endDate],
+    );
+    await transaction.execute(
+      `UPDATE milk_allocations SET rate_paise_per_litre = ?, amount_paise = round(volume_ml * ? / 1000.0),
+       updated_at = ?, updated_by = ?, version = version + 1
+       WHERE farm_id = ? AND buyer_id = ? AND destination = 'buyer'
+       AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL`,
+      [input.ratePaisePerLitre, input.ratePaisePerLitre, now, input.userId, input.farmId, input.buyerId, input.startDate, input.endDate],
+    );
+    const after = await transaction.getAll<Record<string, unknown>>(
+      `SELECT * FROM milk_allocations WHERE farm_id = ? AND buyer_id = ? AND destination = 'buyer'
+       AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL`,
+      [input.farmId, input.buyerId, input.startDate, input.endDate],
+    );
+    await recordCorrection(transaction, {
+      farmId: input.farmId,
+      userId: input.userId,
+      entityType: 'buyers',
+      recordId: input.buyerId,
+      action: 'update',
+      before: { startDate: input.startDate, endDate: input.endDate, ratePaisePerLitre: null, affectedAllocations: before.length },
+      after: { startDate: input.startDate, endDate: input.endDate, ratePaisePerLitre: input.ratePaisePerLitre, affectedAllocations: after.length },
+    });
   });
 }
 

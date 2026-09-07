@@ -20,6 +20,7 @@ import {
   updateAnimal,
   updateAnimalLabel,
   updateBuyer,
+  updateBuyerRateRange,
   updateItem,
 } from '@/data/repositories/master-data';
 import type { ItemRow, MasterDataSnapshot } from '@/data/repositories/master-data.types';
@@ -48,6 +49,8 @@ export default function MasterDataScreen() {
   const [name, setName] = useState('');
   const [secondary, setSecondary] = useState('');
   const [buyerRate, setBuyerRate] = useState('');
+  const [rateStartDate, setRateStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [rateEndDate, setRateEndDate] = useState(new Date().toISOString().slice(0, 10));
   const [itemRate, setItemRate] = useState('');
   const [itemNotes, setItemNotes] = useState('');
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
@@ -61,6 +64,7 @@ export default function MasterDataScreen() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -88,6 +92,8 @@ export default function MasterDataScreen() {
     setName('');
     setSecondary('');
     setBuyerRate('');
+    setRateStartDate(new Date().toISOString().slice(0, 10));
+    setRateEndDate(new Date().toISOString().slice(0, 10));
     setItemRate('');
     setItemNotes('');
     setAnimalIsMilking(true);
@@ -98,6 +104,7 @@ export default function MasterDataScreen() {
     setNewLabelColor(labelColors[0]);
     setEditingLabelId(null);
     setEditingId(null);
+    setNotice(null);
   };
 
   const save = async () => {
@@ -224,6 +231,20 @@ export default function MasterDataScreen() {
     }
   };
 
+  const applyBuyerRateRange = async () => {
+    const ratePaisePerLitre = parseRupees(buyerRate);
+    if (!farmId || !session || !editingId) return;
+    if (Number.isNaN(ratePaisePerLitre) || ratePaisePerLitre === null) { setError('Enter a valid rate before applying it to recorded milk.'); return; }
+    if (rateStartDate > rateEndDate) { setError('The start date must be on or before the end date.'); return; }
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      await updateBuyerRateRange({ farmId, userId: session.user.id, buyerId: editingId, startDate: rateStartDate, endDate: rateEndDate, ratePaisePerLitre });
+      await refresh();
+      setNotice(`Applied ₹${(ratePaisePerLitre / 100).toFixed(2)}/L to this buyer’s recorded milk from ${rateStartDate} through ${rateEndDate}.`);
+    } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to update the saved milk rate.'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <AppScreen title="Master data" subtitle="Saved locally first and synchronized when online">
       <View style={styles.tabs}>
@@ -280,6 +301,13 @@ export default function MasterDataScreen() {
           style={[styles.input, { color: colors.text, borderColor: Number.isNaN(parseRupees(buyerRate)) ? colors.danger : colors.border }]}
           value={buyerRate}
         /> : null}
+        {tab === 'buyers' && editingId && name.trim().toLocaleLowerCase() !== 'verka' ? <View style={styles.rateRange}>
+          <Text style={[styles.label, { color: colors.textSecondary }]}>Apply this rate to recorded milk</Text>
+          <Text style={[styles.rateHelp, { color: colors.textSecondary }]}>Updates this buyer’s saved milk allocations for both dates, including the start and end dates. It does not change other buyers.</Text>
+          <DateField label="Rate start date" value={rateStartDate} onChange={setRateStartDate} />
+          <DateField label="Rate end date" value={rateEndDate} onChange={setRateEndDate} />
+          <Pressable disabled={busy || !buyerRate.trim()} onPress={() => void applyBuyerRateRange()} style={[styles.rangeButton, { borderColor: colors.primary }, (busy || !buyerRate.trim()) && styles.disabled]}><Text style={[styles.cancelText, { color: colors.primary }]}>Apply rate to selected dates</Text></Pressable>
+        </View> : null}
         <Pressable disabled={busy || !farmId || !name.trim()} onPress={save} style={({ pressed }) => [styles.save, { backgroundColor: colors.primary }, (busy || !farmId || !name.trim()) && styles.disabled, pressed && styles.pressed]}>
           {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>{editingId ? 'Update' : 'Save'} {singularLabel(tab)}</Text>}
         </Pressable>
@@ -287,6 +315,7 @@ export default function MasterDataScreen() {
       </SectionCard>
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
+      {notice ? <Text style={[styles.notice, { color: colors.primary }]}>{notice}</Text> : null}
 
       <SectionCard title={`${tabLabel(tab)} (${rows.length})`}>
         {loading ? <ActivityIndicator color={colors.primary} /> : rows.length === 0 ? <EmptyState>No {tabLabel(tab).toLowerCase()} added yet.</EmptyState> : rows.map((row) => (
@@ -351,6 +380,9 @@ const styles = StyleSheet.create({
   colorChoice: { width: 30, height: 30, borderRadius: 15, borderWidth: 3 },
   addLabel: { minHeight: 40, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   labelManageRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+  rateRange: { gap: 8, paddingTop: 4 },
+  rateHelp: { fontSize: 13, lineHeight: 18 },
+  rangeButton: { minHeight: 44, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 16 },
   save: { minHeight: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
@@ -359,6 +391,7 @@ const styles = StyleSheet.create({
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.75 },
   error: { fontSize: 14, lineHeight: 20 },
+  notice: { fontSize: 14, lineHeight: 20 },
   row: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 3 },
   rowName: { fontSize: 16, fontWeight: '700' },
   rowDetail: { fontSize: 13 },

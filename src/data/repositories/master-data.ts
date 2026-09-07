@@ -59,6 +59,10 @@ export async function updateBuyer(_input: UpdateBuyerInput) {
   throw unavailable();
 }
 
+export async function updateBuyerRateRange(_input: import('./master-data.types').UpdateBuyerRateRangeInput) {
+  throw unavailable();
+}
+
 export async function updateItem(_input: UpdateItemInput) {
   throw unavailable();
 }

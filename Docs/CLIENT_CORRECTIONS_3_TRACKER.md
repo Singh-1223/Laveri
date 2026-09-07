@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 6 open items, 1 verify/rework item, 2 decisions needed, and 16 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 5 open items, 1 verify/rework item, 2 decisions needed, and 17 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -51,7 +51,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 |---|---|---|
 | R3-19 | [>] Implemented | Simplify the 10-day buyer milk list. | Buyer account now shows one date row with `M - … | E - …` quantities and removes daily money amounts. Awaiting client retest. |
 | R3-20 | [>] Implemented | Verka needs a special prior-cycle rate input and must retain the previous rate until changed. | A new billing cycle now pre-fills the latest saved Verka rate and clearly explains that it is retained until Verka confirms a replacement. Existing cycles remain editable and their own saved rate is preserved. Awaiting client retest. |
-| R3-21 | [ ] Open | Let Master Data update a buyer's rate for a selected inclusive date range. | Add start date, end date, new per-litre rate, validation, confirmation, and a controlled bulk update of applicable milk allocations. |
+| R3-21 | [>] Implemented | Let Master Data update a buyer's rate for a selected inclusive date range. | While editing a non-Verka buyer, enter a rate and select inclusive start/end dates, then apply it to that buyer’s recorded milk allocations. The action is validated, recalculates the affected amounts, and is recorded in Correction history. Awaiting client retest. |
 | R3-22 | [?] Decision needed | Upload a milk bill and compare app data; calculate rate from bill totals. | Compare only Morning, Evening, and Total milk. Capture bill `Total amount`, `Corpus A/C`, and `Total milk quantity`; calculate rate as `(Total amount - Corpus A/C) / Total milk quantity`. Retain bill attachment/opening. The intended buyer scope must be confirmed. |
 | R3-23 | [?] Decision needed | Add a Verka daily balance/shortfall indicator on Milk. | The formula is cumulative supplied milk minus 100 kg per day, with target adjusted by shift length. Need confirmation of the cycle start/end rule and whether “supplied” means only milk allocated to the buyer named Verka. |
 
