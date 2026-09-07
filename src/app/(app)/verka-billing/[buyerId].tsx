@@ -52,8 +52,17 @@ export default function VerkaBillingScreen() {
   const load = useCallback(async () => {
     const powerSync = await getPowerSyncSnapshot();
     setFarmId(powerSync.farmId);
-    if (powerSync.farmId && buyerId) setSnapshot(await loadVerkaCycles(powerSync.farmId, buyerId));
-  }, [buyerId]);
+    if (powerSync.farmId && buyerId) {
+      const nextSnapshot = await loadVerkaCycles(powerSync.farmId, buyerId);
+      setSnapshot(nextSnapshot);
+      // A new billing cycle normally continues at the most recently finalised rate.
+      // The user can still replace this value when Verka announces a new rate.
+      if (!editingCycleId && !rate) {
+        const priorRate = nextSnapshot.cycles[0]?.finalRatePaisePerLitre;
+        if (priorRate !== null && priorRate !== undefined) setRate(String(priorRate / 100));
+      }
+    }
+  }, [buyerId, editingCycleId, rate]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
@@ -66,7 +75,8 @@ export default function VerkaBillingScreen() {
 
   const clearForm = () => {
     setEditingCycleId(undefined);
-    setCycleStart(today()); setCycleEnd(today()); setRate(''); setCommission(''); setIncrement(''); setDeduction('');
+    const priorRate = snapshot?.cycles[0]?.finalRatePaisePerLitre;
+    setCycleStart(today()); setCycleEnd(today()); setRate(priorRate === null || priorRate === undefined ? '' : String(priorRate / 100)); setCommission(''); setIncrement(''); setDeduction('');
     setNotes(''); setBillMorning(''); setBillEvening(''); setBillTotal(''); setBill(null); setMessage(null);
   };
 
@@ -126,6 +136,7 @@ export default function VerkaBillingScreen() {
   return <AppScreen title="Verka billing"><SectionCard title={editingCycleId ? 'Edit billing cycle' : 'New billing cycle'}>
     <DateField label="Cycle start" value={cycleStart} onChange={setCycleStart} /><DateField label="Cycle end" value={cycleEnd} onChange={setCycleEnd} />
     {input(rate, setRate, 'Final rate ₹ / litre')}
+    {!editingCycleId && snapshot?.cycles[0]?.finalRatePaisePerLitre !== null && snapshot?.cycles[0]?.finalRatePaisePerLitre !== undefined ? <Text style={{ color: colors.textSecondary }}>Previous billing-cycle rate is prefilled. Change it only when Verka confirms a new rate.</Text> : null}
     <View style={styles.summary}><Text style={{ color: colors.text }}>App milk for this period</Text><Text style={{ color: colors.textSecondary }}>Morning {formatMilk(appMilk.morningMl)} · Evening {formatMilk(appMilk.eveningMl)} · Total {formatMilk(appMilk.totalMl)}</Text><Text style={{ color: colors.textSecondary }}>Expected value: {formatMoney(expectedAmount)}</Text></View>
     <Text style={[styles.label, { color: colors.text }]}>Bill milk (optional, litres)</Text>
     {input(billMorning, setBillMorning, 'Bill morning milk')}{input(billEvening, setBillEvening, 'Bill evening milk')}{input(billTotal, setBillTotal, 'Bill total milk')}
