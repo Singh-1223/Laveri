@@ -354,7 +354,8 @@ export default function MilkScreen() {
           data={entries}
           keyExtractor={(entry) => entry.animalId}
           scrollEnabled={false}
-          activationDistance={12}
+          activationDistance={0}
+          dragItemOverflow
           onDragEnd={({ data }) => void saveAnimalOrder(data)}
           renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={180} disabled={busy} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
@@ -379,7 +380,8 @@ export default function MilkScreen() {
           data={allocations.filter((allocation) => allocation.destination === 'buyer')}
           keyExtractor={(allocation) => allocation.key}
           scrollEnabled={false}
-          activationDistance={12}
+          activationDistance={0}
+          dragItemOverflow
           onDragEnd={({ data }) => void saveBuyerOrder(data)}
           renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={180} disabled={busy} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>

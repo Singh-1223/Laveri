@@ -1,14 +1,17 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SessionProvider, useSession } from '@/features/auth/session-provider';
 
 export default function RootLayout() {
   return (
-    <SessionProvider>
-      <RootNavigator />
-    </SessionProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SessionProvider>
+        <RootNavigator />
+      </SessionProvider>
+    </GestureHandlerRootView>
   );
 }
 
@@ -42,5 +45,6 @@ function RootNavigator() {
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });
