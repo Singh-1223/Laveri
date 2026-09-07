@@ -46,7 +46,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
         feed.quantity_milli_units AS quantityMilliUnits, feed.unit_code AS unitCode,
         feed.rate_paise_per_unit AS ratePaisePerUnit,
         NULL AS doctorFeePaise, NULL AS medicineCostPaise,
-        feed.notes AS notes, NULL AS productCategory
+        feed.notes AS notes, NULL AS productCategory, feed.created_at AS createdAt
       FROM feed_transactions feed
       JOIN items item ON item.id = feed.item_id
       LEFT JOIN animals animal ON animal.id = feed.animal_id
@@ -63,7 +63,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
         NULL AS quantityMilliUnits, NULL AS unitCode, NULL AS ratePaisePerUnit,
         treatment.doctor_fee_paise AS doctorFeePaise,
         treatment.medicine_cost_paise AS medicineCostPaise,
-        treatment.notes AS notes, NULL AS productCategory
+        treatment.notes AS notes, NULL AS productCategory, treatment.created_at AS createdAt
       FROM treatments treatment
       JOIN animals animal ON animal.id = treatment.animal_id
       LEFT JOIN items item ON item.id = treatment.medicine_item_id
@@ -80,7 +80,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
         product.quantity_milli_units AS quantityMilliUnits, product.unit_code AS unitCode,
         product.rate_paise_per_unit AS ratePaisePerUnit,
         NULL AS doctorFeePaise, NULL AS medicineCostPaise,
-        product.notes AS notes, product.category AS productCategory
+        product.notes AS notes, product.category AS productCategory, product.created_at AS createdAt
       FROM product_transactions product
       JOIN items item ON item.id = product.item_id
       WHERE product.farm_id = ?
@@ -94,12 +94,12 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
         heat.animal_id AS animalId, NULL AS itemId,
         NULL AS quantityMilliUnits, NULL AS unitCode, NULL AS ratePaisePerUnit,
         NULL AS doctorFeePaise, NULL AS medicineCostPaise,
-        coalesce(heat.signs, heat.notes) AS notes, NULL AS productCategory
+        coalesce(heat.signs, heat.notes) AS notes, NULL AS productCategory, heat.created_at AS createdAt
       FROM heat_events heat
       JOIN animals animal ON animal.id = heat.animal_id
       WHERE heat.farm_id = ?
     ) operations
-    ORDER BY businessDate DESC, id DESC
+    ORDER BY businessDate DESC, createdAt DESC
     LIMIT ?`,
     [farmId, farmId, farmId, farmId, limit],
   );

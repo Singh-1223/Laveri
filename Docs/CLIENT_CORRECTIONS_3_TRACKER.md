@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 12 open items, 2 verify/rework items, 2 decisions needed, and 9 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 8 open items, 2 verify/rework items, 2 decisions needed, and 13 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -41,15 +41,15 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|
-| R3-16 | [ ] Open | Put newest activity first in Farm Operations history. | Sort same-day and older entries by latest creation/entry time first. |
+| R3-16 | [>] Implemented | Put newest activity first in Farm Operations history. | Farm Operations history now orders by business date, then latest creation/entry time first. Awaiting client retest. |
 | R3-17 | [ ] Open | Add Other events, modelled on Heat event. | Add injury/mishap/general-event entry with Heat-event-like date/notes flow, while allowing one, many, or all animals to be selected. |
-| R3-18 | [ ] Open | Reorder Farm Operations tabs. | Set fixed order: Feed, Product, Treatment, Heat event, Investment, Silage, Other events. |
+| R3-18 | [>] Implemented | Reorder Farm Operations tabs. | Existing tabs now use fixed order Feed, Product, Treatment, Heat event, Investment, Silage. Other events will be appended when its decision-dependent feature is implemented. Awaiting client retest. |
 
 ## D. Buyer accounts and pricing
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|
-| R3-19 | [ ] Open | Simplify the 10-day buyer milk list. | Remove daily money amounts. Combine Morning and Evening into one row per date using `M - … | E - …`, while retaining date and quantity. |
+| R3-19 | [>] Implemented | Simplify the 10-day buyer milk list. | Buyer account now shows one date row with `M - … | E - …` quantities and removes daily money amounts. Awaiting client retest. |
 | R3-20 | [~] Verify/rework | Verka needs a special prior-cycle rate input and must retain the previous rate until changed. | Compare the existing Verka billing-cycle editor with this request, including previous-cycle selection/editing and the rate used in revenue calculations. |
 | R3-21 | [ ] Open | Let Master Data update a buyer's rate for a selected inclusive date range. | Add start date, end date, new per-litre rate, validation, confirmation, and a controlled bulk update of applicable milk allocations. |
 | R3-22 | [?] Decision needed | Upload a milk bill and compare app data; calculate rate from bill totals. | Compare only Morning, Evening, and Total milk. Capture bill `Total amount`, `Corpus A/C`, and `Total milk quantity`; calculate rate as `(Total amount - Corpus A/C) / Total milk quantity`. Retain bill attachment/opening. The intended buyer scope must be confirmed. |
@@ -60,7 +60,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
 | R3-24 | [ ] Open | Display recorded FAT% and SNF% in Reports. | Add a report view/filter for the Milk-page FAT/SNF records, with the appropriate date/session context. |
-| R3-25 | [ ] Open | Fix Heat event date formatting in animal history. | Show a human-readable farm date such as `DD-MM-YY`, rather than an ISO timestamp. |
+| R3-25 | [>] Implemented | Fix Heat event date formatting in animal history. | Farm-date formatting now accepts ISO timestamps and displays a human-readable `DD-MM-YY` date in animal history. Awaiting client retest. |
 
 ## Clarifications to obtain before implementation
 

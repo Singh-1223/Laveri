@@ -243,7 +243,7 @@ export default function ExpensesScreen() {
   return (
     <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, health, and heat records">
       <View style={styles.tabs}>
-        {(['feed', 'treatment', 'product', 'silage', 'investment', 'heat'] as const).map((value) => (
+        {(['feed', 'product', 'treatment', 'heat', 'investment', 'silage'] as const).map((value) => (
           <Pressable key={value} onPress={() => { setKind(value); setHistoryFilter(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
             <Text style={{ color: kind === value ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{kindLabel(value)}</Text>
           </Pressable>

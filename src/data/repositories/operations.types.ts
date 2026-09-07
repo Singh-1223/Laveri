@@ -6,6 +6,7 @@ export type OperationHistoryRow = {
   id: string;
   kind: OperationKind;
   businessDate: string;
+  createdAt: string;
   title: string;
   detail: string | null;
   amountPaise: number;
