@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 2 open items, no verify/rework items, no decisions pending, and 21 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 3 open items, no verify/rework items, no decisions pending, and 21 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
