@@ -104,7 +104,7 @@ const animalEvents = new Table(
 );
 
 const animalPhotos = new Table(
-  { farm_id: column.text, animal_id: column.text, storage_path: column.text, file_name: column.text, caption: column.text, ...auditColumns },
+  { farm_id: column.text, animal_id: column.text, storage_path: column.text, file_name: column.text, caption: column.text, attachment_date: column.text, is_profile: column.integer, ...auditColumns },
   { ...versioned, indexes: { by_animal: ['animal_id'] } },
 );
 

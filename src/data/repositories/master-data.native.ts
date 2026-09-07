@@ -32,7 +32,7 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
   const [animals, buyers, items, animalLabels, animalLabelLinks] = await Promise.all([
     database.getAll<MasterDataSnapshot['animals'][number]>(
       `SELECT id, tag, category, sex, status, is_milking, breed, display_order,
-        (SELECT storage_path FROM animal_photos photo WHERE photo.animal_id = animals.id AND photo.deleted_at IS NULL ORDER BY photo.created_at DESC LIMIT 1) AS primary_photo_path
+        (SELECT storage_path FROM animal_photos photo WHERE photo.animal_id = animals.id AND photo.is_profile = 1 AND photo.deleted_at IS NULL ORDER BY photo.created_at DESC LIMIT 1) AS primary_photo_path
        FROM animals WHERE deleted_at IS NULL ORDER BY display_order, tag COLLATE NOCASE`,
     ),
     database.getAll<MasterDataSnapshot['buyers'][number]>(

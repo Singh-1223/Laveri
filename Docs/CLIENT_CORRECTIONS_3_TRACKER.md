@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 5 open items, 1 verify/rework item, 2 decisions needed, and 17 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 2 open items, 1 verify/rework item, 2 decisions needed, and 20 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -30,9 +30,9 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R3-10 | [ ] Open | Separate the animal profile picture from other uploaded photos/documents. | Support exactly one replaceable profile picture, shown before the animal name. Keep other files as dated history attachments. |
-| R3-11 | [ ] Open | Add a date to each non-profile image/document and show it in History. | The user chooses the attachment date; history placement follows that date. |
-| R3-12 | [ ] Open | Show newest animal history first. | Sort all profile history entries descending by their effective event/attachment date. |
+| R3-10 | [>] Implemented | Separate the animal profile picture from other uploaded photos/documents. | Animal profiles now have one replaceable image-only profile picture shown at the top. Other uploads remain separate dated History attachments. Requires the new attachment-metadata migration before device retest. |
+| R3-11 | [>] Implemented | Add a date to each non-profile image/document and show it in History. | The user selects an attachment date before adding a photo/PDF. Each attachment appears in History with that date and can be opened from there. Requires the new attachment-metadata migration before device retest. |
+| R3-12 | [>] Implemented | Show newest animal history first. | Events, heat records, treatments, and dated attachments are combined and sorted descending by their effective date. Awaiting client retest. |
 | R3-13 | [>] Implemented | Filter Herd by label tabs such as All, Milking, PND, CVD, Dry, Calf/Heifer. | Herd now shows All plus every saved custom label as a filter tab. Search continues to work with the selected label and each animal retains its label chips. Awaiting client retest. |
 | R3-14 | [>] Implemented | Drag-and-drop reorder the Herd label tabs. | Press/hold and drag a label tab to reorder it. The saved order is independent of animal ordering and label assignments. Requires the new label-order migration before device retest. |
 | R3-15 | [ ] Open | Show each animal's own milk history as a line graph. | Combine Morning + Evening into one daily total point. Add 7-day, 1-month, 3-month, and custom-range controls, plus practical horizontal scrolling/zoom behaviour. Do not display other animals' milk in that profile. |
