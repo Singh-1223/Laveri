@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 8 open items, 2 verify/rework items, 2 decisions needed, and 13 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 7 open items, 2 verify/rework items, 2 decisions needed, and 14 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -59,7 +59,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
-| R3-24 | [ ] Open | Display recorded FAT% and SNF% in Reports. | Add a report view/filter for the Milk-page FAT/SNF records, with the appropriate date/session context. |
+| R3-24 | [>] Implemented | Display recorded FAT% and SNF% in Reports. | Reports now includes a dedicated FAT & SNF records section, showing one quality record per Milk date/session with its Morning or Evening context. Awaiting client retest. |
 | R3-25 | [>] Implemented | Fix Heat event date formatting in animal history. | Farm-date formatting now accepts ISO timestamps and displays a human-readable `DD-MM-YY` date in animal history. Awaiting client retest. |
 
 ## Clarifications to obtain before implementation

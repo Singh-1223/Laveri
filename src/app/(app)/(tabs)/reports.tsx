@@ -83,6 +83,15 @@ export default function ReportsScreen() {
   const buyerOptions = useMemo(() => uniqueOptions(report?.buyerSales.map((row) => ({ id: row.buyerId, label: row.buyerName })) ?? []), [report]);
   const visibleMilkEntries = useMemo(() => report?.milkEntries.filter((row) => animalFilter === 'all' || row.animalId === animalFilter) ?? [], [animalFilter, report]);
   const visibleBuyerSales = useMemo(() => report?.buyerSales.filter((row) => buyerFilter === 'all' || row.buyerId === buyerFilter) ?? [], [buyerFilter, report]);
+  const qualityRecords = useMemo(() => {
+    const records = new Map<string, { milkDate: string; session: 'morning' | 'evening'; fatHundredths: number | null; snfHundredths: number | null }>();
+    for (const entry of report?.milkEntries ?? []) {
+      if (entry.fatHundredths === null && entry.snfHundredths === null) continue;
+      const key = `${entry.milkDate}:${entry.session}`;
+      if (!records.has(key)) records.set(key, entry);
+    }
+    return [...records.values()];
+  }, [report]);
 
   return (
     <AppScreen title="Reports" subtitle="Calculated locally from source transactions">
@@ -123,6 +132,12 @@ export default function ReportsScreen() {
             <ReportLine label="Sold to buyers" value={formatMilk(report.buyerMl)} />
             <ReportLine label="Household consumption" value={formatMilk(report.householdMl)} />
             <ReportLine label={report.unallocatedMl < 0 ? 'Over-allocated' : 'Unallocated'} value={formatMilk(Math.abs(report.unallocatedMl))} danger={report.unallocatedMl < 0} />
+          </SectionCard>
+
+          <SectionCard title={`FAT & SNF records (${qualityRecords.length})`}>
+            {qualityRecords.length === 0 ? <EmptyState>No FAT/SNF records in this date range.</EmptyState> : qualityRecords.map((record) => (
+              <ReportLine key={`${record.milkDate}:${record.session}`} label={`${formatFarmDate(record.milkDate)} · ${record.session === 'morning' ? 'Morning' : 'Evening'}`} value={`FAT ${record.fatHundredths === null ? '—' : `${record.fatHundredths / 100}%`} · SNF ${record.snfHundredths === null ? '—' : `${record.snfHundredths / 100}%`}`} />
+            ))}
           </SectionCard>
 
           <SectionCard title={`Milk source entries (${visibleMilkEntries.length})`}>
