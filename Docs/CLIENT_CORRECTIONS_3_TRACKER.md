@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 2 open items, 1 verify/rework item, 2 decisions needed, and 20 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 2 open items, 1 verify/rework item, no decisions pending, and 20 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -42,7 +42,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | ID | Status | Client request | Implementation scope |
 |---|---|---|
 | R3-16 | [>] Implemented | Put newest activity first in Farm Operations history. | Farm Operations history now orders by business date, then latest creation/entry time first. Awaiting client retest. |
-| R3-17 | [ ] Open | Add Other events, modelled on Heat event. | Add injury/mishap/general-event entry with Heat-event-like date/notes flow, while allowing one, many, or all animals to be selected. |
+| R3-17 | [ ] Open | Add Other events, modelled on Heat event. | Confirmed: date is required; event type and cost are optional. Add a Heat-event-like flow with one/many/all animal selection. |
 | R3-18 | [>] Implemented | Reorder Farm Operations tabs. | Existing tabs now use fixed order Feed, Product, Treatment, Heat event, Investment, Silage. Other events will be appended when its decision-dependent feature is implemented. Awaiting client retest. |
 
 ## D. Buyer accounts and pricing
@@ -52,8 +52,8 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | R3-19 | [>] Implemented | Simplify the 10-day buyer milk list. | Buyer account now shows one date row with `M - … | E - …` quantities and removes daily money amounts. Awaiting client retest. |
 | R3-20 | [>] Implemented | Verka needs a special prior-cycle rate input and must retain the previous rate until changed. | A new billing cycle now pre-fills the latest saved Verka rate and clearly explains that it is retained until Verka confirms a replacement. Existing cycles remain editable and their own saved rate is preserved. Awaiting client retest. |
 | R3-21 | [>] Implemented | Let Master Data update a buyer's rate for a selected inclusive date range. | While editing a non-Verka buyer, enter a rate and select inclusive start/end dates, then apply it to that buyer’s recorded milk allocations. The action is validated, recalculates the affected amounts, and is recorded in Correction history. Awaiting client retest. |
-| R3-22 | [?] Decision needed | Upload a milk bill and compare app data; calculate rate from bill totals. | Compare only Morning, Evening, and Total milk. Capture bill `Total amount`, `Corpus A/C`, and `Total milk quantity`; calculate rate as `(Total amount - Corpus A/C) / Total milk quantity`. Retain bill attachment/opening. The intended buyer scope must be confirmed. |
-| R3-23 | [?] Decision needed | Add a Verka daily balance/shortfall indicator on Milk. | The formula is cumulative supplied milk minus 100 kg per day, with target adjusted by shift length. Need confirmation of the cycle start/end rule and whether “supplied” means only milk allocated to the buyer named Verka. |
+| R3-22 | [ ] Open | Upload a milk bill and compare app data; calculate rate from bill totals. | Confirmed: this is **only for Verka**. Compare Morning, Evening, and Total milk. Capture bill `Total amount`, `Corpus A/C`, and `Total milk quantity`; calculate rate as `(Total amount - Corpus A/C) / Total milk quantity`. Retain bill attachment/opening. |
+| R3-23 | [ ] Open | Add a Verka daily balance/shortfall indicator on Milk. | Confirmed: count only milk allocated to buyer **Verka**. Target periods are 1st-10th, 11th-20th, and 21st-end-of-month, with a 100 kg target per day in that period. Other buyers remain unchanged. |
 
 ## E. Reports and formatting
 
@@ -62,11 +62,11 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | R3-24 | [>] Implemented | Display recorded FAT% and SNF% in Reports. | Reports now includes a dedicated FAT & SNF records section, showing one quality record per Milk date/session with its Morning or Evening context. Awaiting client retest. |
 | R3-25 | [>] Implemented | Fix Heat event date formatting in animal history. | Farm-date formatting now accepts ISO timestamps and displays a human-readable `DD-MM-YY` date in animal history. Awaiting client retest. |
 
-## Clarifications to obtain before implementation
+## Confirmed business rules
 
-1. **Verka target cycle** - source: **“VERKA Milk Target - Use This Formula”** (pages 7-8). Does the cumulative 100 kg/day target run from the 1st-10th, 11th-20th, and 21st-end-of-month, or is there another start-date rule? Does “Actual milk supplied” count only milk allocated to the buyer called Verka?
-2. **Bill comparison scope** - source: **“Upload bills and compare”** (page 7), immediately followed by **“VERKA Milk Target - Use This Formula.”** Is the new Total amount/Corpus A/C rate calculation only for Verka, or should every buyer have bill upload and comparison?
-3. **Other events fields** - source: **“Farm Operation - make copy of 'heat event'”** (page 5). Besides the Heat-event-like date/notes flow and selecting one/many/all animals, are any structured fields required: event type, cost, follow-up date, status, or attachments?
+1. **Verka target cycle** - source: **“VERKA Milk Target - Use This Formula”** (pages 7-8). Target periods are 1st-10th, 11th-20th, and 21st-end-of-month. Count only milk allocated to buyer Verka, with a 100 kg target per day in the active period.
+2. **Bill comparison scope** - source: **“Upload bills and compare”** (page 7). The Total amount/Corpus A/C rate calculation and bill comparison apply only to Verka.
+3. **Other events fields** - source: **“Farm Operation - make copy of 'heat event'”** (page 5). Date is required; event type and cost are optional. The flow supports one, many, or all animals.
 
 ## Suggested delivery order
 
