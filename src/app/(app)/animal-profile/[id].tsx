@@ -1,14 +1,14 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { createAnimalPhoto, loadAnimalProfile } from '@/data/repositories/animal-profile';
+import { createAnimalPhoto, deleteAnimalPhoto, loadAnimalProfile } from '@/data/repositories/animal-profile';
 import type { AnimalProfile } from '@/data/repositories/animal-profile.types';
 import { requireSupabase } from '@/data/supabase/client';
 import { formatMoney } from '@/domain/calculations';
@@ -55,6 +55,18 @@ export default function AnimalProfileScreen() {
     if (link.data?.signedUrl) await Linking.openURL(link.data.signedUrl);
   };
 
+  const removeAttachment = async (photo: NonNullable<AnimalProfile['photos']>[number]) => {
+    try {
+      const sync = await getPowerSyncSnapshot();
+      if (!sync.farmId || !session) return;
+      const removed = await requireSupabase().storage.from('animal-files').remove([photo.storagePath]);
+      if (removed.error) throw removed.error;
+      await deleteAnimalPhoto({ farmId: sync.farmId, photoId: photo.id, userId: session.user.id });
+      setMessage('Attachment deleted.');
+      await load();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to delete the attachment.'); }
+  };
+
   const attach = async (isProfile: boolean) => {
     try {
       const sync = await getPowerSyncSnapshot();
@@ -92,7 +104,7 @@ export default function AnimalProfileScreen() {
 
   return <AppScreen title={profile?.animal.tag ?? 'Animal profile'} subtitle="History and attachments">
     <SectionCard title="Profile"><View style={styles.profileRow}>{profilePhotoUrl && profilePhoto ? <Pressable onPress={() => void openFile(profilePhoto.storagePath)}><Image source={{ uri: profilePhotoUrl }} style={styles.profileImage} /></Pressable> : <View style={[styles.profileImage, styles.profilePlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={styles.cow}>🐄</Text></View>}<View style={styles.profileCopy}><Text style={{ color: colors.text }}>Birth: {profile?.animal.birthDate ? formatFarmDate(profile.animal.birthDate) : 'Not recorded'}</Text><Text style={{ color: colors.text }}>Purchase: {profile?.animal.acquisitionDate ? formatFarmDate(profile.animal.acquisitionDate) : 'Not recorded'}</Text><Pressable onPress={() => void attach(true)}><Text style={{ color: colors.primary }}>{profilePhoto ? 'Replace profile picture' : 'Set profile picture'}</Text></Pressable></View></View></SectionCard>
-    <SectionCard title="Photos and documents"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{profile?.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).length ? <View style={styles.thumbnailGrid}>{profile.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).map((item) => <Pressable key={item.id} onPress={() => void openFile(item.storagePath)}>{attachmentImageUrls[item.id] ? <Image source={{ uri: attachmentImageUrls[item.id] }} style={styles.thumbnail} /> : <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={{ color: colors.textSecondary }}>Image</Text></View>}</Pressable>)}</View> : null}{profile?.photos.filter((item) => !item.isProfile && !isImageFile(item.fileName)).map((item) => <Pressable key={item.id} onPress={() => void openFile(item.storagePath)}><Text style={{ color: colors.primary }}>{item.fileName}</Text></Pressable>)}{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
+    <SectionCard title="Photos and documents"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{profile?.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).length ? <View style={styles.thumbnailGrid}>{profile.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).map((item) => <View key={item.id} style={styles.attachmentItem}><Pressable onPress={() => void openFile(item.storagePath)}>{attachmentImageUrls[item.id] ? <Image source={{ uri: attachmentImageUrls[item.id] }} style={styles.thumbnail} /> : <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={{ color: colors.textSecondary }}>Image</Text></View>}</Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', item.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(item) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View>)}</View> : null}{profile?.photos.filter((item) => !item.isProfile && !isImageFile(item.fileName)).map((item) => <View key={item.id} style={styles.documentRow}><Pressable onPress={() => void openFile(item.storagePath)} style={styles.documentName}><Text style={{ color: colors.primary }}>{item.fileName}</Text></Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', item.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(item) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View>)}{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
     <SectionCard title="Milk history"><View style={styles.rangeButtons}>{([7, 30, 90] as const).map((value) => <Pressable key={value} onPress={() => { setRangeDays(value); setCustomFrom(''); setCustomTo(''); }} style={[styles.rangeButton, { backgroundColor: rangeDays === value && !customFrom && !customTo ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: rangeDays === value && !customFrom && !customTo ? '#fff' : colors.text }}>{value === 7 ? '7 days' : value === 30 ? '1 month' : '3 months'}</Text></Pressable>)}</View><DateField label="Custom from (optional)" value={customFrom} onChange={setCustomFrom} /><DateField label="Custom to (optional)" value={customTo} onChange={setCustomTo} />{milkPoints.length ? <ScrollView horizontal showsHorizontalScrollIndicator><View><Svg width={chartWidth} height={156}><Line x1="24" y1="136" x2={chartWidth - 8} y2="136" stroke={colors.border} /><Polyline points={linePoints} fill="none" stroke={colors.primary} strokeWidth="3" />{milkPoints.map((point, index) => <Circle key={point.date} cx={24 + index * 48} cy={136 - (point.volumeMl / maxMilk) * 112} r="4" fill={colors.primary} />)}</Svg><View style={styles.chartLabels}>{milkPoints.map((point) => <Text key={point.date} style={[styles.chartLabel, { color: colors.textSecondary }]}>{formatFarmDate(point.date)}</Text>)}</View></View></ScrollView> : <EmptyState>No milk records in this date range.</EmptyState>}</SectionCard>
     <SectionCard title="History (newest first)">{history.length ? history.map((entry) => <Pressable key={entry.key} onPress={entry.storagePath ? () => void openFile(entry.storagePath!) : undefined}><Text style={{ color: entry.storagePath ? colors.primary : colors.text }}>{formatFarmDate(entry.date)} · {entry.text}</Text></Pressable>) : <EmptyState>No animal history yet.</EmptyState>}</SectionCard>
   </AppScreen>;
@@ -115,4 +127,8 @@ const styles = StyleSheet.create({
   thumbnailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   thumbnail: { borderRadius: 10, height: 76, width: 76 },
   thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  attachmentItem: { gap: 3, width: 76 },
+  documentRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  documentName: { flex: 1 },
+  deleteText: { fontSize: 12, fontWeight: '700' },
 });
