@@ -28,6 +28,7 @@ export type MilkSessionSnapshot = {
   previousAllocationVolumesMl: Record<string, number>;
   previousFatHundredths: number | null;
   previousSnfHundredths: number | null;
+  verkaTarget: { cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null;
 };
 
 export type MilkAllocationEntry = {

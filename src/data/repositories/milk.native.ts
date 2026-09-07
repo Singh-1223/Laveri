@@ -11,6 +11,14 @@ function todayAtFarm(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+function verkaCycle(date: string) {
+  const [year, month, day] = date.split('-').map(Number);
+  const startDay = day <= 10 ? 1 : day <= 20 ? 11 : 21;
+  const endDay = day <= 10 ? 10 : day <= 20 ? 20 : new Date(year, month, 0).getDate();
+  const format = (value: number) => `${year}-${String(month).padStart(2, '0')}-${String(value).padStart(2, '0')}`;
+  return { start: format(startDay), end: format(endDay), elapsedDays: day - startDay + 1 };
+}
+
 export async function getMilkLaunchTarget(farmId: string): Promise<MilkLaunchTarget> {
   const database = await getPowerSyncDatabase();
   const activeAnimals = await database.getOptional<{ count: number }>(
@@ -42,7 +50,8 @@ export async function loadMilkSession(
   session: 'morning' | 'evening',
 ): Promise<MilkSessionSnapshot> {
   const database = await getPowerSyncDatabase();
-  const [entries, buyerAllocations, householdAllocation, labelRows, previousEntries, previousAllocations, previousQuality] = await Promise.all([
+  const cycle = verkaCycle(milkDate);
+  const [entries, buyerAllocations, householdAllocation, labelRows, previousEntries, previousAllocations, previousQuality, verkaAllocation] = await Promise.all([
     database.getAll<MilkSessionSnapshot['entries'][number]>(
       `SELECT
         animal.id AS animalId,
@@ -146,6 +155,13 @@ export async function loadMilkSession(
        ORDER BY milk_date DESC LIMIT 1`,
       [farmId, session, milkDate],
     ),
+    database.getOptional<{ suppliedMl: number }>(
+      `SELECT coalesce(sum(allocation.volume_ml), 0) AS suppliedMl
+       FROM milk_allocations allocation INNER JOIN buyers buyer ON buyer.id = allocation.buyer_id
+       WHERE allocation.farm_id = ? AND allocation.destination = 'buyer' AND allocation.deleted_at IS NULL
+         AND lower(trim(buyer.name)) = 'verka' AND allocation.milk_date BETWEEN ? AND ?`,
+      [farmId, cycle.start, milkDate],
+    ),
   ]);
 
   const labelsByAnimal = new Map<string, { id: string; name: string; color: string }[]>();
@@ -173,6 +189,9 @@ export async function loadMilkSession(
     previousAllocationVolumesMl: Object.fromEntries(previousAllocations.map((allocation) => [allocation.buyerId, allocation.volumeMl])),
     previousFatHundredths: previousQuality?.fatHundredths ?? null,
     previousSnfHundredths: previousQuality?.snfHundredths ?? null,
+    verkaTarget: buyerAllocations.some((allocation) => allocation.label.trim().toLocaleLowerCase() === 'verka')
+      ? { cycleStart: cycle.start, cycleEnd: cycle.end, suppliedMl: verkaAllocation?.suppliedMl ?? 0, targetMl: cycle.elapsedDays * 100_000 }
+      : null,
   };
 }
 

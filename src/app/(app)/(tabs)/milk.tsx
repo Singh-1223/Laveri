@@ -61,6 +61,7 @@ export default function MilkScreen() {
   const [previousAllocationVolumes, setPreviousAllocationVolumes] = useState<Record<string, number>>({});
   const [previousFat, setPreviousFat] = useState<number | null>(null);
   const [previousSnf, setPreviousSnf] = useState<number | null>(null);
+  const [verkaTarget, setVerkaTarget] = useState<{ cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null>(null);
   const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
@@ -108,6 +109,7 @@ export default function MilkScreen() {
       setPreviousAllocationVolumes(snapshot.previousAllocationVolumesMl);
       setPreviousFat(snapshot.previousFatHundredths);
       setPreviousSnf(snapshot.previousSnfHundredths);
+      setVerkaTarget(snapshot.verkaTarget);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to load milk entries.');
     } finally {
@@ -148,6 +150,7 @@ export default function MilkScreen() {
   const buyerRateMissing = buyerAllocations.some((item) => item.volumeMl !== null && item.volumeMl > 0 && item.allocation.ratePaisePerLitre === null && item.allocation.label.trim().toLocaleLowerCase() !== 'verka');
   const enteredCount = parsedEntries.filter((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl)).length;
   const hasSavedSession = entries.some((entry) => entry.entryId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
+  const verkaDifferenceMl = verkaTarget ? verkaTarget.suppliedMl - verkaTarget.targetMl : null;
 
   const save = async (automatic = false, fingerprint?: string) => {
     if (!farmId || !session || invalidVolume || invalidAllocation || !dailyQualityValid || allocationSummary.exceedsProduction || buyerRateMissing) return;
@@ -389,6 +392,12 @@ export default function MilkScreen() {
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
       </SectionCard>
 
+      {verkaTarget && verkaDifferenceMl !== null ? <SectionCard title="Verka 100 kg target">
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>{formatFarmDate(verkaTarget.cycleStart)} – {formatFarmDate(verkaTarget.cycleEnd)} · saved Verka allocations only</Text>
+        <Text style={[styles.verkaValue, { color: colors.text }]}>Supplied {formatMilk(verkaTarget.suppliedMl)} / target {formatMilk(verkaTarget.targetMl)}</Text>
+        <Text style={[styles.helper, { color: verkaDifferenceMl >= 0 ? colors.primary : colors.danger }]}>{verkaDifferenceMl >= 0 ? `${formatMilk(verkaDifferenceMl)} above target` : `${formatMilk(Math.abs(verkaDifferenceMl))} short of target`}</Text>
+      </SectionCard> : null}
+
       <View style={[styles.total, { backgroundColor: colors.backgroundSelected }]}>
         <View><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Produced</Text><Text style={[styles.totalValue, { color: colors.text }]}>{formatMilk(totalMl)}</Text></View>
         <View style={styles.variance}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{allocationSummary.exceedsProduction ? `${formatMilk(Math.abs(allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View>
@@ -490,6 +499,7 @@ const styles = StyleSheet.create({
   menuButton: { minHeight: 32, minWidth: 46, borderWidth: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   menuButtonText: { fontSize: 17, lineHeight: 16, fontWeight: '900', letterSpacing: 1 },
   helper: { fontSize: 13, lineHeight: 19 },
+  verkaValue: { fontSize: 16, fontWeight: '800' },
   qualityRow: { flexDirection: 'row', gap: 10 },
   qualityField: { flex: 1, gap: 6 },
   qualityLabel: { fontSize: 13, fontWeight: '700' },
