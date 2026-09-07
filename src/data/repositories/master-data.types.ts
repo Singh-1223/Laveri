@@ -31,7 +31,7 @@ export type ItemRow = {
   notes?: string | null;
 };
 
-export type AnimalLabelRow = { id: string; name: string; color: string };
+export type AnimalLabelRow = { id: string; name: string; color: string; display_order: number };
 export type AnimalLabelLinkRow = { animal_id: string; label_id: string };
 
 export type MasterDataSnapshot = {
@@ -92,3 +92,4 @@ export type UpdateAnimalLabelInput = CreateAnimalLabelInput & { id: string };
 export type DeleteAnimalLabelInput = AuditContext & { id: string };
 export type DeleteItemInput = AuditContext & { id: string };
 export type SetAnimalLabelsInput = AuditContext & { animalId: string; labelIds: string[] };
+export type SaveAnimalLabelOrderInput = AuditContext & { labelIds: string[] };

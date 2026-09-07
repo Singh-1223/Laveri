@@ -39,6 +39,10 @@ export async function setAnimalLabels(_input: import('./master-data.types').SetA
   throw unavailable();
 }
 
+export async function saveAnimalLabelOrder(_input: import('./master-data.types').SaveAnimalLabelOrderInput) {
+  throw unavailable();
+}
+
 export async function createBuyer(_input: CreateBuyerInput) {
   throw unavailable();
 }

@@ -12,6 +12,7 @@ import type {
   CreateItemInput,
   MasterDataSnapshot,
   SetAnimalLabelsInput,
+  SaveAnimalLabelOrderInput,
   ReorderMasterRecordInput,
   SetMasterRecordActiveInput,
   UpdateAnimalInput,
@@ -41,7 +42,7 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
       `SELECT id, type, name, base_unit, default_rate_paise_per_unit, active, notes
        FROM items WHERE deleted_at IS NULL ORDER BY type, active DESC, name COLLATE NOCASE`,
     ),
-    database.getAll<MasterDataSnapshot['animalLabels'][number]>(`SELECT id, name, color FROM animal_labels WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE`),
+    database.getAll<MasterDataSnapshot['animalLabels'][number]>(`SELECT id, name, color, display_order FROM animal_labels WHERE deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`),
     database.getAll<MasterDataSnapshot['animalLabelLinks'][number]>(`SELECT animal_id, label_id FROM animal_label_links WHERE deleted_at IS NULL`),
   ]);
   return { animals, buyers, items, animalLabels, animalLabelLinks };
@@ -72,9 +73,9 @@ export async function createAnimalLabel(input: CreateAnimalLabelInput) {
   if (existing) return existing.id;
   const audit = auditValues(input);
   await database.execute(
-    `INSERT INTO animal_labels (id, farm_id, name, color, created_at, updated_at, created_by, updated_by, deleted_at, version)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
-    [audit[0], audit[1], name, input.color, ...audit.slice(2)],
+    `INSERT INTO animal_labels (id, farm_id, name, color, display_order, created_at, updated_at, created_by, updated_by, deleted_at, version)
+     VALUES (?, ?, ?, ?, (SELECT coalesce(max(display_order), 0) + 1 FROM animal_labels WHERE farm_id = ?), ?, ?, ?, ?, NULL, 1)`,
+    [audit[0], audit[1], name, input.color, input.farmId, ...audit.slice(2)],
   );
   return audit[0];
 }
@@ -125,6 +126,20 @@ export async function setAnimalLabels(input: SetAnimalLabelsInput) {
         `INSERT INTO animal_label_links (id, farm_id, animal_id, label_id, created_at, updated_at, created_by, updated_by, deleted_at, version)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
         [Crypto.randomUUID(), input.farmId, input.animalId, labelId, now, now, input.userId, input.userId],
+      );
+    }
+  });
+}
+
+export async function saveAnimalLabelOrder(input: SaveAnimalLabelOrderInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    for (const [index, id] of input.labelIds.entries()) {
+      await transaction.execute(
+        `UPDATE animal_labels SET display_order = ?, updated_at = ?, updated_by = ?, version = version + 1
+         WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [index + 1, now, input.userId, id, input.farmId],
       );
     }
   });

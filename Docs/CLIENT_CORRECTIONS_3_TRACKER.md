@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 7 open items, 1 verify/rework item, 2 decisions needed, and 15 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 6 open items, 1 verify/rework item, 2 decisions needed, and 16 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -33,8 +33,8 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | R3-10 | [ ] Open | Separate the animal profile picture from other uploaded photos/documents. | Support exactly one replaceable profile picture, shown before the animal name. Keep other files as dated history attachments. |
 | R3-11 | [ ] Open | Add a date to each non-profile image/document and show it in History. | The user chooses the attachment date; history placement follows that date. |
 | R3-12 | [ ] Open | Show newest animal history first. | Sort all profile history entries descending by their effective event/attachment date. |
-| R3-13 | [ ] Open | Filter Herd by label tabs such as All, Milking, PND, CVD, Dry, Calf/Heifer. | Generate selectable label tabs from saved labels; All shows every animal and a label shows animals having that label. Preserve search and labels. |
-| R3-14 | [ ] Open | Drag-and-drop reorder the Herd label tabs. | Persist label-tab order independently; do not change animal ordering or label assignments. |
+| R3-13 | [>] Implemented | Filter Herd by label tabs such as All, Milking, PND, CVD, Dry, Calf/Heifer. | Herd now shows All plus every saved custom label as a filter tab. Search continues to work with the selected label and each animal retains its label chips. Awaiting client retest. |
+| R3-14 | [>] Implemented | Drag-and-drop reorder the Herd label tabs. | Press/hold and drag a label tab to reorder it. The saved order is independent of animal ordering and label assignments. Requires the new label-order migration before device retest. |
 | R3-15 | [ ] Open | Show each animal's own milk history as a line graph. | Combine Morning + Evening into one daily total point. Add 7-day, 1-month, 3-month, and custom-range controls, plus practical horizontal scrolling/zoom behaviour. Do not display other animals' milk in that profile. |
 
 ## C. Farm operations

@@ -89,7 +89,7 @@ const animals = new Table(
 );
 
 const animalLabels = new Table(
-  { farm_id: column.text, name: column.text, color: column.text, ...auditColumns },
+  { farm_id: column.text, name: column.text, color: column.text, display_order: column.integer, ...auditColumns },
   { ...versioned, indexes: { by_farm_name: ['farm_id', 'name'] } },
 );
 
