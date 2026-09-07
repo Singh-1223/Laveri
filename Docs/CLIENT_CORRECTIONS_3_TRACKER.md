@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 2 open items, no verify/rework items, no decisions pending, and 22 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 1 open item, no verify/rework items, no decisions pending, and 23 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -35,7 +35,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | R3-12 | [>] Implemented | Show newest animal history first. | Events, heat records, treatments, and dated attachments are combined and sorted descending by their effective date. Awaiting client retest. |
 | R3-13 | [>] Implemented | Filter Herd by label tabs such as All, Milking, PND, CVD, Dry, Calf/Heifer. | Herd now shows All plus every saved custom label as a filter tab. Search continues to work with the selected label and each animal retains its label chips. Awaiting client retest. |
 | R3-14 | [>] Implemented | Drag-and-drop reorder the Herd label tabs. | Press/hold and drag a label tab to reorder it. The saved order is independent of animal ordering and label assignments. Requires the new label-order migration before device retest. |
-| R3-15 | [ ] Open | Show each animal's own milk history as a line graph. | Combine Morning + Evening into one daily total point. Add 7-day, 1-month, 3-month, and custom-range controls, plus practical horizontal scrolling/zoom behaviour. Do not display other animals' milk in that profile. |
+| R3-15 | [>] Implemented | Show each animal's own milk history as a line graph. | Each animal profile now combines its Morning and Evening entries into daily line-chart points. It includes 7-day, 1-month, 3-month, and optional custom date controls; the chart scrolls horizontally for longer ranges. Awaiting client retest. |
 
 ## C. Farm operations
 
