@@ -10,7 +10,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 1 open item, no verify/rework items, no decisions pending, and 23 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** no open items, no verify/rework items, no decisions pending, and 24 implemented awaiting retest. The three clarified business rules are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
@@ -42,7 +42,7 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 | ID | Status | Client request | Implementation scope |
 |---|---|---|
 | R3-16 | [>] Implemented | Put newest activity first in Farm Operations history. | Farm Operations history now orders by business date, then latest creation/entry time first. Awaiting client retest. |
-| R3-17 | [ ] Open | Add Other events, modelled on Heat event. | Confirmed: date is required; event type and cost are optional. Add a Heat-event-like flow with one/many/all animal selection. |
+| R3-17 | [>] Implemented | Add Other events, modelled on Heat event. | Farm Operations now has an Other event tab with required date, optional event type/cost/notes, and one/many/all animal selection. It saves an event for every selected animal. Requires the new event-cost migration before device retest. |
 | R3-18 | [>] Implemented | Reorder Farm Operations tabs. | Existing tabs now use fixed order Feed, Product, Treatment, Heat event, Investment, Silage. Other events will be appended when its decision-dependent feature is implemented. Awaiting client retest. |
 
 ## D. Buyer accounts and pricing

@@ -11,6 +11,7 @@ import type { AnimalRow, ItemRow } from '@/data/repositories/master-data.types';
 import {
   createFeedTransaction,
   createHeatEvent,
+  createOtherEvents,
   createProductTransaction,
   createTreatment,
   listRecentOperations,
@@ -56,6 +57,7 @@ export default function ExpensesScreen() {
   const [quantity, setQuantity] = useState('');
   const [rate, setRate] = useState('');
   const [doctorFee, setDoctorFee] = useState('');
+  const [eventType, setEventType] = useState('');
   const [medicineCost, setMedicineCost] = useState('');
   const [doseQuantity, setDoseQuantity] = useState('');
   const [notes, setNotes] = useState('');
@@ -122,6 +124,7 @@ export default function ExpensesScreen() {
     setQuantity('');
     setRate('');
     setDoctorFee('');
+    setEventType('');
     setMedicineCost('');
     setDoseQuantity('');
     setNotes('');
@@ -175,11 +178,16 @@ export default function ExpensesScreen() {
         const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: kind === 'investment' ? 'investment' as const : kind === 'silage' ? 'silage' as const : productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
         if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
         else await createProductTransaction(input);
-      } else {
+      } else if (kind === 'heat') {
         if (!selectedAnimal) throw new Error('Select the animal observed in heat.');
         const input = { ...context, animalId: selectedAnimal.id, signs: notes };
         if (editingRow) await updateHeatEvent({ ...input, id: editingRow.id });
         else await createHeatEvent(input);
+      } else {
+        if (!selectedTreatmentAnimalIds.length) throw new Error('Select at least one animal for this event.');
+        const costPaise = doctorFee.trim() ? parseDecimal(doctorFee, 100) : null;
+        if (costPaise !== null && !Number.isSafeInteger(costPaise)) throw new Error('Use a valid optional event cost.');
+        await createOtherEvents({ ...context, animalIds: selectedTreatmentAnimalIds, eventType, costPaise });
       }
 
       const wasEditing = editingRow !== null;
@@ -243,7 +251,7 @@ export default function ExpensesScreen() {
   return (
     <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, health, and heat records">
       <View style={styles.tabs}>
-        {(['feed', 'product', 'treatment', 'heat', 'investment', 'silage'] as const).map((value) => (
+        {(['feed', 'product', 'treatment', 'heat', 'investment', 'silage', 'other'] as const).map((value) => (
           <Pressable key={value} onPress={() => { setKind(value); setHistoryFilter(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
             <Text style={{ color: kind === value ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{kindLabel(value)}</Text>
           </Pressable>
@@ -254,7 +262,8 @@ export default function ExpensesScreen() {
         <DateField label="Operation date" onChange={setBusinessDate} value={businessDate} />
 
         {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
-        {kind === 'treatment' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Animals treated</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Select all</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
+        {kind === 'treatment' || kind === 'other' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>{kind === 'other' ? 'Animals affected' : 'Animals treated'}</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Select all</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
+        {kind === 'other' ? <View style={styles.numericRow}><TextInput accessibilityLabel="Other event type" onChangeText={setEventType} placeholder="Event type (optional)" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={eventType} /><TextInput accessibilityLabel="Other event cost" keyboardType="decimal-pad" onChangeText={setDoctorFee} placeholder="Cost ₹ (optional)" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={doctorFee} /></View> : null}
         {kind !== 'heat' ? <ChoiceList label={`${neededItemType} suggestions`} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={selectOperationItem} /> : null}
         {kind === 'feed' || kind === 'product' || kind === 'silage' || kind === 'investment' || kind === 'treatment' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
           <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>New {kindLabel(kind).toLowerCase()} item</Text>
@@ -356,6 +365,7 @@ function kindLabel(kind: OperationKind) {
   if (kind === 'silage') return 'Silage';
   if (kind === 'investment') return 'Investment';
   if (kind === 'heat') return 'Heat event';
+  if (kind === 'other') return 'Other event';
   return 'Feed';
 }
 

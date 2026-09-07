@@ -1,6 +1,7 @@
 import type {
   CreateFeedInput,
   CreateHeatInput,
+  CreateOtherEventInput,
   CreateProductInput,
   CreateTreatmentInput,
   OperationHistoryRow,
@@ -21,6 +22,7 @@ export async function createFeedTransaction(_input: CreateFeedInput) { throw una
 export async function createTreatment(_input: CreateTreatmentInput) { throw unavailable(); }
 export async function createProductTransaction(_input: CreateProductInput) { throw unavailable(); }
 export async function createHeatEvent(_input: CreateHeatInput) { throw unavailable(); }
+export async function createOtherEvents(_input: CreateOtherEventInput) { throw unavailable(); }
 export async function updateFeedTransaction(_input: UpdateFeedInput) { throw unavailable(); }
 export async function updateTreatment(_input: UpdateTreatmentInput) { throw unavailable(); }
 export async function updateProductTransaction(_input: UpdateProductInput) { throw unavailable(); }

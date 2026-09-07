@@ -1,6 +1,6 @@
 import type { AnimalRow, ItemRow } from './master-data.types';
 
-export type OperationKind = 'feed' | 'treatment' | 'product' | 'silage' | 'investment' | 'heat';
+export type OperationKind = 'feed' | 'treatment' | 'product' | 'silage' | 'investment' | 'heat' | 'other';
 
 export type OperationHistoryRow = {
   id: string;
@@ -62,6 +62,7 @@ export type CreateHeatInput = OperationContext & {
   animalId: string;
   signs?: string;
 };
+export type CreateOtherEventInput = OperationContext & { animalIds: string[]; eventType?: string; costPaise?: number | null };
 
 export type UpdateFeedInput = CreateFeedInput & { id: string };
 export type UpdateTreatmentInput = OperationContext & {

@@ -99,7 +99,7 @@ const animalLabelLinks = new Table(
 );
 
 const animalEvents = new Table(
-  { farm_id: column.text, animal_id: column.text, event_date: column.text, kind: column.text, title: column.text, notes: column.text, ...auditColumns },
+  { farm_id: column.text, animal_id: column.text, event_date: column.text, kind: column.text, title: column.text, notes: column.text, cost_paise: column.integer, ...auditColumns },
   { ...versioned, indexes: { by_animal_date: ['animal_id', '-event_date'] } },
 );
 

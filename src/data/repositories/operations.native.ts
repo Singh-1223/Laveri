@@ -9,6 +9,7 @@ import type { CorrectionEntity } from './corrections.types';
 import type {
   CreateFeedInput,
   CreateHeatInput,
+  CreateOtherEventInput,
   CreateProductInput,
   CreateTreatmentInput,
   OperationHistoryRow,
@@ -27,6 +28,7 @@ const operationTables: Record<OperationKind, CorrectionEntity> = {
   silage: 'product_transactions',
   investment: 'product_transactions',
   heat: 'heat_events',
+  other: 'animals',
 };
 
 function auditedId(input: { farmId: string; userId: string }) {
@@ -170,6 +172,17 @@ export async function createHeatEvent(input: CreateHeatInput) {
     ) VALUES (?, ?, ?, ?, ?, 'observed', NULL, ?, NULL, ?, ?, ?, ?, NULL, 1)`,
     [audit.id, input.farmId, input.animalId, observedAt, input.signs?.trim() || null, input.notes?.trim() || null, audit.now, audit.now, input.userId, input.userId],
   );
+}
+
+export async function createOtherEvents(input: CreateOtherEventInput) {
+  if (!input.animalIds.length) throw new Error('Select at least one animal.');
+  const database = await getPowerSyncDatabase(); const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    for (const animalId of input.animalIds) await transaction.execute(
+      `INSERT INTO animal_events (id,farm_id,animal_id,event_date,kind,title,notes,cost_paise,created_at,updated_at,created_by,updated_by,deleted_at,version) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,NULL,1)`,
+      [Crypto.randomUUID(), input.farmId, animalId, input.businessDate, 'other', input.eventType?.trim() || 'Other event', input.notes?.trim() || null, input.costPaise ?? null, now, now, input.userId, input.userId],
+    );
+  });
 }
 
 export async function updateFeedTransaction(input: UpdateFeedInput) {
