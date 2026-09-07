@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
   pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   pickerPanel: { maxHeight: '72%', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24 },
   pickerHint: { fontSize: 13, lineHeight: 18, paddingBottom: 10 },
-  pickerRow: { gap: 8 },
+  pickerRow: { flexDirection: 'row', gap: 8 },
   pickerValue: { flex: 1, height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
   pickerValueText: { fontSize: 19, fontWeight: '700' },
 });
