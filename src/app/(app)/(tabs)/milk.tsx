@@ -227,7 +227,10 @@ export default function MilkScreen() {
   // would reschedule after its own busy-state updates and repeatedly save unchanged data.
   useEffect(() => {
     if (!autoSaveReady || lastAutoSaveFingerprint.current === autoSaveFingerprint) return;
-    const timeout = setTimeout(() => void save(true, autoSaveFingerprint), 650);
+    // Keep auto-save after every field, but wait until the user has paused.
+    // Starting a SQLite write while they are moving through the next picker
+    // makes the long buyer list feel unresponsive on lower-end Android phones.
+    const timeout = setTimeout(() => void save(true, autoSaveFingerprint), 1_250);
     return () => clearTimeout(timeout);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
