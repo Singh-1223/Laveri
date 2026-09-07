@@ -149,6 +149,14 @@ class SupabaseConnector implements PowerSyncBackendConnector {
           }
           if (operation.table === 'animals' && error.code === '23514') {
             const tag = typeof record.tag === 'string' ? record.tag.trim() : 'unknown';
+            // A failed offline PUT can be followed by a local PATCH that fixes
+            // the dates. Retry the PUT with the current local row so the
+            // correction can unblock the original queued insert.
+            const latest = await target.get<Record<string, unknown>>('SELECT * FROM animals WHERE id = ?', [operation.id]);
+            if (latest) {
+              const retry = await client.from('animals').insert(latest);
+              if (!retry.error) continue;
+            }
             throw new Error(`Animal “${tag}” has a purchase date earlier than its birth date. Edit its two dates in Master data, then sync again. (${error.message})`);
           }
           throw error;
