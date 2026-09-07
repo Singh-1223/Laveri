@@ -64,9 +64,9 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 
 ## Clarifications to obtain before implementation
 
-1. **Verka target cycle:** Does the cumulative 100 kg/day target run from the 1st-10th, 11th-20th, and 21st-end-of-month, or is there another start-date rule? Does it count only milk allocated to the buyer called Verka?
-2. **Bill comparison scope:** Is the new total-amount/Corpus A/C rate calculation only for Verka, or should every buyer have bill upload and comparison?
-3. **Other events fields:** Besides date, animal selection, notes, and optional photo/document, are any structured fields required (event type, cost, follow-up date, status)?
+1. **Verka target cycle** - source: **“VERKA Milk Target - Use This Formula”** (pages 7-8). Does the cumulative 100 kg/day target run from the 1st-10th, 11th-20th, and 21st-end-of-month, or is there another start-date rule? Does “Actual milk supplied” count only milk allocated to the buyer called Verka?
+2. **Bill comparison scope** - source: **“Upload bills and compare”** (page 7), immediately followed by **“VERKA Milk Target - Use This Formula.”** Is the new Total amount/Corpus A/C rate calculation only for Verka, or should every buyer have bill upload and comparison?
+3. **Other events fields** - source: **“Farm Operation - make copy of 'heat event'”** (page 5). Besides the Heat-event-like date/notes flow and selecting one/many/all animals, are any structured fields required: event type, cost, follow-up date, status, or attachments?
 
 ## Suggested delivery order
 
