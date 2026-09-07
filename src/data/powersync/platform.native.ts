@@ -147,6 +147,10 @@ class SupabaseConnector implements PowerSyncBackendConnector {
             const tag = typeof record.tag === 'string' ? record.tag.trim() : 'unknown';
             throw new Error(`Duplicate active animal tag “${tag}” is blocking upload. Rename or deactivate the duplicate animal, then sync again. (${error.message})`);
           }
+          if (operation.table === 'animals' && error.code === '23514') {
+            const tag = typeof record.tag === 'string' ? record.tag.trim() : 'unknown';
+            throw new Error(`Animal “${tag}” has a purchase date earlier than its birth date. Edit its two dates in Master data, then sync again. (${error.message})`);
+          }
           throw error;
         }
         continue;

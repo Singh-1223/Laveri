@@ -114,6 +114,9 @@ export default function MasterDataScreen() {
     try {
       const context = { farmId, userId: session.user.id };
       if (tab === 'animals') {
+        if (birthDate && purchaseDate && purchaseDate < birthDate) {
+          throw new Error('Date of purchase must be on or after date of birth. Correct one of the two dates before saving.');
+        }
         const normalizedTag = name.trim().toLocaleLowerCase();
         const duplicateAnimal = snapshot.animals.find(
           (animal) => animal.id !== editingId
