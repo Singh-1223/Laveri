@@ -123,6 +123,11 @@ export default function VerkaBillingScreen() {
   const save = async () => {
     const rateValue = Number(rate);
     if (!farmId || !buyerId || !session || !Number.isFinite(rateValue) || rateValue < 0) { setMessage('Enter a valid final rate before saving.'); return; }
+    if (cycleStart > cycleEnd) { setMessage('Cycle start must be on or before cycle end.'); return; }
+    const adjustmentValues = [commission, increment, deduction].map((value) => Number(value || 0));
+    if (adjustmentValues.some((value) => !Number.isFinite(value) || value < 0)) { setMessage('Commission, increment, and deduction must be non-negative amounts.'); return; }
+    const billAmountEntered = billTotalAmount.trim() || billCorpus.trim() || billTotal.trim();
+    if (billAmountEntered && (!billTotalAmount.trim() || !billCorpus.trim() || !billTotal.trim() || calculatedBillRate === null || calculatedBillRate < 0)) { setMessage('Enter non-negative Bill Total Amount, Corpus A/C, and Total milk. Total Amount must be at least Corpus A/C.'); return; }
     try {
       setBusy(true); setMessage(null);
       await saveVerkaCycle({ id: editingCycleId, farmId, buyerId, userId: session.user.id, cycleStart, cycleEnd, finalRatePaisePerLitre: calculatedBillRate ?? Math.round(rateValue * 100), commissionPaise: Math.round((Number(commission) || 0) * 100), incrementPaise: Math.round((Number(increment) || 0) * 100), deductionPaise: Math.round((Number(deduction) || 0) * 100), notes: notes.trim() || undefined, billPath: bill?.path, billName: bill?.name, billMorningMl: toMl(billMorning), billEveningMl: toMl(billEvening), billTotalMl: toMl(billTotal), billTotalAmountPaise: billTotalAmount.trim() ? Math.round(Number(billTotalAmount) * 100) : null, billCorpusPaise: billCorpus.trim() ? Math.round(Number(billCorpus) * 100) : null });

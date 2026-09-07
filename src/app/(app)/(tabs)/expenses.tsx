@@ -165,16 +165,16 @@ export default function ExpensesScreen() {
     try {
       const context = { farmId, userId: session.user.id, businessDate, notes };
       if (kind === 'feed') {
-        if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a feed item, then enter quantity and rate.');
+        if (!selectedItem || !Number.isSafeInteger(quantityMilli) || quantityMilli <= 0 || !Number.isSafeInteger(ratePaise) || ratePaise < 0) throw new Error('Select a feed item, then enter a quantity above zero and a non-negative rate.');
         const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
         if (editingRow) await updateFeedTransaction({ ...input, id: editingRow.id });
         else await createFeedTransaction(input);
       } else if (kind === 'treatment') {
-        if (selectedTreatmentAnimalIds.length === 0 || !Number.isSafeInteger(doctorFeePaise) || !Number.isSafeInteger(medicineCostPaise) || (doseMilliUnits !== null && !Number.isSafeInteger(doseMilliUnits))) throw new Error('Select at least one animal and enter valid treatment values.');
+        if (selectedTreatmentAnimalIds.length === 0 || !Number.isSafeInteger(doctorFeePaise) || doctorFeePaise < 0 || !Number.isSafeInteger(medicineCostPaise) || medicineCostPaise < 0 || (doseMilliUnits !== null && (!Number.isSafeInteger(doseMilliUnits) || doseMilliUnits <= 0))) throw new Error('Select at least one animal and enter non-negative treatment costs. If a dose is entered, it must be above zero.');
         if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedTreatmentAnimalIds[0], medicineItemId: selectedItem?.id ?? null, doctorFeePaise, medicineCostPaise });
         else await createTreatment({ ...context, animalIds: selectedTreatmentAnimalIds, medicineItemId: selectedItem?.id ?? null, doseMilliUnits, doseUnit: doseMilliUnits === null ? null : selectedItem?.base_unit ?? 'unit', doctorFeePaise, medicineCostPaise });
       } else if (kind === 'product' || kind === 'silage' || kind === 'investment') {
-        if (!selectedItem || !Number.isSafeInteger(quantityMilli) || !Number.isSafeInteger(ratePaise)) throw new Error('Select a product, then enter quantity and rate.');
+        if (!selectedItem || !Number.isSafeInteger(quantityMilli) || quantityMilli <= 0 || !Number.isSafeInteger(ratePaise) || ratePaise < 0) throw new Error('Select a product, then enter a quantity above zero and a non-negative rate.');
         const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: kind === 'investment' ? 'investment' as const : kind === 'silage' ? 'silage' as const : productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
         if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
         else await createProductTransaction(input);
@@ -186,7 +186,7 @@ export default function ExpensesScreen() {
       } else {
         if (!selectedTreatmentAnimalIds.length) throw new Error('Select at least one animal for this event.');
         const costPaise = doctorFee.trim() ? parseDecimal(doctorFee, 100) : null;
-        if (costPaise !== null && !Number.isSafeInteger(costPaise)) throw new Error('Use a valid optional event cost.');
+        if (costPaise !== null && (!Number.isSafeInteger(costPaise) || costPaise < 0)) throw new Error('Use a valid non-negative optional event cost.');
         await createOtherEvents({ ...context, animalIds: selectedTreatmentAnimalIds, eventType, costPaise });
       }
 
