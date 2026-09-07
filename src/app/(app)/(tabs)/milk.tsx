@@ -301,18 +301,21 @@ export default function MilkScreen() {
     const entryIndex = entries.findIndex((entry) => entry.animalId === picker.key);
     if (entryIndex >= 0 && entryIndex < entries.length - 1) {
       const next = entries[entryIndex + 1];
-      setPicker({ key: next.animalId, max: 30, label: `${next.tag} litres`, initial: (previousVolumes[next.animalId] ?? 0) / 1_000 });
+      const currentValue = Number(values[next.animalId]);
+      setPicker({ key: next.animalId, max: 30, label: `${next.tag} litres`, initial: values[next.animalId] !== '' && Number.isFinite(currentValue) ? currentValue : (previousVolumes[next.animalId] ?? 0) / 1_000 });
       return;
     }
     if (entryIndex === entries.length - 1) {
-      setPicker({ key: 'fat', max: 10, label: 'FAT %', initial: (previousFat ?? 0) / 100 });
+      const currentValue = Number(fat);
+      setPicker({ key: 'fat', max: 10, label: 'FAT %', initial: fat !== '' && Number.isFinite(currentValue) ? currentValue : (previousFat ?? 0) / 100 });
       return;
     }
     const buyerRows = allocations.filter((allocation) => allocation.destination === 'buyer');
     const buyerIndex = buyerRows.findIndex((allocation) => allocation.key === picker.key);
     if (buyerIndex >= 0 && buyerIndex < buyerRows.length - 1) {
       const next = buyerRows[buyerIndex + 1];
-      setPicker({ key: next.key, max: 100, label: `${next.label} litres`, initial: (previousAllocationVolumes[next.key] ?? 0) / 1_000 });
+      const currentValue = Number(allocationValues[next.key]);
+      setPicker({ key: next.key, max: 100, label: `${next.label} litres`, initial: allocationValues[next.key] !== '' && Number.isFinite(currentValue) ? currentValue : (previousAllocationVolumes[next.key] ?? 0) / 1_000 });
       return;
     }
     if (buyerIndex === buyerRows.length - 1) {
@@ -320,7 +323,8 @@ export default function MilkScreen() {
       return;
     }
     if (picker.key === 'fat') {
-      setPicker({ key: 'snf', max: 10, label: 'SNF %', initial: (previousSnf ?? 0) / 100 });
+      const currentValue = Number(snf);
+      setPicker({ key: 'snf', max: 10, label: 'SNF %', initial: snf !== '' && Number.isFinite(currentValue) ? currentValue : (previousSnf ?? 0) / 100 });
       return;
     }
     setPicker(null);
