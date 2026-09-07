@@ -308,6 +308,17 @@ export default function MilkScreen() {
       setPicker({ key: 'fat', max: 10, label: 'FAT %', initial: (previousFat ?? 0) / 100 });
       return;
     }
+    const buyerRows = allocations.filter((allocation) => allocation.destination === 'buyer');
+    const buyerIndex = buyerRows.findIndex((allocation) => allocation.key === picker.key);
+    if (buyerIndex >= 0 && buyerIndex < buyerRows.length - 1) {
+      const next = buyerRows[buyerIndex + 1];
+      setPicker({ key: next.key, max: 100, label: `${next.label} litres`, initial: (previousAllocationVolumes[next.key] ?? 0) / 1_000 });
+      return;
+    }
+    if (buyerIndex === buyerRows.length - 1) {
+      setPicker(null);
+      return;
+    }
     if (picker.key === 'fat') {
       setPicker({ key: 'snf', max: 10, label: 'SNF %', initial: (previousSnf ?? 0) / 100 });
       return;
