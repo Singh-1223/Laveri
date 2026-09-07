@@ -4,7 +4,7 @@ import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import { recordCorrection } from '@/data/repositories/corrections.native';
 import { calculateFlatMilkAmountPaise } from '@/domain/calculations';
 
-import type { MilkLaunchTarget, MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
+import type { MilkLaunchTarget, MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkAnimalOrderInput, SaveMilkBuyerOrderInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
 
 function todayAtFarm(): string {
   const now = new Date();
@@ -89,7 +89,7 @@ export async function loadMilkSession(
        WHERE buyer.farm_id = ?
          AND buyer.deleted_at IS NULL
          AND (buyer.active = 1 OR allocation.id IS NOT NULL)
-       ORDER BY buyer.name COLLATE NOCASE`,
+       ORDER BY buyer.display_order, buyer.name COLLATE NOCASE`,
       [milkDate, session, farmId],
     ),
     database.getOptional<{
@@ -199,6 +199,34 @@ export async function reorderMilkAnimals(input: ReorderMilkAnimalsInput) {
       `UPDATE animals SET milk_display_order = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND farm_id = ?`,
       [current.milk_display_order, now, input.userId, adjacent.id, input.farmId],
     );
+  });
+}
+
+export async function saveMilkAnimalOrder(input: SaveMilkAnimalOrderInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    for (const [index, animalId] of input.animalIds.entries()) {
+      await transaction.execute(
+        `UPDATE animals SET milk_display_order = ?, updated_at = ?, updated_by = ?, version = version + 1
+         WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [index + 1, now, input.userId, animalId, input.farmId],
+      );
+    }
+  });
+}
+
+export async function saveMilkBuyerOrder(input: SaveMilkBuyerOrderInput) {
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.writeTransaction(async (transaction) => {
+    for (const [index, buyerId] of input.buyerIds.entries()) {
+      await transaction.execute(
+        `UPDATE buyers SET display_order = ?, updated_at = ?, updated_by = ?, version = version + 1
+         WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [index + 1, now, input.userId, buyerId, input.farmId],
+      );
+    }
   });
 }
 

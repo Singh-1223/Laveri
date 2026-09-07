@@ -1,11 +1,12 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { getMilkLaunchTarget, loadMilkSession, reorderMilkAnimals, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
+import { getMilkLaunchTarget, loadMilkSession, saveMilkAnimalOrder, saveMilkBuyerOrder, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
 import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
 import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
@@ -250,15 +251,29 @@ export default function MilkScreen() {
     }
   };
 
-  const moveAnimal = async (animalId: string, direction: 'up' | 'down') => {
+  const saveAnimalOrder = async (orderedEntries: MilkAnimalEntry[]) => {
     if (!farmId || !session) return;
     setBusy(true);
     setMessage(null);
     try {
-      await reorderMilkAnimals({ farmId, userId: session.user.id, animalId, direction });
-      await refresh();
+      setEntries(orderedEntries);
+      await saveMilkAnimalOrder({ farmId, userId: session.user.id, animalIds: orderedEntries.map((entry) => entry.animalId) });
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to change Milk order.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveBuyerOrder = async (orderedAllocations: MilkAllocationEntry[]) => {
+    if (!farmId || !session) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      setAllocations((current) => [...orderedAllocations, ...current.filter((allocation) => allocation.destination !== 'buyer')]);
+      await saveMilkBuyerOrder({ farmId, userId: session.user.id, buyerIds: orderedAllocations.flatMap((allocation) => allocation.buyerId ? [allocation.buyerId] : []) });
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to change buyer order.');
     } finally {
       setBusy(false);
     }
@@ -332,22 +347,21 @@ export default function MilkScreen() {
       </View>
 
       <SectionCard>
-        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : entries.map((entry, index) => (
-          <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }]}>
+        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <DraggableFlatList
+          data={entries}
+          keyExtractor={(entry) => entry.animalId}
+          scrollEnabled={false}
+          activationDistance={12}
+          onDragEnd={({ data }) => void saveAnimalOrder(data)}
+          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={180} disabled={busy} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
-              <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild>
-                <Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable>
-              </Link>
+              <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild><Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable></Link>
               {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
-            </View>
-            <View style={styles.orderControls}>
-              <Pressable disabled={busy || index === 0} accessibilityLabel={`Move ${entry.tag} up in Milk`} onPress={() => void moveAnimal(entry.animalId, 'up')} style={[styles.orderButton, { borderColor: colors.border }, (busy || index === 0) && styles.disabled]}><Text style={[styles.orderButtonText, { color: colors.textSecondary }]}>↑</Text></Pressable>
-              <Pressable disabled={busy || index === entries.length - 1} accessibilityLabel={`Move ${entry.tag} down in Milk`} onPress={() => void moveAnimal(entry.animalId, 'down')} style={[styles.orderButton, { borderColor: colors.border }, (busy || index === entries.length - 1) && styles.disabled]}><Text style={[styles.orderButtonText, { color: colors.textSecondary }]}>↓</Text></Pressable>
             </View>
             <SuggestionField accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : (previousVolumes[entry.animalId] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
-          </View>
-        ))}
+          </View></Pressable></ScaleDecorator>}
+        />}
       </SectionCard>
 
       <SectionCard>
@@ -358,17 +372,21 @@ export default function MilkScreen() {
       </SectionCard>
 
       <SectionCard>
-        {allocations.filter((allocation) => allocation.destination === 'buyer').map((allocation) => (
-          <View key={allocation.key} style={[styles.entryRow, { borderTopColor: colors.border }]}>
+        {allocations.filter((allocation) => allocation.destination === 'buyer').length ? <DraggableFlatList
+          data={allocations.filter((allocation) => allocation.destination === 'buyer')}
+          keyExtractor={(allocation) => allocation.key}
+          scrollEnabled={false}
+          activationDistance={12}
+          onDragEnd={({ data }) => void saveBuyerOrder(data)}
+          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={180} disabled={busy} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
               {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
             <SuggestionField accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
-          </View>
-        ))}
-        {allocations.filter((allocation) => allocation.destination === 'buyer').length === 0 ? <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text> : null}
+          </View></Pressable></ScaleDecorator>}
+        /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
       </SectionCard>
 
       <View style={[styles.total, { backgroundColor: colors.backgroundSelected }]}>

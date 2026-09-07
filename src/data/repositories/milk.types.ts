@@ -89,3 +89,15 @@ export type ReorderMilkAnimalsInput = {
   animalId: string;
   direction: 'up' | 'down';
 };
+
+export type SaveMilkAnimalOrderInput = {
+  farmId: string;
+  userId: string;
+  animalIds: string[];
+};
+
+export type SaveMilkBuyerOrderInput = {
+  farmId: string;
+  userId: string;
+  buyerIds: string[];
+};

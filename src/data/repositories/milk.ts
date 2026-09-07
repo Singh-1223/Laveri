@@ -1,4 +1,4 @@
-import type { MilkLaunchTarget, MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
+import type { MilkLaunchTarget, MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkAnimalOrderInput, SaveMilkBuyerOrderInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
 
 const unavailable = () => new Error('Offline milk entry requires the Android or iOS development build.');
 
@@ -23,5 +23,13 @@ export async function voidMilkSession(_input: VoidMilkSessionInput) {
 }
 
 export async function reorderMilkAnimals(_input: ReorderMilkAnimalsInput) {
+  throw unavailable();
+}
+
+export async function saveMilkAnimalOrder(_input: SaveMilkAnimalOrderInput) {
+  throw unavailable();
+}
+
+export async function saveMilkBuyerOrder(_input: SaveMilkBuyerOrderInput) {
   throw unavailable();
 }

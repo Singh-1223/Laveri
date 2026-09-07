@@ -10,15 +10,15 @@ Source: `App correction 3_260907_091442.pdf`, received 2026-09-07.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a business rule or design choice is not yet specified.
 
-**Current summary:** 14 open items, 2 verify/rework items, 2 decisions needed, and 7 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
+**Current summary:** 12 open items, 2 verify/rework items, 2 decisions needed, and 9 implemented awaiting retest. Three clarifications are recorded below. No Round 3 item is marked done until client retest.
 
 ## A. Milk entry interaction and layout
 
 | ID | Status | Client request | Implementation scope |
 |---|---|---|---|
 | R3-01 | [>] Implemented | Show quantity suggestions in three columns instead of one. | The picker now uses one vertically scrolling three-column grid, preserves the configured ranges and selection logic, and highlights the current value. Awaiting client retest. |
-| R3-02 | [ ] Open | Replace Milk animal up/down buttons with drag-and-drop row ordering. | Press/hold and drag the complete animal row. Persist the Milk-specific order. Remove the arrow controls. |
-| R3-03 | [ ] Open | Apply the same drag-and-drop ordering to buyers. | Press/hold and drag buyer allocation rows; persist the buyer order used on Milk. |
+| R3-02 | [>] Implemented | Replace Milk animal up/down buttons with drag-and-drop row ordering. | Press/hold and drag the complete animal row. The Milk-specific order is persisted and the arrow controls are removed. Awaiting client retest. |
+| R3-03 | [>] Implemented | Apply the same drag-and-drop ordering to buyers. | Press/hold and drag buyer allocation rows. Buyer display order is persisted and used when reopening Milk. Awaiting client retest. |
 | R3-04 | [>] Implemented | Increase buyer-allocation suggestions to 0.0-100.0. | Buyer allocation now uses 0.0-100.0 in 0.1 litre increments (1,001 values) within the three-column picker. Awaiting client retest. |
 | R3-05 | [>] Implemented | Put Sync and the three-dot menu side-by-side in the Milk top-right corner. | Header actions now share one horizontal row, preserving both actions with spacing. Awaiting client retest. |
 | R3-06 | [>] Implemented | Keep FAT% and SNF% beside each other on one row. | The existing shared-row layout is retained and compact field padding prevents unnecessary wrapping. Awaiting client retest. |
