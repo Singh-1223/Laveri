@@ -378,17 +378,17 @@ export default function MilkScreen() {
           data={entries}
           keyExtractor={(entry) => entry.animalId}
           scrollEnabled={false}
-          activationDistance={16}
-          dragItemOverflow
+          activationDistance={32}
           onDragEnd={({ data }) => void saveAnimalOrder(data)}
-          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={280} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
+          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
+            <Pressable accessibilityLabel={`Hold drag handle to reorder ${entry.tag}`} delayLongPress={350} disabled={busy || isLocked} onLongPress={drag} style={[styles.dragHandle, { borderColor: colors.border }]}><Text style={[styles.dragHandleText, { color: colors.textSecondary }]}>↕</Text></Pressable>
             <View style={styles.animalCopy}>
               <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild><Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable></Link>
               {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
             </View>
             <SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : (previousVolumes[entry.animalId] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
-          </View></Pressable></ScaleDecorator>}
+          </View></ScaleDecorator>}
         />}
       </SectionCard>
 
@@ -404,17 +404,17 @@ export default function MilkScreen() {
           data={allocations.filter((allocation) => allocation.destination === 'buyer')}
           keyExtractor={(allocation) => allocation.key}
           scrollEnabled={false}
-          activationDistance={16}
-          dragItemOverflow
+          activationDistance={32}
           onDragEnd={({ data }) => void saveBuyerOrder(data)}
-          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={280} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
+          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
+            <Pressable accessibilityLabel={`Hold drag handle to reorder ${allocation.label}`} delayLongPress={350} disabled={busy || isLocked} onLongPress={drag} style={[styles.dragHandle, { borderColor: colors.border }]}><Text style={[styles.dragHandleText, { color: colors.textSecondary }]}>↕</Text></Pressable>
             <View style={styles.animalCopy}>
               {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
             <SuggestionField disabled={isLocked} accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
-          </View></Pressable></ScaleDecorator>}
+          </View></ScaleDecorator>}
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
       </SectionCard>
 
@@ -531,6 +531,8 @@ const styles = StyleSheet.create({
   qualityLabel: { fontSize: 13, fontWeight: '700' },
   qualityInput: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, fontSize: 17 },
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
+  dragHandle: { alignItems: 'center', borderWidth: 1, borderRadius: 10, justifyContent: 'center', minHeight: 44, width: 32 },
+  dragHandleText: { fontSize: 20, fontWeight: '800' },
   lockedRow: { opacity: 0.55 },
   animalCopy: { flex: 1, gap: 2 },
   animalName: { fontSize: 16, fontWeight: '700' },
