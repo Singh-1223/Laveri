@@ -108,3 +108,20 @@ export async function getQualityRecords(farmId: string, fromDate: string, toDate
     [farmId, fromDate, toDate],
   );
 }
+
+export async function getMilkSourceEntries(farmId: string, fromDate: string, toDate: string) {
+  const database = await getPowerSyncDatabase();
+  return database.getAll<MilkProductionDetailRow>(
+    `SELECT entry.id, entry.milk_date AS milkDate, entry.session,
+       entry.animal_id AS animalId, animal.tag AS animalTag,
+       entry.volume_ml AS volumeMl, entry.pricing_mode AS pricingMode,
+       entry.fat_hundredths AS fatHundredths, entry.snf_hundredths AS snfHundredths,
+       entry.calculated_rate_paise_per_litre AS ratePaisePerLitre
+     FROM milk_entries entry
+     INNER JOIN animals animal ON animal.id = entry.animal_id
+     WHERE entry.farm_id = ? AND entry.milk_date BETWEEN ? AND ?
+       AND entry.deleted_at IS NULL
+     ORDER BY entry.milk_date DESC, entry.session, animal.tag COLLATE NOCASE`,
+    [farmId, fromDate, toDate],
+  );
+}

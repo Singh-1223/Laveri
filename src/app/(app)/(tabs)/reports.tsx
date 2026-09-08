@@ -9,8 +9,8 @@ import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { getDailyDashboardSummary } from '@/data/repositories/dashboard';
 import type { DailyDashboardSummary } from '@/data/repositories/dashboard.types';
-import { getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
-import type { MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
+import { getMilkSourceEntries, getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
+import type { MilkProductionDetailRow, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
 
@@ -40,6 +40,8 @@ export default function ReportsScreen() {
   const [buyerFilter, setBuyerFilter] = useState('all');
   const [qualityCycleStart, setQualityCycleStart] = useState(cycleFor(todayAtFarm()));
   const [qualityRecords, setQualityRecords] = useState<MilkQualityRecord[]>([]);
+  const [sourceCycleStart, setSourceCycleStart] = useState(cycleFor(todayAtFarm()));
+  const [sourceEntries, setSourceEntries] = useState<MilkProductionDetailRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,13 +53,13 @@ export default function ReportsScreen() {
     setMessage(null);
     try {
       const sync = await getPowerSyncSnapshot();
-      if (sync.farmId) { const [period, today, quality] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm()), getQualityRecords(sync.farmId, qualityCycleStart, cycleEnd(qualityCycleStart))]); setReport(period); setTodaySummary(today); setQualityRecords(quality); } else { setReport(null); setTodaySummary(null); setQualityRecords([]); }
+      if (sync.farmId) { const [period, today, quality, source] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm()), getQualityRecords(sync.farmId, qualityCycleStart, cycleEnd(qualityCycleStart)), getMilkSourceEntries(sync.farmId, sourceCycleStart, cycleEnd(sourceCycleStart))]); setReport(period); setTodaySummary(today); setQualityRecords(quality); setSourceEntries(source); } else { setReport(null); setTodaySummary(null); setQualityRecords([]); setSourceEntries([]); }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to calculate reports.');
     } finally {
       setLoading(false);
     }
-  }, [fromDate, qualityCycleStart, toDate]);
+  }, [fromDate, qualityCycleStart, sourceCycleStart, toDate]);
 
   const exportCsv = async () => {
     if (!report) return;
@@ -84,11 +86,12 @@ export default function ReportsScreen() {
     }, [refresh]),
   );
 
-  const animalOptions = useMemo(() => uniqueOptions(report?.milkEntries.map((row) => ({ id: row.animalId, label: row.animalTag })) ?? []), [report]);
+  const animalOptions = useMemo(() => uniqueOptions(sourceEntries.map((row) => ({ id: row.animalId, label: row.animalTag }))), [sourceEntries]);
   const buyerOptions = useMemo(() => uniqueOptions(report?.buyerSales.map((row) => ({ id: row.buyerId, label: row.buyerName })) ?? []), [report]);
-  const visibleMilkEntries = useMemo(() => report?.milkEntries.filter((row) => animalFilter === 'all' || row.animalId === animalFilter) ?? [], [animalFilter, report]);
+  const visibleMilkEntries = useMemo(() => sourceEntries.filter((row) => animalFilter === 'all' || row.animalId === animalFilter), [animalFilter, sourceEntries]);
   const visibleBuyerSales = useMemo(() => report?.buyerSales.filter((row) => buyerFilter === 'all' || row.buyerId === buyerFilter) ?? [], [buyerFilter, report]);
   const qualityCycleEnd = cycleEnd(qualityCycleStart);
+  const sourceCycleEnd = cycleEnd(sourceCycleStart);
 
   return (
     <AppScreen title="Reports" subtitle="Calculated locally from source transactions">
@@ -137,7 +140,7 @@ export default function ReportsScreen() {
             ))}
           </SectionCard>
 
-          <SectionCard title={`Milk source entries (${visibleMilkEntries.length})`}>
+          <SectionCard title={`Milk source entries (${visibleMilkEntries.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => { setAnimalFilter('all'); setSourceCycleStart((value) => shiftCycle(value, -1)); }}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(sourceCycleStart)} – {formatFarmDate(sourceCycleEnd)}</Text><Pressable onPress={() => { setAnimalFilter('all'); setSourceCycleStart((value) => shiftCycle(value, 1)); }}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
             <FilterChips label="Animal" options={animalOptions} selected={animalFilter} onSelect={setAnimalFilter} />
             {visibleMilkEntries.length === 0 ? <EmptyState>No milk entries match this filter.</EmptyState> : visibleMilkEntries.map((entry) => (
               <View key={entry.id} style={[styles.detailRow, { borderTopColor: colors.border }]}>
