@@ -324,7 +324,7 @@ export default function ExpensesScreen() {
               <View style={styles.historyRow}>
                 <View style={styles.historyCopy}>
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{row.title}</Text>
-                  <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>{formatFarmDate(row.businessDate)} • {kindLabel(row.kind)}{row.detail ? ` • ${row.detail}` : ''}</Text>
+                  <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>{formatFarmDate(row.businessDate)} • {kindLabel(row.kind)}{formatOperationDetail(row) ? ` • ${formatOperationDetail(row)}` : ''}</Text>
                   {row.notes ? <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>Comment: {row.notes}</Text> : null}
                   {row.isVoided === 1 ? <Text style={[styles.voidReason, { color: colors.danger }]}>Voided: {row.voidReason}</Text> : null}
                 </View>
@@ -375,6 +375,21 @@ function kindLabel(kind: OperationKind) {
   if (kind === 'heat') return 'Heat event';
   if (kind === 'other') return 'Other event';
   return 'Feed';
+}
+
+function formatOperationDetail(row: OperationHistoryRow) {
+  const values = row.detail ? [row.detail] : [];
+  const isSimpleAmountEntry = (row.kind === 'silage' || row.kind === 'investment') && row.itemId === null;
+  if ((row.kind === 'feed' || row.kind === 'product' || row.kind === 'silage' || row.kind === 'investment') && !isSimpleAmountEntry && row.quantityMilliUnits !== null && row.unitCode && row.ratePaisePerUnit !== null) {
+    values.push(`${formatQuantity(row.quantityMilliUnits)} ${row.unitCode} × ${formatMoney(row.ratePaisePerUnit)}/${row.unitCode}`);
+  }
+  if (row.kind === 'treatment') values.push(`Doctor ${formatMoney(row.doctorFeePaise ?? 0)} · Medical ${formatMoney(row.medicineCostPaise ?? 0)}`);
+  return values.join(' · ');
+}
+
+function formatQuantity(quantityMilliUnits: number) {
+  const quantity = quantityMilliUnits / 1_000;
+  return Number.isInteger(quantity) ? String(quantity) : quantity.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 const styles = StyleSheet.create({

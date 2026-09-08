@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 21 tracked requests: 3 verify/rework items, 14 open items, and 4 implemented awaiting device retest.
+**Current summary:** 21 tracked requests: 3 verify/rework items, 13 open items, and 5 implemented awaiting device retest.
 
 ## A. Earlier requests restated by the client
 
@@ -36,7 +36,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-08 | [ ] | Show FAT/SNF records in 10-day shifts with previous/next navigation. | Replace the continuous list only; keep records/calculations unchanged. |
 | R4-09 | [ ] | Move Heat Event to each animal profile as **Heat/AI**; remove it from Farm Operation and from general animal History. | Keep all existing Heat fields and behaviour, but list events only for their linked animal under a dedicated profile tab/section. |
 | R4-10 | [ ] | Add animal-specific Lactation Records. | Each lactation requires AI date + semen/bull name and calving date + calf name; support successive lactations. |
-| R4-11 | [ ] | Show all entered Farm Operation fields clearly in Recent activities. | Include product/item, unit, quantity, rate/amount, comments and relevant operation-specific details. |
+| R4-11 | [>] Implemented | Show all entered Farm Operation fields clearly in Recent activities. | Recent activity now adds quantity, unit and rate for Feed/Product records, Doctor and Medical amounts for Treatment, and retains comments and total amount. Simple Silage/Investment entries retain their concise amount/comment presentation. Awaiting device retest. |
 | R4-12 | [ ] | Remove Other Events from Farm Operation and add a Reports **Daily Dairy** comment record. | Daily Dairy has one free-text comment with automatic date, monthly previous/current/next navigation, chronological display, and edit/delete. |
 | R4-13 | [>] Implemented | Simplify Investment and Silage entries. | Both forms now remove suggestions/Add Item, unit, quantity and rate. They retain Date, Comment and Total Amount, while historical records remain intact. Requires the simple-entry database migration before device retest. |
 | R4-14 | [>] Implemented | Simplify Treatment entry. | Treatment now removes suggestions, Add Item, product name, unit and quantity. It retains animal selection plus Date, Comment, Doctor Fee and Medical cost, without changing existing records. Awaiting device retest. |
