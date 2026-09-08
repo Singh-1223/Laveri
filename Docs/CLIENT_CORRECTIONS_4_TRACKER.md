@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 19 tracked requests: 3 verify/rework items and 16 open items. The app is not changed by this tracker.
+**Current summary:** 21 tracked requests: 3 verify/rework items and 18 open items. The app is not changed by this tracker.
 
 ## A. Earlier requests restated by the client
 
@@ -45,19 +45,23 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-17 | [ ] | Show Reports' Milk Source Entry in 10-day periods. | Keep data/calculations unchanged and add previous/next period navigation. |
 | R4-18 | [ ] | Replace animal-profile graph's **7 days** range with **10 days**. | Retain 1 month, 3 months and custom dates. |
 | R4-19 | [ ] | Add conception date and live pregnancy duration to an animal profile and Herd card. | Store per animal; show elapsed calendar months/days such as `4M 15D`, update daily, and show nothing when no conception date exists. |
+| R4-20 | [ ] | Export/share an individual buyer's 10-day milk report for external bill comparison. | Generate a buyer-specific CSV with date, Morning litres, Evening litres, Total litres and period totals. The user shares it with the bill PDF/image to an external tool such as ChatGPT for comparison. |
+| R4-21 | [ ] | Show non-profile animal attachments only in History, not in a separate attachment gallery. | In dated History, show `date : small image thumbnail` for an image and `date : PDF link` for a PDF. Add a light divider between entries. Keep profile-picture handling separate. |
 
 ## Dependencies and delivery order
 
 1. **Data model/migrations first:** R4-10 Lactation, R4-12 Daily Dairy, R4-16 Calculator history, R4-19 conception date.
 2. **Milk interaction:** R4-04 to R4-07, then R4-03 verification.
 3. **Profile and reporting changes:** R4-08 to R4-19.
-4. **Retest prior functionality:** R4-01 and R4-02, before release.
+4. **Buyer export and attachment presentation:** R4-20 to R4-21.
+5. **Retest prior functionality:** R4-01 and R4-02, before release.
 
 ## Confirmed prior decisions carried forward
 
 1. Verka billing comparison and bill-rate calculation apply **only to Verka**.
 2. Verka target cycles are 1st-10th, 11th-20th and 21st-end-of-month; only milk allocated to Verka counts.
 3. Feed, products, treatment and silage are collective production costs, not animal-specific costs.
+4. For regular buyers, bill comparison is performed externally: export/share the buyer's 10-day CSV report and attach it together with the bill image/PDF in a tool such as ChatGPT. Do not add regular-buyer bill upload, OCR or manual bill-entry fields. Keep the existing special Verka billing flow unchanged.
 
 ## Completion rule
 
