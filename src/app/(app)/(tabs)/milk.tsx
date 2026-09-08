@@ -70,6 +70,7 @@ export default function MilkScreen() {
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unlockedDate, setUnlockedDate] = useState<string | null>(null);
   const lastAutoSaveFingerprint = useRef<string | null>(null);
   const hasChosenLaunchTarget = useRef(false);
 
@@ -148,6 +149,7 @@ export default function MilkScreen() {
   const snfHundredths = parseHundredths(snf);
   const dailyQualityValid = [fatHundredths, snfHundredths].every((value) => value === null || (Number.isSafeInteger(value) && value >= 0 && value <= 1_500));
   const buyerRateMissing = buyerAllocations.some((item) => item.volumeMl !== null && item.volumeMl > 0 && item.allocation.ratePaisePerLitre === null && item.allocation.label.trim().toLocaleLowerCase() !== 'verka');
+  const isLocked = milkDate !== todayAtFarm() && unlockedDate !== milkDate;
   const enteredCount = parsedEntries.filter((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl)).length;
   const hasSavedSession = entries.some((entry) => entry.entryId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
   const verkaDifferenceMl = verkaTarget ? verkaTarget.suppliedMl - verkaTarget.targetMl : null;
@@ -212,7 +214,7 @@ export default function MilkScreen() {
     }
   };
 
-  const autoSaveReady = !busy && !loading && hydrated && enteredCount > 0
+  const autoSaveReady = !isLocked && !busy && !loading && hydrated && enteredCount > 0
     && !invalidVolume && !invalidAllocation && dailyQualityValid && !allocationSummary.exceedsProduction && !buyerRateMissing;
   const autoSaveFingerprint = useMemo(() => JSON.stringify({
     allocationValues,
@@ -286,6 +288,7 @@ export default function MilkScreen() {
   };
 
   const openPicker = (key: string, max: number, label: string, prior: number | null) => {
+    if (isLocked) return;
     const current = key === 'fat' ? fat : key === 'snf' ? snf : values[key] ?? allocationValues[key] ?? '';
     const initial = current ? Number(current) : prior === null ? 0 : prior / (max === 10 ? 100 : 1_000);
     setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0 });
@@ -331,7 +334,7 @@ export default function MilkScreen() {
   };
 
   return (
-    <AppScreen title="Milk" action={<Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable>}>
+    <AppScreen title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
       <MilkMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -349,14 +352,14 @@ export default function MilkScreen() {
         }}
       />
       <View style={styles.dateRow}>
-        <SmallButton label="‹" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, -1)); }} />
+        <SmallButton label="‹" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
           <Text style={[styles.date, { color: colors.text }]}>{formatFarmDate(milkDate)}</Text>
           {milkDate === todayAtFarm()
             ? <Text style={[styles.today, { color: colors.primary }]}>Today</Text>
-            : <Pressable onPress={() => { setHydrated(false); setMilkDate(todayAtFarm()); }}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable>}
+            : <Pressable onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate(todayAtFarm()); }}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable>}
         </View>
-        <SmallButton label="›" onPress={() => { setHydrated(false); setMilkDate((value) => shiftDate(value, 1)); }} />
+        <SmallButton label="›" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, 1)); }} />
       </View>
 
       <View style={styles.sessionRow}>
@@ -366,6 +369,7 @@ export default function MilkScreen() {
           </Pressable>
         ))}
       </View>
+      {isLocked ? <Text style={[styles.helper, { color: colors.textSecondary }]}>This date is locked. Tap the lock icon to temporarily edit it; it locks again when you move to another date.</Text> : null}
 
       <SectionCard>
         {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <DraggableFlatList
@@ -375,12 +379,12 @@ export default function MilkScreen() {
           activationDistance={0}
           dragItemOverflow
           onDragEnd={({ data }) => void saveAnimalOrder(data)}
-          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={180} disabled={busy} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isActive && { opacity: 0.75 }]}>
+          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={180} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
               <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild><Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable></Link>
               {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
             </View>
-            <SuggestionField accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : (previousVolumes[entry.animalId] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
+            <SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : (previousVolumes[entry.animalId] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View></Pressable></ScaleDecorator>}
         />}
@@ -388,8 +392,8 @@ export default function MilkScreen() {
 
       <SectionCard>
         <View style={styles.qualityRow}>
-          <QualityField label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0.0' : (previousFat / 100).toFixed(1)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
-          <QualityField label="SNF %" value={snf} onPress={() => openPicker('snf', 10, 'SNF %', previousSnf)} placeholder={previousSnf === null ? '0.0' : (previousSnf / 100).toFixed(1)} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
+          <QualityField disabled={isLocked} label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0.0' : (previousFat / 100).toFixed(1)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
+          <QualityField disabled={isLocked} label="SNF %" value={snf} onPress={() => openPicker('snf', 10, 'SNF %', previousSnf)} placeholder={previousSnf === null ? '0.0' : (previousSnf / 100).toFixed(1)} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
         </View>
       </SectionCard>
 
@@ -401,12 +405,12 @@ export default function MilkScreen() {
           activationDistance={0}
           dragItemOverflow
           onDragEnd={({ data }) => void saveBuyerOrder(data)}
-          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={180} disabled={busy} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isActive && { opacity: 0.75 }]}>
+          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={180} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
               {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
-            <SuggestionField accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
+            <SuggestionField disabled={isLocked} accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View></Pressable></ScaleDecorator>}
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
@@ -458,19 +462,19 @@ function SmallButton({ label, onPress }: { label: string; onPress: () => void })
   return <Pressable onPress={onPress} style={[styles.smallButton, { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.smallButtonText, { color: colors.text }]}>{label}</Text></Pressable>;
 }
 
-function SuggestionField({ accessibilityLabel, onPress, value, placeholder, invalid }: { accessibilityLabel: string; onPress: () => void; value: string; placeholder: string; invalid: boolean }) {
+function SuggestionField({ accessibilityLabel, disabled, onPress, value, placeholder, invalid }: { accessibilityLabel: string; disabled?: boolean; onPress: () => void; value: string; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  return <Pressable accessibilityLabel={accessibilityLabel} onPress={onPress} style={[styles.volumeInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.primary : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
+  return <Pressable accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={[styles.volumeInput, { borderColor: invalid ? colors.danger : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? colors.primary : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
 }
 
-function QualityField({ label, value, onPress, placeholder, invalid }: { label: string; value: string; onPress: () => void; placeholder: string; invalid: boolean }) {
+function QualityField({ disabled, label, value, onPress, placeholder, invalid }: { disabled?: boolean; label: string; value: string; onPress: () => void; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   return (
     <View style={styles.qualityField}>
       <Text style={[styles.qualityLabel, { color: colors.text }]}>{label}</Text>
-      <Pressable accessibilityLabel={label} onPress={onPress} style={[styles.qualityInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.primary : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
+      <Pressable accessibilityLabel={label} disabled={disabled} onPress={onPress} style={[styles.qualityInput, { borderColor: invalid ? colors.danger : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? colors.primary : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
     </View>
   );
 }
@@ -518,6 +522,7 @@ const styles = StyleSheet.create({
   sessionText: { fontSize: 15, fontWeight: '700' },
   menuButton: { minHeight: 32, minWidth: 46, borderWidth: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   menuButtonText: { fontSize: 17, lineHeight: 16, fontWeight: '900', letterSpacing: 1 },
+  headerControls: { flexDirection: 'row', gap: 8 },
   helper: { fontSize: 13, lineHeight: 19 },
   verkaValue: { fontSize: 16, fontWeight: '800' },
   qualityRow: { flexDirection: 'row', gap: 10 },
@@ -525,6 +530,7 @@ const styles = StyleSheet.create({
   qualityLabel: { fontSize: 13, fontWeight: '700' },
   qualityInput: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, fontSize: 17 },
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
+  lockedRow: { opacity: 0.55 },
   animalCopy: { flex: 1, gap: 2 },
   animalName: { fontSize: 16, fontWeight: '700' },
   labelList: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, maxHeight: 36, overflow: 'hidden' },

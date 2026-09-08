@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 21 tracked requests: 3 verify/rework items, 9 open items, and 9 implemented awaiting device retest.
+**Current summary:** 21 tracked requests: 3 verify/rework items, 8 open items, and 10 implemented awaiting device retest.
 
 ## A. Earlier requests restated by the client
 
@@ -26,7 +26,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 |---|---|---|---|
 | R4-04 | [ ] | Replace the quantity picker with one horizontally swipeable 3-column x 10-row grid. | Whole-number ranges are columns, 0-9 decimals are rows, selected value highlighted in the middle column; apply to cow, buyer, FAT and SNF inputs. Columns must not scroll independently. |
 | R4-05 | [>] Implemented | Make FAT/SNF input colour match milk-entry input styling. | Entered FAT/SNF values now use the same primary colour as entered milk quantities; empty values retain secondary placeholder styling. Awaiting device retest. |
-| R4-06 | [ ] | Lock Milk Entry by default for past/future dates; keep today editable; allow temporary unlock for a selected past date. | Add a visible header lock control. Inputs must be read-only while locked, retain existing data, and automatically relock after navigating away. |
+| R4-06 | [>] Implemented | Lock Milk Entry by default for past/future dates; keep today editable; allow temporary unlock for a selected past date. | The Milk header now has a lock control beside the menu and sync status. Past/future fields and reordering are read-only by default; today stays unlocked. A temporary unlock relocks after date navigation and never changes saved data. Awaiting device retest. |
 | R4-07 | [ ] | Allow natural vertical scrolling of Milk Entry from all non-interactive areas. | Resolve nested gesture/scroll behaviour without breaking taps, picker selection, drag/reorder or horizontal picker swipe. |
 
 ## C. Reports and animal records
