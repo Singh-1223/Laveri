@@ -1,9 +1,15 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
+import { getPowerSyncSnapshot } from '@/data/powersync/platform';
+import { listCalculatorHistory, saveCalculatorHistory } from '@/data/repositories/pricing';
+import type { CalculatorHistoryRow } from '@/data/repositories/pricing.types';
 import { formatMoney } from '@/domain/calculations';
+import { formatFarmDate } from '@/domain/dates';
+import { useSession } from '@/features/auth/session-provider';
 
 function parseNumber(value: string): number | null {
   const normalized = value.trim();
@@ -15,10 +21,14 @@ function parseNumber(value: string): number | null {
 export default function PricingScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { session } = useSession();
   const [fat, setFat] = useState('');
   const [snf, setSnf] = useState('');
   const [cmFat, setCmFat] = useState('');
   const [smFat, setSmFat] = useState('');
+  const [history, setHistory] = useState<CalculatorHistoryRow[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const fatValue = parseNumber(fat);
   const snfValue = parseNumber(snf);
   const cmFatValue = parseNumber(cmFat);
@@ -27,6 +37,38 @@ export default function PricingScreen() {
     if ([fatValue, snfValue, cmFatValue, smFatValue].some((value) => value === null)) return null;
     return Math.round(((fatValue! * cmFatValue!) + (snfValue! * smFatValue!)) * 100);
   }, [cmFatValue, fatValue, smFatValue, snfValue]);
+
+  const refreshHistory = useCallback(async () => {
+    const sync = await getPowerSyncSnapshot();
+    if (!sync.farmId) return;
+    setHistory(await listCalculatorHistory(sync.farmId));
+  }, []);
+  useFocusEffect(useCallback(() => { void refreshHistory(); }, [refreshHistory]));
+
+  const saveCalculation = async () => {
+    if (!session || calculatedPaise === null || [fatValue, snfValue, cmFatValue, smFatValue].some((value) => value === null)) return;
+    setSaving(true);
+    setMessage(null);
+    try {
+      const sync = await getPowerSyncSnapshot();
+      if (!sync.farmId) throw new Error('Set up the farm before saving calculator history.');
+      await saveCalculatorHistory({
+        farmId: sync.farmId,
+        userId: session.user.id,
+        fatThousandths: Math.round(fatValue! * 1_000),
+        snfThousandths: Math.round(snfValue! * 1_000),
+        cmFatPaise: Math.round(cmFatValue! * 100),
+        cmSnfPaise: Math.round(smFatValue! * 100),
+        resultPaisePerLitre: calculatedPaise,
+      });
+      setMessage('Calculation saved to history.');
+      await refreshHistory();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Unable to save this calculation.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <AppScreen title="Price calculator" subtitle="A reference calculator; buyer rates are set separately in Master data.">
@@ -38,15 +80,23 @@ export default function PricingScreen() {
       </SectionCard>
       <SectionCard title="Coefficients">
         <Field label="CMFAT coefficient (₹)" value={cmFat} onChangeText={setCmFat} placeholder="Example: 6.00" invalid={cmFat.length > 0 && cmFatValue === null} />
-        <Field label="SMFAT coefficient (₹)" value={smFat} onChangeText={setSmFat} placeholder="Example: 2.00" invalid={smFat.length > 0 && smFatValue === null} />
+        <Field label="CMSNF coefficient (₹)" value={smFat} onChangeText={setSmFat} placeholder="Example: 2.00" invalid={smFat.length > 0 && smFatValue === null} />
       </SectionCard>
       <SectionCard title="Calculated price">
-        <Text style={[styles.result, { color: colors.text }]}>{calculatedPaise === null ? 'Enter FAT, SNF, CMFAT, and SMFAT.' : `${formatMoney(calculatedPaise)} / L`}</Text>
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>Formula: FAT% × CMFAT + SNF% × SMFAT.</Text>
+        <Text style={[styles.result, { color: colors.text }]}>{calculatedPaise === null ? 'Enter FAT, SNF, CMFAT, and CMSNF.' : `${formatMoney(calculatedPaise)} / L`}</Text>
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>Formula: FAT% × CMFAT + SNF% × CMSNF.</Text>
+        <Pressable accessibilityLabel="Save calculation to history" disabled={saving || calculatedPaise === null} onPress={() => void saveCalculation()} style={[styles.save, { backgroundColor: colors.primary }, (saving || calculatedPaise === null) && styles.disabled]}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>Save calculation</Text>}</Pressable>
+        {message ? <Text style={[styles.helper, { color: colors.textSecondary }]}>{message}</Text> : null}
+      </SectionCard>
+      <SectionCard title={`Calculation history (${history.length})`}>
+        {history.length ? history.map((entry) => <View key={entry.id} style={[styles.historyRow, { borderBottomColor: colors.border }]}><Text style={[styles.historyResult, { color: colors.text }]}>{formatMoney(entry.resultPaisePerLitre)} / L</Text><Text style={[styles.helper, { color: colors.textSecondary }]}>{formatFarmDate(entry.createdAt)} · FAT {formatThousandths(entry.fatThousandths)}% · SNF {formatThousandths(entry.snfThousandths)}%</Text><Text style={[styles.helper, { color: colors.textSecondary }]}>CMFAT ₹{formatPaise(entry.cmFatPaise)} · CMSNF ₹{formatPaise(entry.cmSnfPaise)}</Text></View>) : <Text style={[styles.helper, { color: colors.textSecondary }]}>Saved calculations will appear here.</Text>}
       </SectionCard>
     </AppScreen>
   );
 }
+
+function formatThousandths(value: number) { return (value / 1_000).toFixed(3).replace(/\.0+$/, ''); }
+function formatPaise(value: number) { return (value / 100).toFixed(2); }
 
 function Field({ label, value, onChangeText, placeholder, invalid, numeric }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; invalid: boolean; numeric?: boolean }) {
   const scheme = useColorScheme();
@@ -62,8 +112,13 @@ function Field({ label, value, onChangeText, placeholder, invalid, numeric }: { 
 const styles = StyleSheet.create({
   helper: { fontSize: 13, lineHeight: 19 },
   row: { flexDirection: 'row', gap: 10 },
-  field: { gap: 6 },
+  field: { flex: 1, gap: 6 },
   label: { fontSize: 14, fontWeight: '700' },
   input: { minHeight: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 13, fontSize: 16 },
   result: { fontSize: 28, fontWeight: '800' },
+  save: { alignItems: 'center', borderRadius: 12, justifyContent: 'center', minHeight: 48 },
+  saveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
+  disabled: { opacity: 0.5 },
+  historyRow: { borderBottomWidth: StyleSheet.hairlineWidth, gap: 3, paddingVertical: 10 },
+  historyResult: { fontSize: 17, fontWeight: '800' },
 });

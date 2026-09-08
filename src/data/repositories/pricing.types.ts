@@ -15,6 +15,26 @@ export type PricingSettingsSnapshot = {
   configs: MilkPricingConfigRow[];
 };
 
+export type CalculatorHistoryRow = {
+  id: string;
+  fatThousandths: number;
+  snfThousandths: number;
+  cmFatPaise: number;
+  cmSnfPaise: number;
+  resultPaisePerLitre: number;
+  createdAt: string;
+};
+
+export type SaveCalculatorHistoryInput = {
+  farmId: string;
+  userId: string;
+  fatThousandths: number;
+  snfThousandths: number;
+  cmFatPaise: number;
+  cmSnfPaise: number;
+  resultPaisePerLitre: number;
+};
+
 export type SetMilkPricingModeInput = {
   farmId: string;
   userId: string;

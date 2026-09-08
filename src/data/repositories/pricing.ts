@@ -1,4 +1,4 @@
-import type { PricingSettingsSnapshot, SaveMilkPricingConfigInput, SetMilkPricingModeInput } from './pricing.types';
+import type { CalculatorHistoryRow, PricingSettingsSnapshot, SaveCalculatorHistoryInput, SaveMilkPricingConfigInput, SetMilkPricingModeInput } from './pricing.types';
 
 const unavailable = () => new Error('Offline pricing settings require the Android or iOS development build.');
 
@@ -11,5 +11,13 @@ export async function setMilkPricingMode(_input: SetMilkPricingModeInput) {
 }
 
 export async function saveMilkPricingConfig(_input: SaveMilkPricingConfigInput) {
+  throw unavailable();
+}
+
+export async function listCalculatorHistory(_farmId: string): Promise<CalculatorHistoryRow[]> {
+  throw unavailable();
+}
+
+export async function saveCalculatorHistory(_input: SaveCalculatorHistoryInput) {
   throw unavailable();
 }

@@ -5,9 +5,37 @@ import { recordCorrection } from '@/data/repositories/corrections.native';
 
 import type {
   PricingSettingsSnapshot,
+  CalculatorHistoryRow,
+  SaveCalculatorHistoryInput,
   SaveMilkPricingConfigInput,
   SetMilkPricingModeInput,
 } from './pricing.types';
+
+export async function listCalculatorHistory(farmId: string): Promise<CalculatorHistoryRow[]> {
+  const database = await getPowerSyncDatabase();
+  return database.getAll<CalculatorHistoryRow>(
+    `SELECT id, fat_thousandths AS fatThousandths, snf_thousandths AS snfThousandths,
+      cmfat_paise AS cmFatPaise, cmsnf_paise AS cmSnfPaise,
+      result_paise_per_litre AS resultPaisePerLitre, created_at AS createdAt
+     FROM calculator_history WHERE farm_id = ? AND deleted_at IS NULL
+     ORDER BY created_at DESC LIMIT 100`,
+    [farmId],
+  );
+}
+
+export async function saveCalculatorHistory(input: SaveCalculatorHistoryInput) {
+  const values = [input.fatThousandths, input.snfThousandths, input.cmFatPaise, input.cmSnfPaise, input.resultPaisePerLitre];
+  if (!values.every((value) => Number.isSafeInteger(value) && value >= 0)) throw new Error('Enter valid calculator values before saving.');
+  const database = await getPowerSyncDatabase();
+  const now = new Date().toISOString();
+  await database.execute(
+    `INSERT INTO calculator_history (
+      id, farm_id, fat_thousandths, snf_thousandths, cmfat_paise, cmsnf_paise, result_paise_per_litre,
+      created_at, updated_at, created_by, updated_by, deleted_at, version
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`,
+    [Crypto.randomUUID(), input.farmId, ...values, now, now, input.userId, input.userId],
+  );
+}
 
 export async function loadPricingSettings(farmId: string): Promise<PricingSettingsSnapshot> {
   const database = await getPowerSyncDatabase();

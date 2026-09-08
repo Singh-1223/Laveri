@@ -69,6 +69,19 @@ const milkPricingConfigs = new Table(
   { ...versioned, indexes: { by_farm_date: ['farm_id', '-effective_from'] } },
 );
 
+const calculatorHistory = new Table(
+  {
+    farm_id: column.text,
+    fat_thousandths: column.integer,
+    snf_thousandths: column.integer,
+    cmfat_paise: column.integer,
+    cmsnf_paise: column.integer,
+    result_paise_per_litre: column.integer,
+    ...auditColumns,
+  },
+  { ...versioned, indexes: { by_farm_created: ['farm_id', '-created_at'] } },
+);
+
 const animals = new Table(
   {
     farm_id: column.text,
@@ -309,6 +322,7 @@ export const appSchema = new Schema({
   farm_members: farmMembers,
   farm_settings: farmSettings,
   milk_pricing_configs: milkPricingConfigs,
+  calculator_history: calculatorHistory,
   animals,
   animal_labels: animalLabels,
   animal_label_links: animalLabelLinks,

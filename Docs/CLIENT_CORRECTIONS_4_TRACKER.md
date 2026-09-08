@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 21 tracked requests: 3 verify/rework items, 5 open items, and 13 implemented awaiting device retest.
+**Current summary:** 21 tracked requests: 3 verify/rework items, 4 open items, and 14 implemented awaiting device retest.
 
 ## A. Earlier requests restated by the client
 
@@ -41,7 +41,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-13 | [>] Implemented | Simplify Investment and Silage entries. | Both forms now remove suggestions/Add Item, unit, quantity and rate. They retain Date, Comment and Total Amount, while historical records remain intact. Requires the simple-entry database migration before device retest. |
 | R4-14 | [>] Implemented | Simplify Treatment entry. | Treatment now removes suggestions, Add Item, product name, unit and quantity. It retains animal selection plus Date, Comment, Doctor Fee and Medical cost, without changing existing records. Awaiting device retest. |
 | R4-15 | [>] Implemented | Exclude today's milk from all animal milk-history line-graph ranges. | All preset and custom graph ranges now end at yesterday. Today's saved Milk data appears as a point only the next day. Awaiting device retest. |
-| R4-16 | [ ] | Persist calculator history. | Save every calculation separately, including FAT, SNF, CMFAT, CMSNF, all inputs and results; survive app restart. |
+| R4-16 | [>] Implemented | Persist calculator history. | A completed calculation can now be saved as a separate history item with FAT, SNF, CMFAT, CMSNF and the calculated rate. The latest 100 saved calculations load after app restart. Requires the calculator-history database migration and PowerSync stream redeploy before device retest. |
 | R4-17 | [>] Implemented | Show Reports' Milk Source Entry in 10-day periods. | Milk Source Entry now loads independently in 1-10, 11-20 and 21-month-end periods with Previous/Next navigation. The animal filter applies to that selected period and calculations remain unchanged. Awaiting device retest. |
 | R4-18 | [>] Implemented | Replace animal-profile graph's **7 days** range with **10 days**. | Presets are now 10 days, 1 month and 3 months; custom dates remain available. Awaiting device retest. |
 | R4-19 | [>] Implemented | Add conception date and live pregnancy duration to an animal profile and Herd card. | Master Data now stores an optional conception date. The animal profile and Herd card show a live calendar duration such as `4M 15D`; it updates daily and stays hidden when no date exists. Requires the conception-date database migration before device retest. |
