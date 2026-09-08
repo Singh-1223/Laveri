@@ -56,6 +56,7 @@ export default function MasterDataScreen() {
   const [animalIsMilking, setAnimalIsMilking] = useState(true);
   const [birthDate, setBirthDate] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
+  const [conceptionDate, setConceptionDate] = useState('');
   const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState(labelColors[0]);
@@ -99,6 +100,7 @@ export default function MasterDataScreen() {
     setAnimalIsMilking(true);
     setBirthDate('');
     setPurchaseDate('');
+    setConceptionDate('');
     setSelectedLabelIds([]);
     setNewLabelName('');
     setNewLabelColor(labelColors[0]);
@@ -126,7 +128,7 @@ export default function MasterDataScreen() {
         if (duplicateAnimal) {
           throw new Error(`An active animal named “${duplicateAnimal.tag}” already exists. Use a different tag or edit the existing animal.`);
         }
-        const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary, birthDate: birthDate || null, acquisitionDate: purchaseDate || null };
+        const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary, birthDate: birthDate || null, acquisitionDate: purchaseDate || null, conceptionDate: conceptionDate || null };
         const animalId = editingId ?? await createAnimal(input);
         if (editingId) await updateAnimal({ ...input, id: editingId });
         await setAnimalLabels({ ...context, animalId, labelIds: selectedLabelIds });
@@ -161,6 +163,7 @@ export default function MasterDataScreen() {
       setSecondary(row.breed ?? '');
       setBirthDate(row.birth_date ?? '');
       setPurchaseDate(row.acquisition_date ?? '');
+      setConceptionDate(row.conception_date ?? '');
       setAnimalIsMilking(row.is_milking === 1);
       setSelectedLabelIds(snapshot.animalLabelLinks.filter((link) => link.animal_id === row.id).map((link) => link.label_id));
     } else {
@@ -284,7 +287,7 @@ export default function MasterDataScreen() {
           style={[styles.input, { color: colors.text, borderColor: colors.border }]}
           value={name}
         />
-        {tab === 'animals' ? <><DateField label="Date of birth" value={birthDate} onChange={setBirthDate} /><DateField label="Date of purchase (optional)" value={purchaseDate} onChange={setPurchaseDate} /></> : null}
+        {tab === 'animals' ? <><DateField label="Date of birth" value={birthDate} onChange={setBirthDate} /><DateField label="Date of purchase (optional)" value={purchaseDate} onChange={setPurchaseDate} /><DateField label="Conception date (optional)" value={conceptionDate} onChange={setConceptionDate} /></> : null}
         <TextInput
           accessibilityLabel={tab === 'buyers' ? 'Phone' : tab === 'animals' ? 'Breed' : 'Packaging'}
           onChangeText={setSecondary}

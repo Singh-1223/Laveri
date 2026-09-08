@@ -80,6 +80,7 @@ const animals = new Table(
     breed: column.text,
     birth_date: column.text,
     acquisition_date: column.text,
+    conception_date: column.text,
     notes: column.text,
     display_order: column.integer,
     milk_display_order: column.integer,

@@ -9,6 +9,7 @@ import { listMasterData, saveAnimalLabelOrder } from '@/data/repositories/master
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { requireSupabase } from '@/data/supabase/client';
 import type { AnimalLabelLinkRow, AnimalLabelRow, AnimalRow } from '@/data/repositories/master-data.types';
+import { formatElapsedMonthsDays } from '@/domain/dates';
 import { useSession } from '@/features/auth/session-provider';
 
 export default function HerdScreen() {
@@ -87,6 +88,7 @@ export default function HerdScreen() {
             <View style={styles.rowCopy}>
               <Link href={{ pathname: '/animal-profile/[id]', params: { id: animal.id } }}><Text style={[styles.name, { color: colors.primary }]}>{animal.tag}</Text></Link>
               <Text style={[styles.detail, { color: colors.textSecondary }]}>{animal.category} • {animal.breed || 'breed not set'} • {animal.is_milking ? 'milking' : animal.status}</Text>
+              {animal.conception_date ? <Text style={[styles.detail, { color: colors.textSecondary }]}>Pregnancy: {formatElapsedMonthsDays(animal.conception_date) ?? 'date is in the future'}</Text> : null}
               <View style={styles.labels}>{labelLinks.filter((link) => link.animal_id === animal.id).map((link) => labels.find((label) => label.id === link.label_id)).filter((label): label is AnimalLabelRow => Boolean(label)).map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text style={styles.labelText}>{label.name}</Text></View>)}</View>
             </View>
           </View>

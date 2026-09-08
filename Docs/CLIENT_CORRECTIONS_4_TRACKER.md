@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 21 tracked requests: 3 verify/rework items, 6 open items, and 12 implemented awaiting device retest.
+**Current summary:** 21 tracked requests: 3 verify/rework items, 5 open items, and 13 implemented awaiting device retest.
 
 ## A. Earlier requests restated by the client
 
@@ -44,7 +44,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-16 | [ ] | Persist calculator history. | Save every calculation separately, including FAT, SNF, CMFAT, CMSNF, all inputs and results; survive app restart. |
 | R4-17 | [>] Implemented | Show Reports' Milk Source Entry in 10-day periods. | Milk Source Entry now loads independently in 1-10, 11-20 and 21-month-end periods with Previous/Next navigation. The animal filter applies to that selected period and calculations remain unchanged. Awaiting device retest. |
 | R4-18 | [>] Implemented | Replace animal-profile graph's **7 days** range with **10 days**. | Presets are now 10 days, 1 month and 3 months; custom dates remain available. Awaiting device retest. |
-| R4-19 | [ ] | Add conception date and live pregnancy duration to an animal profile and Herd card. | Store per animal; show elapsed calendar months/days such as `4M 15D`, update daily, and show nothing when no conception date exists. |
+| R4-19 | [>] Implemented | Add conception date and live pregnancy duration to an animal profile and Herd card. | Master Data now stores an optional conception date. The animal profile and Herd card show a live calendar duration such as `4M 15D`; it updates daily and stays hidden when no date exists. Requires the conception-date database migration before device retest. |
 | R4-20 | [>] Implemented | Export/share an individual buyer's 10-day milk report for external bill comparison. | Buyer Account now exports the selected 10-day cycle as a CSV with daily Date, Morning, Evening and Total litres plus totals. Save it to a phone folder, then attach it with the buyer bill in an external comparison tool. Awaiting device retest. |
 | R4-21 | [>] Implemented | Show non-profile animal attachments only in History, not in a separate attachment gallery. | The separate gallery is removed. Dated History now shows a small image thumbnail or PDF link, retains delete/open actions, and uses light separators. Profile-picture handling remains separate. Awaiting device retest. |
 

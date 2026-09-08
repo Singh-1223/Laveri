@@ -8,6 +8,7 @@ export type AnimalRow = {
   breed: string | null;
   birth_date?: string | null;
   acquisition_date?: string | null;
+  conception_date?: string | null;
   primary_photo_path?: string | null;
   display_order: number;
 };
@@ -55,6 +56,7 @@ export type CreateAnimalInput = AuditContext & {
   breed?: string;
   birthDate?: string | null;
   acquisitionDate?: string | null;
+  conceptionDate?: string | null;
 };
 
 export type CreateBuyerInput = AuditContext & {
