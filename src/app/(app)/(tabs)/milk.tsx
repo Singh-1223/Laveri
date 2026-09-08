@@ -470,7 +470,7 @@ function QualityField({ label, value, onPress, placeholder, invalid }: { label: 
   return (
     <View style={styles.qualityField}>
       <Text style={[styles.qualityLabel, { color: colors.text }]}>{label}</Text>
-      <Pressable accessibilityLabel={label} onPress={onPress} style={[styles.qualityInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.text : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
+      <Pressable accessibilityLabel={label} onPress={onPress} style={[styles.qualityInput, { borderColor: invalid ? colors.danger : colors.border }]}><Text style={[styles.volumeText, { color: value ? colors.primary : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
     </View>
   );
 }
