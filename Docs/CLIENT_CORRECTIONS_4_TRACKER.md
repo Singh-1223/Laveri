@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 21 tracked requests: 3 verify/rework items and 18 open items. The app is not changed by this tracker.
+**Current summary:** 21 tracked requests: 3 verify/rework items, 15 open items, and 3 implemented awaiting device retest.
 
 ## A. Earlier requests restated by the client
 
