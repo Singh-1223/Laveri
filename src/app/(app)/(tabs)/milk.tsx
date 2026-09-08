@@ -1,7 +1,7 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
-import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
+import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
@@ -336,7 +336,7 @@ export default function MilkScreen() {
   };
 
   return (
-    <AppScreen title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
+    <AppScreen scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
       <MilkMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -353,6 +353,7 @@ export default function MilkScreen() {
           );
         }}
       />
+      <NestableScrollContainer contentContainerStyle={styles.pageContent} style={styles.pageScroll} keyboardShouldPersistTaps="handled">
       <View style={styles.dateRow}>
         <SmallButton label="‹" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
@@ -374,7 +375,7 @@ export default function MilkScreen() {
       {isLocked ? <Text style={[styles.helper, { color: colors.textSecondary }]}>This date is locked. Tap the lock icon to temporarily edit it; it locks again when you move to another date.</Text> : null}
 
       <SectionCard>
-        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <DraggableFlatList
+        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <NestableDraggableFlatList
           data={entries}
           keyExtractor={(entry) => entry.animalId}
           scrollEnabled={false}
@@ -400,7 +401,7 @@ export default function MilkScreen() {
       </SectionCard>
 
       <SectionCard>
-        {allocations.filter((allocation) => allocation.destination === 'buyer').length ? <DraggableFlatList
+        {allocations.filter((allocation) => allocation.destination === 'buyer').length ? <NestableDraggableFlatList
           data={allocations.filter((allocation) => allocation.destination === 'buyer')}
           keyExtractor={(allocation) => allocation.key}
           scrollEnabled={false}
@@ -454,6 +455,7 @@ export default function MilkScreen() {
         </SectionCard>
       ) : null}
       <SuggestionPicker picker={picker} onClose={() => setPicker(null)} onSelect={selectSuggestion} />
+      </NestableScrollContainer>
     </AppScreen>
   );
 }
@@ -512,6 +514,8 @@ function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onC
 }
 
 const styles = StyleSheet.create({
+  pageScroll: { flex: 1 },
+  pageContent: { gap: 16, paddingBottom: 28 },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateCenter: { alignItems: 'center', gap: 3 },
   date: { fontSize: 17, fontWeight: '800' },
