@@ -10,13 +10,11 @@ import { createItem, listMasterData } from '@/data/repositories/master-data';
 import type { AnimalRow, ItemRow } from '@/data/repositories/master-data.types';
 import {
   createFeedTransaction,
-  createHeatEvent,
   createOtherEvents,
   createProductTransaction,
   createTreatment,
   listRecentOperations,
   updateFeedTransaction,
-  updateHeatEvent,
   updateProductTransaction,
   updateTreatment,
   voidOperation,
@@ -51,7 +49,6 @@ export default function ExpensesScreen() {
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('feed');
   const [historySearch, setHistorySearch] = useState('');
   const [businessDate, setBusinessDate] = useState(todayAtFarm);
-  const [selectedAnimalId, setSelectedAnimalId] = useState<string | null>(null);
   const [selectedTreatmentAnimalIds, setSelectedTreatmentAnimalIds] = useState<string[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
@@ -95,7 +92,6 @@ export default function ExpensesScreen() {
 
   const neededItemType = kind === 'feed' ? 'feed' : kind === 'treatment' ? 'medicine' : 'product';
   const availableItems = useMemo(() => items.filter((item) => item.type === neededItemType), [items, neededItemType]);
-  const selectedAnimal = selectedAnimalId === null ? animals[0] ?? null : animals.find((animal) => animal.id === selectedAnimalId) ?? null;
   const allAnimalsSelected = animals.length > 0 && animals.every((animal) => selectedTreatmentAnimalIds.includes(animal.id));
   const selectedItem = selectedItemId === null ? availableItems[0] ?? null : availableItems.find((item) => item.id === selectedItemId) ?? null;
   const quantityMilli = parseDecimal(quantity, 1_000);
@@ -112,14 +108,8 @@ export default function ExpensesScreen() {
         .some((value) => value?.toLocaleLowerCase().includes(query));
     });
   }, [history, historyFilter, historySearch]);
-  const heatSuggestions = useMemo(() => [...new Set(
-    history
-      .filter((row) => row.kind === 'heat' && row.isVoided !== 1 && row.notes?.trim())
-      .map((row) => row.notes!.trim()),
-  )].slice(0, 8), [history]);
 
   const clearForm = () => {
-    setSelectedAnimalId(null);
     setSelectedTreatmentAnimalIds([]);
     setSelectedItemId(null);
     setQuantity('');
@@ -145,7 +135,6 @@ export default function ExpensesScreen() {
     setKind(row.kind);
     setHistoryFilter(row.kind);
     setBusinessDate(row.businessDate);
-    setSelectedAnimalId(row.animalId);
     setSelectedItemId(row.itemId);
     setQuantity(row.quantityMilliUnits === null ? '' : String(row.quantityMilliUnits / 1_000));
     setRate(row.ratePaisePerUnit === null ? '' : String(row.ratePaisePerUnit / 100));
@@ -185,11 +174,6 @@ export default function ExpensesScreen() {
         const input = { ...context, animalId: null, animalCategory: null, itemId: null, category: kind, quantityMilliUnits: 1_000, unitCode: 'entry', ratePaisePerUnit: totalAmountPaise };
         if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
         else await createProductTransaction(input);
-      } else if (kind === 'heat') {
-        if (!selectedAnimal) throw new Error('Select the animal observed in heat.');
-        const input = { ...context, animalId: selectedAnimal.id, signs: notes };
-        if (editingRow) await updateHeatEvent({ ...input, id: editingRow.id });
-        else await createHeatEvent(input);
       } else {
         if (!selectedTreatmentAnimalIds.length) throw new Error('Select at least one animal for this event.');
         const costPaise = doctorFee.trim() ? parseDecimal(doctorFee, 100) : null;
@@ -256,9 +240,9 @@ export default function ExpensesScreen() {
   };
 
   return (
-    <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, health, and heat records">
+    <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, and health records">
       <View style={styles.tabs}>
-        {(['feed', 'product', 'treatment', 'heat', 'investment', 'silage', 'other'] as const).map((value) => (
+        {(['feed', 'product', 'treatment', 'investment', 'silage', 'other'] as const).map((value) => (
           <Pressable key={value} onPress={() => { setKind(value); setHistoryFilter(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
             <Text style={{ color: kind === value ? '#FFFFFF' : colors.text, fontWeight: '700' }}>{kindLabel(value)}</Text>
           </Pressable>
@@ -268,7 +252,6 @@ export default function ExpensesScreen() {
       <SectionCard title={`${editingRow ? 'Edit' : 'Add'} ${kindLabel(kind).toLowerCase()}`}>
         <DateField label="Operation date" onChange={setBusinessDate} value={businessDate} />
 
-        {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind === 'treatment' || kind === 'other' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>{kind === 'other' ? 'Animals affected' : 'Animals treated'}</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(allAnimalsSelected ? [] : animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>{allAnimalsSelected ? 'Deselect all' : 'Select all'}</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
         {kind === 'other' ? <View style={styles.numericRow}><TextInput accessibilityLabel="Other event type" onChangeText={setEventType} placeholder="Event type (optional)" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={eventType} /><TextInput accessibilityLabel="Other event cost" keyboardType="decimal-pad" onChangeText={setDoctorFee} placeholder="Cost ₹ (optional)" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={doctorFee} /></View> : null}
         {kind === 'feed' || kind === 'product' ? <ChoiceList label={`${neededItemType} suggestions`} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={selectOperationItem} /> : null}
@@ -297,11 +280,7 @@ export default function ExpensesScreen() {
           </View>
         ) : null}
 
-        {kind !== 'feed' ? <TextInput accessibilityLabel="Notes" multiline onChangeText={setNotes} placeholder={kind === 'heat' ? 'Observed signs or note' : 'Comment (optional)'} placeholderTextColor={colors.textSecondary} style={[styles.notes, { color: colors.text, borderColor: colors.border }]} value={notes} /> : null}
-        {kind === 'heat' && heatSuggestions.length > 0 ? <View style={styles.choiceBlock}>
-          <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>Previously observed signs</Text>
-          <View style={styles.choices}>{heatSuggestions.map((suggestion) => <Pressable key={suggestion} onPress={() => setNotes(suggestion)} style={[styles.choice, { backgroundColor: notes === suggestion ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: notes === suggestion ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{suggestion}</Text></Pressable>)}</View>
-        </View> : null}
+        {kind !== 'feed' ? <TextInput accessibilityLabel="Notes" multiline onChangeText={setNotes} placeholder="Comment (optional)" placeholderTextColor={colors.textSecondary} style={[styles.notes, { color: colors.text, borderColor: colors.border }]} value={notes} /> : null}
         <Pressable disabled={busy || loading || !farmId} onPress={save} style={({ pressed }) => [styles.save, { backgroundColor: colors.primary }, (busy || loading || !farmId) && styles.disabled, pressed && styles.pressed]}>{busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>{editingRow ? 'Update' : 'Save'} {kindLabel(kind).toLowerCase()}</Text>}</Pressable>
         {editingRow ? <Pressable disabled={busy} onPress={clearForm} style={[styles.cancelEdit, { borderColor: colors.border }]}><Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Cancel editing</Text></Pressable> : null}
       </SectionCard>
@@ -311,7 +290,7 @@ export default function ExpensesScreen() {
       <SectionCard title={`Recent activity (${visibleHistory.length})`}>
         <TextInput accessibilityLabel="Search operation history" onChangeText={setHistorySearch} placeholder="Search date, animal, item, or void reason" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={historySearch} />
         <View style={styles.historyFilters}>
-          {(['all', 'feed', 'treatment', 'product', 'silage', 'investment', 'heat'] as const).map((value) => (
+          {(['all', 'feed', 'treatment', 'product', 'silage', 'investment'] as const).map((value) => (
             <Pressable key={value} onPress={() => setHistoryFilter(value)} style={[styles.historyFilter, { backgroundColor: historyFilter === value ? colors.primary : colors.backgroundSelected }]}>
               <Text style={{ color: historyFilter === value ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '700' }}>{value === 'all' ? 'All' : kindLabel(value)}</Text>
             </Pressable>

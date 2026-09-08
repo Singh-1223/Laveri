@@ -2,3 +2,4 @@ export type AnimalProfile = { animal: { id:string; tag:string; category:string; 
 export type CreateAnimalEventInput = { farmId:string; animalId:string; userId:string; eventDate:string; kind:'birth'|'purchase'|'lactation'|'calving'|'custom'; title:string; notes?:string };
 export type CreateAnimalPhotoInput = { farmId:string; animalId:string; userId:string; storagePath:string; fileName:string; attachmentDate:string; isProfile?:boolean; caption?:string };
 export type DeleteAnimalPhotoInput = { farmId:string; photoId:string; userId:string };
+export type CreateProfileHeatInput = { farmId:string; animalId:string; userId:string; observedDate:string; signs?:string };

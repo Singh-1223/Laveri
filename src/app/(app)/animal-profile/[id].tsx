@@ -1,14 +1,14 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { createAnimalPhoto, deleteAnimalPhoto, loadAnimalProfile } from '@/data/repositories/animal-profile';
+import { createAnimalPhoto, createProfileHeatEvent, deleteAnimalPhoto, loadAnimalProfile } from '@/data/repositories/animal-profile';
 import type { AnimalProfile } from '@/data/repositories/animal-profile.types';
 import { requireSupabase } from '@/data/supabase/client';
 import { formatMoney } from '@/domain/calculations';
@@ -33,6 +33,8 @@ export default function AnimalProfileScreen() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
   const [attachmentImageUrls, setAttachmentImageUrls] = useState<Record<string, string>>({});
   const [attachmentDate, setAttachmentDate] = useState(today());
+  const [heatDate, setHeatDate] = useState(today());
+  const [heatSigns, setHeatSigns] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [rangeDays, setRangeDays] = useState<10 | 30 | 90>(10);
   const [customFrom, setCustomFrom] = useState('');
@@ -75,6 +77,17 @@ export default function AnimalProfileScreen() {
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to delete the attachment.'); }
   };
 
+  const saveHeat = async () => {
+    try {
+      const sync = await getPowerSyncSnapshot();
+      if (!sync.farmId || !session || !id) return;
+      await createProfileHeatEvent({ farmId: sync.farmId, animalId: id, userId: session.user.id, observedDate: heatDate, signs: heatSigns });
+      setHeatSigns('');
+      setMessage('Heat/AI record saved.');
+      await load();
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to save the Heat/AI record.'); }
+  };
+
   const attach = async (isProfile: boolean) => {
     try {
       const sync = await getPowerSyncSnapshot();
@@ -96,7 +109,6 @@ export default function AnimalProfileScreen() {
   const profilePhoto = profile?.photos.find((item) => item.isProfile === 1) ?? null;
   const history = useMemo<HistoryEntry[]>(() => profile ? [
     ...profile.events.map((event) => ({ key: `event-${event.id}`, date: event.eventDate, text: `${event.kind}: ${event.title}${event.notes ? ` — ${event.notes}` : ''}` })),
-    ...profile.heat.map((event, index) => ({ key: `heat-${event.observedAt}-${index}`, date: event.observedAt, text: `Heat: ${event.signs}` })),
     ...profile.treatments.map((event, index) => ({ key: `treatment-${event.treatmentDate}-${index}`, date: event.treatmentDate, text: `Treatment ${formatMoney(event.totalPaise)}${event.notes ? ` — ${event.notes}` : ''}` })),
     ...profile.photos.filter((photo) => !photo.isProfile).map((photo) => ({ key: `attachment-${photo.id}`, date: photo.attachmentDate, text: photo.fileName, attachment: photo })),
   ].sort((left, right) => right.date.localeCompare(left.date)) : [], [profile]);
@@ -120,6 +132,7 @@ export default function AnimalProfileScreen() {
   return <AppScreen title={profile?.animal.tag ?? 'Animal profile'} subtitle="History and attachments">
     <SectionCard title="Profile"><View style={styles.profileRow}>{profilePhotoUrl && profilePhoto ? <Pressable onPress={() => void openFile(profilePhoto.storagePath)}><Image source={{ uri: profilePhotoUrl }} style={styles.profileImage} /></Pressable> : <View style={[styles.profileImage, styles.profilePlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={styles.cow}>🐄</Text></View>}<View style={styles.profileCopy}><Text style={{ color: colors.text }}>Birth: {profile?.animal.birthDate ? formatFarmDate(profile.animal.birthDate) : 'Not recorded'}</Text><Text style={{ color: colors.text }}>Purchase: {profile?.animal.acquisitionDate ? formatFarmDate(profile.animal.acquisitionDate) : 'Not recorded'}</Text>{profile?.animal.conceptionDate ? <Text style={{ color: colors.text }}>Conception: {formatFarmDate(profile.animal.conceptionDate)}{pregnancyDuration ? ` · ${pregnancyDuration}` : ''}</Text> : null}<Pressable onPress={() => void attach(true)}><Text style={{ color: colors.primary }}>{profilePhoto ? 'Replace profile picture' : 'Set profile picture'}</Text></Pressable></View></View></SectionCard>
     <SectionCard title="Add photo or document"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
+    <SectionCard title={`Heat/AI records (${profile?.heat.length ?? 0})`}><DateField label="Heat/AI date" value={heatDate} onChange={setHeatDate} /><TextInput accessibilityLabel="Heat or AI notes" multiline onChangeText={setHeatSigns} placeholder="Observed signs, AI detail, or note (optional)" placeholderTextColor={colors.textSecondary} style={[styles.heatNotes, { color: colors.text, borderColor: colors.border }]} value={heatSigns} /><Pressable onPress={() => void saveHeat()} style={[styles.heatSave, { backgroundColor: colors.primary }]}><Text style={styles.heatSaveText}>Save Heat/AI record</Text></Pressable>{profile?.heat.length ? <View>{profile.heat.map((event, index) => <View key={`${event.observedAt}-${index}`} style={[styles.historyEntry, { borderBottomColor: colors.border }]}><Text style={{ color: colors.text }}>{formatFarmDate(event.observedAt)} · {event.signs || 'Heat/AI record'}</Text></View>)}</View> : <Text style={{ color: colors.textSecondary }}>No Heat/AI records yet.</Text>}</SectionCard>
     <SectionCard title="Milk history"><View style={styles.rangeButtons}>{([10, 30, 90] as const).map((value) => <Pressable key={value} onPress={() => { setRangeDays(value); setCustomFrom(''); setCustomTo(''); }} style={[styles.rangeButton, { backgroundColor: rangeDays === value && !customFrom && !customTo ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: rangeDays === value && !customFrom && !customTo ? '#fff' : colors.text }}>{value === 10 ? '10 days' : value === 30 ? '1 month' : '3 months'}</Text></Pressable>)}</View><DateField label="Custom from (optional)" value={customFrom} onChange={setCustomFrom} /><DateField label="Custom to (optional)" value={customTo} onChange={setCustomTo} />{milkPoints.length ? <ScrollView horizontal showsHorizontalScrollIndicator><View><Svg width={chartWidth} height={156}><SvgText x="0" y="12" fill={colors.textSecondary} fontSize="10">Milk (L)</SvgText>{yTicks.flatMap((tick) => { const y = milkY(tick); return [<Line key={`grid-${tick}`} x1={chartLeft} y1={y} x2={chartWidth - 8} y2={y} stroke={colors.border} strokeDasharray={tick === 0 ? undefined : '3 3'} />, <SvgText key={`label-${tick}`} x={chartLeft - 5} y={y + 4} fill={colors.textSecondary} fontSize="10" textAnchor="end">{formatLitres(tick)}</SvgText>]; })}<Line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke={colors.border} /><Polyline points={linePoints} fill="none" stroke={colors.primary} strokeWidth="3" />{milkPoints.map((point, index) => <Circle key={point.date} cx={chartLeft + index * 48} cy={milkY(point.volumeMl)} r="4" fill={colors.primary} />)}</Svg><View style={styles.chartLabels}>{milkPoints.map((point) => <Text key={point.date} style={[styles.chartLabel, { color: colors.textSecondary }]}>{formatFarmDate(point.date)}</Text>)}</View></View></ScrollView> : <EmptyState>No completed milk records in this date range.</EmptyState>}</SectionCard>
     <SectionCard title="History (newest first)">{history.length ? history.map((entry) => <View key={entry.key} style={[styles.historyEntry, { borderBottomColor: colors.border }]}>{entry.attachment ? isImageFile(entry.attachment.fileName) ? <View style={styles.historyAttachmentRow}><Text style={{ color: colors.text }}>{formatFarmDate(entry.date)} ·</Text><Pressable onPress={() => void openFile(entry.attachment!.storagePath)}>{attachmentImageUrls[entry.attachment.id] ? <Image source={{ uri: attachmentImageUrls[entry.attachment.id] }} style={styles.historyThumbnail} /> : <View style={[styles.historyThumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={{ color: colors.textSecondary }}>Image</Text></View>}</Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', entry.attachment!.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(entry.attachment!) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View> : <View style={styles.historyDocumentRow}><Text style={{ color: colors.text }}>{formatFarmDate(entry.date)} ·</Text><Pressable onPress={() => void openFile(entry.attachment!.storagePath)} style={styles.documentName}><Text style={{ color: colors.primary }}>{entry.attachment.fileName}</Text></Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', entry.attachment!.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(entry.attachment!) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View> : <Text style={{ color: colors.text }}>{formatFarmDate(entry.date)} · {entry.text}</Text>}</View>) : <EmptyState>No animal history yet.</EmptyState>}</SectionCard>
   </AppScreen>;
@@ -151,4 +164,7 @@ const styles = StyleSheet.create({
   thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   documentName: { flex: 1 },
   deleteText: { fontSize: 12, fontWeight: '700' },
+  heatNotes: { borderWidth: 1, borderRadius: 12, minHeight: 76, padding: 12, textAlignVertical: 'top' },
+  heatSave: { alignItems: 'center', borderRadius: 12, justifyContent: 'center', minHeight: 48 },
+  heatSaveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
 });

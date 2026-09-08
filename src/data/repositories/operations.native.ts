@@ -86,24 +86,10 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
       FROM product_transactions product
       LEFT JOIN items item ON item.id = product.item_id
       WHERE product.farm_id = ?
-
-      UNION ALL
-
-      SELECT heat.id, 'heat' AS kind, substr(heat.observed_at, 1, 10) AS businessDate,
-        'Heat observed' AS title, animal.tag AS detail, 0 AS amountPaise,
-        CASE WHEN heat.deleted_at IS NULL THEN 0 ELSE 1 END AS isVoided,
-        heat.void_reason AS voidReason,
-        heat.animal_id AS animalId, NULL AS itemId,
-        NULL AS quantityMilliUnits, NULL AS unitCode, NULL AS ratePaisePerUnit,
-        NULL AS doctorFeePaise, NULL AS medicineCostPaise,
-        coalesce(heat.signs, heat.notes) AS notes, NULL AS productCategory, heat.created_at AS createdAt
-      FROM heat_events heat
-      JOIN animals animal ON animal.id = heat.animal_id
-      WHERE heat.farm_id = ?
     ) operations
     ORDER BY businessDate DESC, createdAt DESC
     LIMIT ?`,
-    [farmId, farmId, farmId, farmId, limit],
+    [farmId, farmId, farmId, limit],
   );
 }
 
