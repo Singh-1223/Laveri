@@ -9,8 +9,8 @@ import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { getDailyDashboardSummary } from '@/data/repositories/dashboard';
 import type { DailyDashboardSummary } from '@/data/repositories/dashboard.types';
-import { getPeriodReport } from '@/data/repositories/reports';
-import type { PeriodReport } from '@/data/repositories/reports.types';
+import { getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
+import type { MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
 
@@ -24,6 +24,9 @@ function currentMonthRange() {
 }
 
 function todayAtFarm() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
+function cycleFor(value: string) { const date = new Date(`${value}T12:00:00`); const day = date.getDate(); date.setDate(day <= 10 ? 1 : day <= 20 ? 11 : 21); return date.toISOString().slice(0, 10); }
+function shiftCycle(value: string, direction: -1 | 1) { const date = new Date(`${value}T12:00:00`); date.setDate(date.getDate() + direction * 11); return cycleFor(date.toISOString().slice(0, 10)); }
+function cycleEnd(value: string) { const [year, month, day] = value.split('-').map(Number); const endDay = day === 1 ? 10 : day === 11 ? 20 : new Date(year, month, 0).getDate(); return `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`; }
 
 export default function ReportsScreen() {
   const scheme = useColorScheme();
@@ -35,6 +38,8 @@ export default function ReportsScreen() {
   const [todaySummary, setTodaySummary] = useState<DailyDashboardSummary | null>(null);
   const [animalFilter, setAnimalFilter] = useState('all');
   const [buyerFilter, setBuyerFilter] = useState('all');
+  const [qualityCycleStart, setQualityCycleStart] = useState(cycleFor(todayAtFarm()));
+  const [qualityRecords, setQualityRecords] = useState<MilkQualityRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,13 +51,13 @@ export default function ReportsScreen() {
     setMessage(null);
     try {
       const sync = await getPowerSyncSnapshot();
-      if (sync.farmId) { const [period, today] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm())]); setReport(period); setTodaySummary(today); } else { setReport(null); setTodaySummary(null); }
+      if (sync.farmId) { const [period, today, quality] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm()), getQualityRecords(sync.farmId, qualityCycleStart, cycleEnd(qualityCycleStart))]); setReport(period); setTodaySummary(today); setQualityRecords(quality); } else { setReport(null); setTodaySummary(null); setQualityRecords([]); }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to calculate reports.');
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate]);
+  }, [fromDate, qualityCycleStart, toDate]);
 
   const exportCsv = async () => {
     if (!report) return;
@@ -83,15 +88,7 @@ export default function ReportsScreen() {
   const buyerOptions = useMemo(() => uniqueOptions(report?.buyerSales.map((row) => ({ id: row.buyerId, label: row.buyerName })) ?? []), [report]);
   const visibleMilkEntries = useMemo(() => report?.milkEntries.filter((row) => animalFilter === 'all' || row.animalId === animalFilter) ?? [], [animalFilter, report]);
   const visibleBuyerSales = useMemo(() => report?.buyerSales.filter((row) => buyerFilter === 'all' || row.buyerId === buyerFilter) ?? [], [buyerFilter, report]);
-  const qualityRecords = useMemo(() => {
-    const records = new Map<string, { milkDate: string; session: 'morning' | 'evening'; fatHundredths: number | null; snfHundredths: number | null }>();
-    for (const entry of report?.milkEntries ?? []) {
-      if (entry.fatHundredths === null && entry.snfHundredths === null) continue;
-      const key = `${entry.milkDate}:${entry.session}`;
-      if (!records.has(key)) records.set(key, entry);
-    }
-    return [...records.values()];
-  }, [report]);
+  const qualityCycleEnd = cycleEnd(qualityCycleStart);
 
   return (
     <AppScreen title="Reports" subtitle="Calculated locally from source transactions">
@@ -134,7 +131,7 @@ export default function ReportsScreen() {
             <ReportLine label={report.unallocatedMl < 0 ? 'Over-allocated' : 'Unallocated'} value={formatMilk(Math.abs(report.unallocatedMl))} danger={report.unallocatedMl < 0} />
           </SectionCard>
 
-          <SectionCard title={`FAT & SNF records (${qualityRecords.length})`}>
+          <SectionCard title={`FAT & SNF records (${qualityRecords.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => setQualityCycleStart((value) => shiftCycle(value, -1))}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(qualityCycleStart)} – {formatFarmDate(qualityCycleEnd)}</Text><Pressable onPress={() => setQualityCycleStart((value) => shiftCycle(value, 1))}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
             {qualityRecords.length === 0 ? <EmptyState>No FAT/SNF records in this date range.</EmptyState> : qualityRecords.map((record) => (
               <ReportLine key={`${record.milkDate}:${record.session}`} label={`${formatFarmDate(record.milkDate)} · ${record.session === 'morning' ? 'Morning' : 'Evening'}`} value={`FAT ${record.fatHundredths === null ? '—' : `${record.fatHundredths / 100}%`} · SNF ${record.snfHundredths === null ? '—' : `${record.snfHundredths / 100}%`}`} />
             ))}
@@ -270,6 +267,7 @@ function ReportLine({ label, value, danger = false }: { label: string; value: st
 const styles = StyleSheet.create({
   dateRow: { flexDirection: 'row', gap: 10 },
   dateInput: { flex: 1 },
+  shiftNavigation: { flexDirection: 'row', justifyContent: 'space-between' },
   refresh: { minHeight: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   refreshText: { color: '#FFFFFF', fontWeight: '700' },
   pressed: { opacity: 0.75 },

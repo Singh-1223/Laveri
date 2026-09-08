@@ -1,6 +1,6 @@
 import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 
-import type { AnimalProductivityRow, BuyerSaleDetailRow, MilkProductionDetailRow, PeriodReport } from './reports.types';
+import type { AnimalProductivityRow, BuyerSaleDetailRow, MilkProductionDetailRow, MilkQualityRecord, PeriodReport } from './reports.types';
 
 type PeriodAggregate = Omit<PeriodReport, 'fromDate' | 'toDate' | 'producedMl' | 'unallocatedMl' | 'operatingCostPaise' | 'operatingProfitPaise' | 'animals' | 'milkEntries' | 'buyerSales'>;
 
@@ -94,4 +94,17 @@ export async function getPeriodReport(farmId: string, fromDate: string, toDate: 
     milkEntries,
     buyerSales,
   };
+}
+
+export async function getQualityRecords(farmId: string, fromDate: string, toDate: string) {
+  const database = await getPowerSyncDatabase();
+  return database.getAll<MilkQualityRecord>(
+    `SELECT milk_date AS milkDate, session, max(fat_hundredths) AS fatHundredths, max(snf_hundredths) AS snfHundredths
+     FROM milk_entries
+     WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL
+       AND (fat_hundredths IS NOT NULL OR snf_hundredths IS NOT NULL)
+     GROUP BY milk_date, session
+     ORDER BY milk_date DESC, session ASC`,
+    [farmId, fromDate, toDate],
+  );
 }

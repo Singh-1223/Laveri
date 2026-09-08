@@ -20,6 +20,13 @@ export type MilkProductionDetailRow = {
   ratePaisePerLitre: number;
 };
 
+export type MilkQualityRecord = {
+  milkDate: string;
+  session: 'morning' | 'evening';
+  fatHundredths: number | null;
+  snfHundredths: number | null;
+};
+
 export type BuyerSaleDetailRow = {
   id: string;
   milkDate: string;
