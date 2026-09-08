@@ -46,7 +46,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-18 | [ ] | Replace animal-profile graph's **7 days** range with **10 days**. | Retain 1 month, 3 months and custom dates. |
 | R4-19 | [ ] | Add conception date and live pregnancy duration to an animal profile and Herd card. | Store per animal; show elapsed calendar months/days such as `4M 15D`, update daily, and show nothing when no conception date exists. |
 | R4-20 | [ ] | Export/share an individual buyer's 10-day milk report for external bill comparison. | Generate a buyer-specific CSV with date, Morning litres, Evening litres, Total litres and period totals. The user shares it with the bill PDF/image to an external tool such as ChatGPT for comparison. |
-| R4-21 | [ ] | Show non-profile animal attachments only in History, not in a separate attachment gallery. | In dated History, show `date : small image thumbnail` for an image and `date : PDF link` for a PDF. Add a light divider between entries. Keep profile-picture handling separate. |
+| R4-21 | [>] Implemented | Show non-profile animal attachments only in History, not in a separate attachment gallery. | The separate gallery is removed. Dated History now shows a small image thumbnail or PDF link, retains delete/open actions, and uses light separators. Profile-picture handling remains separate. Awaiting device retest. |
 
 ## Dependencies and delivery order
 

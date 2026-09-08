@@ -17,6 +17,13 @@ import { useSession } from '@/features/auth/session-provider';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+type HistoryEntry = {
+  key: string;
+  date: string;
+  text: string;
+  attachment?: AnimalProfile['photos'][number];
+};
+
 export default function AnimalProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useSession();
@@ -86,11 +93,11 @@ export default function AnimalProfileScreen() {
   };
 
   const profilePhoto = profile?.photos.find((item) => item.isProfile === 1) ?? null;
-  const history = useMemo(() => profile ? [
-    ...profile.events.map((event) => ({ key: `event-${event.id}`, date: event.eventDate, text: `${event.kind}: ${event.title}${event.notes ? ` — ${event.notes}` : ''}`, storagePath: undefined as string | undefined })),
-    ...profile.heat.map((event, index) => ({ key: `heat-${event.observedAt}-${index}`, date: event.observedAt, text: `Heat: ${event.signs}`, storagePath: undefined as string | undefined })),
-    ...profile.treatments.map((event, index) => ({ key: `treatment-${event.treatmentDate}-${index}`, date: event.treatmentDate, text: `Treatment ${formatMoney(event.totalPaise)}${event.notes ? ` — ${event.notes}` : ''}`, storagePath: undefined as string | undefined })),
-    ...profile.photos.filter((photo) => !photo.isProfile).map((photo) => ({ key: `attachment-${photo.id}`, date: photo.attachmentDate, text: photo.fileName, storagePath: photo.storagePath })),
+  const history = useMemo<HistoryEntry[]>(() => profile ? [
+    ...profile.events.map((event) => ({ key: `event-${event.id}`, date: event.eventDate, text: `${event.kind}: ${event.title}${event.notes ? ` — ${event.notes}` : ''}` })),
+    ...profile.heat.map((event, index) => ({ key: `heat-${event.observedAt}-${index}`, date: event.observedAt, text: `Heat: ${event.signs}` })),
+    ...profile.treatments.map((event, index) => ({ key: `treatment-${event.treatmentDate}-${index}`, date: event.treatmentDate, text: `Treatment ${formatMoney(event.totalPaise)}${event.notes ? ` — ${event.notes}` : ''}` })),
+    ...profile.photos.filter((photo) => !photo.isProfile).map((photo) => ({ key: `attachment-${photo.id}`, date: photo.attachmentDate, text: photo.fileName, attachment: photo })),
   ].sort((left, right) => right.date.localeCompare(left.date)) : [], [profile]);
   const milkPoints = useMemo(() => {
     const totals = new Map<string, number>();
@@ -110,9 +117,9 @@ export default function AnimalProfileScreen() {
 
   return <AppScreen title={profile?.animal.tag ?? 'Animal profile'} subtitle="History and attachments">
     <SectionCard title="Profile"><View style={styles.profileRow}>{profilePhotoUrl && profilePhoto ? <Pressable onPress={() => void openFile(profilePhoto.storagePath)}><Image source={{ uri: profilePhotoUrl }} style={styles.profileImage} /></Pressable> : <View style={[styles.profileImage, styles.profilePlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={styles.cow}>🐄</Text></View>}<View style={styles.profileCopy}><Text style={{ color: colors.text }}>Birth: {profile?.animal.birthDate ? formatFarmDate(profile.animal.birthDate) : 'Not recorded'}</Text><Text style={{ color: colors.text }}>Purchase: {profile?.animal.acquisitionDate ? formatFarmDate(profile.animal.acquisitionDate) : 'Not recorded'}</Text><Pressable onPress={() => void attach(true)}><Text style={{ color: colors.primary }}>{profilePhoto ? 'Replace profile picture' : 'Set profile picture'}</Text></Pressable></View></View></SectionCard>
-    <SectionCard title="Photos and documents"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{profile?.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).length ? <View style={styles.thumbnailGrid}>{profile.photos.filter((item) => !item.isProfile && isImageFile(item.fileName)).map((item) => <View key={item.id} style={styles.attachmentItem}><Pressable onPress={() => void openFile(item.storagePath)}>{attachmentImageUrls[item.id] ? <Image source={{ uri: attachmentImageUrls[item.id] }} style={styles.thumbnail} /> : <View style={[styles.thumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={{ color: colors.textSecondary }}>Image</Text></View>}</Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', item.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(item) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View>)}</View> : null}{profile?.photos.filter((item) => !item.isProfile && !isImageFile(item.fileName)).map((item) => <View key={item.id} style={styles.documentRow}><Pressable onPress={() => void openFile(item.storagePath)} style={styles.documentName}><Text style={{ color: colors.primary }}>{item.fileName}</Text></Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', item.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(item) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View>)}{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
+    <SectionCard title="Add photo or document"><DateField label="Attachment date" value={attachmentDate} onChange={setAttachmentDate} /><Pressable onPress={() => void attach(false)}><Text style={{ color: colors.primary }}>Add dated photo or PDF</Text></Pressable>{message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}</SectionCard>
     <SectionCard title="Milk history"><View style={styles.rangeButtons}>{([7, 30, 90] as const).map((value) => <Pressable key={value} onPress={() => { setRangeDays(value); setCustomFrom(''); setCustomTo(''); }} style={[styles.rangeButton, { backgroundColor: rangeDays === value && !customFrom && !customTo ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: rangeDays === value && !customFrom && !customTo ? '#fff' : colors.text }}>{value === 7 ? '7 days' : value === 30 ? '1 month' : '3 months'}</Text></Pressable>)}</View><DateField label="Custom from (optional)" value={customFrom} onChange={setCustomFrom} /><DateField label="Custom to (optional)" value={customTo} onChange={setCustomTo} />{milkPoints.length ? <ScrollView horizontal showsHorizontalScrollIndicator><View><Svg width={chartWidth} height={156}><SvgText x="0" y="12" fill={colors.textSecondary} fontSize="10">Milk (L)</SvgText>{yTicks.flatMap((tick) => { const y = milkY(tick); return [<Line key={`grid-${tick}`} x1={chartLeft} y1={y} x2={chartWidth - 8} y2={y} stroke={colors.border} strokeDasharray={tick === 0 ? undefined : '3 3'} />, <SvgText key={`label-${tick}`} x={chartLeft - 5} y={y + 4} fill={colors.textSecondary} fontSize="10" textAnchor="end">{formatLitres(tick)}</SvgText>]; })}<Line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke={colors.border} /><Polyline points={linePoints} fill="none" stroke={colors.primary} strokeWidth="3" />{milkPoints.map((point, index) => <Circle key={point.date} cx={chartLeft + index * 48} cy={milkY(point.volumeMl)} r="4" fill={colors.primary} />)}</Svg><View style={styles.chartLabels}>{milkPoints.map((point) => <Text key={point.date} style={[styles.chartLabel, { color: colors.textSecondary }]}>{formatFarmDate(point.date)}</Text>)}</View></View></ScrollView> : <EmptyState>No milk records in this date range.</EmptyState>}</SectionCard>
-    <SectionCard title="History (newest first)">{history.length ? history.map((entry) => <Pressable key={entry.key} onPress={entry.storagePath ? () => void openFile(entry.storagePath!) : undefined}><Text style={{ color: entry.storagePath ? colors.primary : colors.text }}>{formatFarmDate(entry.date)} · {entry.text}</Text></Pressable>) : <EmptyState>No animal history yet.</EmptyState>}</SectionCard>
+    <SectionCard title="History (newest first)">{history.length ? history.map((entry) => <View key={entry.key} style={[styles.historyEntry, { borderBottomColor: colors.border }]}>{entry.attachment ? isImageFile(entry.attachment.fileName) ? <View style={styles.historyAttachmentRow}><Text style={{ color: colors.text }}>{formatFarmDate(entry.date)} ·</Text><Pressable onPress={() => void openFile(entry.attachment!.storagePath)}>{attachmentImageUrls[entry.attachment.id] ? <Image source={{ uri: attachmentImageUrls[entry.attachment.id] }} style={styles.historyThumbnail} /> : <View style={[styles.historyThumbnail, styles.thumbnailPlaceholder, { backgroundColor: colors.backgroundSelected }]}><Text style={{ color: colors.textSecondary }}>Image</Text></View>}</Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', entry.attachment!.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(entry.attachment!) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View> : <View style={styles.historyDocumentRow}><Text style={{ color: colors.text }}>{formatFarmDate(entry.date)} ·</Text><Pressable onPress={() => void openFile(entry.attachment!.storagePath)} style={styles.documentName}><Text style={{ color: colors.primary }}>{entry.attachment.fileName}</Text></Pressable><Pressable onPress={() => Alert.alert('Delete attachment?', entry.attachment!.fileName, [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void removeAttachment(entry.attachment!) }])}><Text style={[styles.deleteText, { color: colors.danger }]}>Delete</Text></Pressable></View> : <Text style={{ color: colors.text }}>{formatFarmDate(entry.date)} · {entry.text}</Text>}</View>) : <EmptyState>No animal history yet.</EmptyState>}</SectionCard>
   </AppScreen>;
 }
 
@@ -135,11 +142,11 @@ const styles = StyleSheet.create({
   rangeButton: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
   chartLabels: { flexDirection: 'row', gap: 16, paddingLeft: 28 },
   chartLabel: { fontSize: 10, width: 32 },
-  thumbnailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  thumbnail: { borderRadius: 10, height: 76, width: 76 },
+  historyEntry: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10 },
+  historyAttachmentRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  historyDocumentRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  historyThumbnail: { borderRadius: 8, height: 52, width: 52 },
   thumbnailPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  attachmentItem: { gap: 3, width: 76 },
-  documentRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   documentName: { flex: 1 },
   deleteText: { fontSize: 12, fontWeight: '700' },
 });
