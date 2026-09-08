@@ -117,6 +117,11 @@ const animalEvents = new Table(
   { ...versioned, indexes: { by_animal_date: ['animal_id', '-event_date'] } },
 );
 
+const lactationRecords = new Table(
+  { farm_id: column.text, animal_id: column.text, ai_date: column.text, semen_or_bull_name: column.text, calving_date: column.text, calf_name: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_animal_date: ['animal_id', '-ai_date'] } },
+);
+
 const animalPhotos = new Table(
   { farm_id: column.text, animal_id: column.text, storage_path: column.text, file_name: column.text, caption: column.text, attachment_date: column.text, is_profile: column.integer, ...auditColumns },
   { ...versioned, indexes: { by_animal: ['animal_id'] } },
@@ -327,6 +332,7 @@ export const appSchema = new Schema({
   animal_labels: animalLabels,
   animal_label_links: animalLabelLinks,
   animal_events: animalEvents,
+  lactation_records: lactationRecords,
   animal_photos: animalPhotos,
   buyers,
   buyer_payments: buyerPayments,
