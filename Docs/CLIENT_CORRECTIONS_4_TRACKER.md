@@ -39,7 +39,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-11 | [ ] | Show all entered Farm Operation fields clearly in Recent activities. | Include product/item, unit, quantity, rate/amount, comments and relevant operation-specific details. |
 | R4-12 | [ ] | Remove Other Events from Farm Operation and add a Reports **Daily Dairy** comment record. | Daily Dairy has one free-text comment with automatic date, monthly previous/current/next navigation, chronological display, and edit/delete. |
 | R4-13 | [ ] | Simplify Investment and Silage entries. | Remove suggestions/Add Item and remove unit, quantity and rate. Keep only Date, Comments and Total Amount; retain existing records/data. |
-| R4-14 | [ ] | Simplify Treatment entry. | Remove suggestions/Add Item, Product Name, Unit and Quantity. Keep Date, Comments, Doctor Fee and Medical cost. |
+| R4-14 | [>] Implemented | Simplify Treatment entry. | Treatment now removes suggestions, Add Item, product name, unit and quantity. It retains animal selection plus Date, Comment, Doctor Fee and Medical cost, without changing existing records. Awaiting device retest. |
 | R4-15 | [>] Implemented | Exclude today's milk from all animal milk-history line-graph ranges. | All preset and custom graph ranges now end at yesterday. Today's saved Milk data appears as a point only the next day. Awaiting device retest. |
 | R4-16 | [ ] | Persist calculator history. | Save every calculation separately, including FAT, SNF, CMFAT, CMSNF, all inputs and results; survive app restart. |
 | R4-17 | [ ] | Show Reports' Milk Source Entry in 10-day periods. | Keep data/calculations unchanged and add previous/next period navigation. |
