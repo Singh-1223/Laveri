@@ -10,7 +10,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 - `[x] Done` - accepted after client retest.
 - `[?] Decision needed` - a material business rule is not specified.
 
-**Current summary:** 21 tracked requests: 3 verify/rework items, 7 open items, and 11 implemented awaiting device retest.
+**Current summary:** 21 tracked requests: 3 verify/rework items, 6 open items, and 12 implemented awaiting device retest.
 
 ## A. Earlier requests restated by the client
 
@@ -27,7 +27,7 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 | R4-04 | [>] Implemented | Replace the quantity picker with one horizontally swipeable 3-column x 10-row grid. | All quantity pickers now show one non-independent 3-column × 10-row page. Horizontal swipes move the whole-number range; rows retain 0-9 decimals and the selected value is highlighted. Applies to cow, buyer, FAT and SNF inputs. Awaiting device retest. |
 | R4-05 | [>] Implemented | Make FAT/SNF input colour match milk-entry input styling. | Entered FAT/SNF values now use the same primary colour as entered milk quantities; empty values retain secondary placeholder styling. Awaiting device retest. |
 | R4-06 | [>] Implemented | Lock Milk Entry by default for past/future dates; keep today editable; allow temporary unlock for a selected past date. | The Milk header now has a lock control beside the menu and sync status. Past/future fields and reordering are read-only by default; today stays unlocked. A temporary unlock relocks after date navigation and never changes saved data. Awaiting device retest. |
-| R4-07 | [ ] | Allow natural vertical scrolling of Milk Entry from all non-interactive areas. | Resolve nested gesture/scroll behaviour without breaking taps, picker selection, drag/reorder or horizontal picker swipe. |
+| R4-07 | [>] Implemented | Allow natural vertical scrolling of Milk Entry from all non-interactive areas. | Animal and buyer reordering now starts only after a deliberate long press and movement threshold, rather than immediately capturing vertical swipes. This allows normal page scrolling while retaining tap, picker and drag actions. Awaiting device retest. |
 
 ## C. Reports and animal records
 

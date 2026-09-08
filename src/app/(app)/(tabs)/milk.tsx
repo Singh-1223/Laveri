@@ -378,10 +378,10 @@ export default function MilkScreen() {
           data={entries}
           keyExtractor={(entry) => entry.animalId}
           scrollEnabled={false}
-          activationDistance={0}
+          activationDistance={16}
           dragItemOverflow
           onDragEnd={({ data }) => void saveAnimalOrder(data)}
-          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={180} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
+          renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${entry.tag} to reorder`} delayLongPress={280} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
               <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild><Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable></Link>
               {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
@@ -404,10 +404,10 @@ export default function MilkScreen() {
           data={allocations.filter((allocation) => allocation.destination === 'buyer')}
           keyExtractor={(allocation) => allocation.key}
           scrollEnabled={false}
-          activationDistance={0}
+          activationDistance={16}
           dragItemOverflow
           onDragEnd={({ data }) => void saveBuyerOrder(data)}
-          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={180} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
+          renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><Pressable accessibilityLabel={`Drag ${allocation.label} to reorder`} delayLongPress={280} disabled={busy || isLocked} onLongPress={drag}><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <View style={styles.animalCopy}>
               {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
