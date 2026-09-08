@@ -82,6 +82,11 @@ const calculatorHistory = new Table(
   { ...versioned, indexes: { by_farm_created: ['farm_id', '-created_at'] } },
 );
 
+const dailyDiary = new Table(
+  { farm_id: column.text, diary_date: column.text, comment: column.text, ...auditColumns },
+  { ...versioned, indexes: { by_farm_date: ['farm_id', '-diary_date'] } },
+);
+
 const animals = new Table(
   {
     farm_id: column.text,
@@ -328,6 +333,7 @@ export const appSchema = new Schema({
   farm_settings: farmSettings,
   milk_pricing_configs: milkPricingConfigs,
   calculator_history: calculatorHistory,
+  daily_diary: dailyDiary,
   animals,
   animal_labels: animalLabels,
   animal_label_links: animalLabelLinks,

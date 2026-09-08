@@ -27,6 +27,10 @@ export type MilkQualityRecord = {
   snfHundredths: number | null;
 };
 
+export type DailyDiaryRow = { id: string; diaryDate: string; comment: string };
+export type SaveDailyDiaryInput = { farmId: string; userId: string; diaryDate: string; comment: string; id?: string };
+export type DeleteDailyDiaryInput = { farmId: string; userId: string; id: string };
+
 export type BuyerSaleDetailRow = {
   id: string;
   milkDate: string;

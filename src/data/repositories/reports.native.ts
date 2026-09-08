@@ -1,6 +1,11 @@
 import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
+import * as Crypto from 'expo-crypto';
 
-import type { AnimalProductivityRow, BuyerSaleDetailRow, MilkProductionDetailRow, MilkQualityRecord, PeriodReport } from './reports.types';
+import type { AnimalProductivityRow, BuyerSaleDetailRow, DailyDiaryRow, DeleteDailyDiaryInput, MilkProductionDetailRow, MilkQualityRecord, PeriodReport, SaveDailyDiaryInput } from './reports.types';
+
+export async function getDailyDiary(farmId: string, fromDate: string, toDate: string): Promise<DailyDiaryRow[]> { const database = await getPowerSyncDatabase(); return database.getAll<DailyDiaryRow>(`SELECT id, diary_date AS diaryDate, comment FROM daily_diary WHERE farm_id = ? AND diary_date BETWEEN ? AND ? AND deleted_at IS NULL ORDER BY diary_date DESC, created_at DESC`, [farmId, fromDate, toDate]); }
+export async function saveDailyDiary(input: SaveDailyDiaryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); if (input.id) return database.execute(`UPDATE daily_diary SET diary_date=?, comment=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [input.diaryDate, input.comment.trim(), now, input.userId, input.id, input.farmId]); return database.execute(`INSERT INTO daily_diary(id,farm_id,diary_date,comment,created_at,updated_at,created_by,updated_by,deleted_at,version) VALUES(?,?,?,?,?,?,?,?,NULL,1)`, [Crypto.randomUUID(), input.farmId, input.diaryDate, input.comment.trim(), now, now, input.userId, input.userId]); }
+export async function deleteDailyDiary(input: DeleteDailyDiaryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); return database.execute(`UPDATE daily_diary SET deleted_at=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [now, now, input.userId, input.id, input.farmId]); }
 
 type PeriodAggregate = Omit<PeriodReport, 'fromDate' | 'toDate' | 'producedMl' | 'unallocatedMl' | 'operatingCostPaise' | 'operatingProfitPaise' | 'animals' | 'milkEntries' | 'buyerSales'>;
 

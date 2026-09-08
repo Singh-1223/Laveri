@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { Directory } from 'expo-file-system';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
@@ -9,10 +9,11 @@ import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { getDailyDashboardSummary } from '@/data/repositories/dashboard';
 import type { DailyDashboardSummary } from '@/data/repositories/dashboard.types';
-import { getMilkSourceEntries, getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
-import type { MilkProductionDetailRow, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
+import { deleteDailyDiary, getDailyDiary, getMilkSourceEntries, getPeriodReport, getQualityRecords, saveDailyDiary } from '@/data/repositories/reports';
+import type { DailyDiaryRow, MilkProductionDetailRow, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
+import { useSession } from '@/features/auth/session-provider';
 
 function currentMonthRange() {
   const now = new Date();
@@ -22,6 +23,8 @@ function currentMonthRange() {
   const last = new Date(year, month + 1, 0).getDate();
   return { fromDate, toDate: `${year}-${String(month + 1).padStart(2, '0')}-${last}` };
 }
+function monthRange(anchor: string) { const date = new Date(`${anchor}-01T12:00:00`); return { fromDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`, toDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()}` }; }
+function shiftMonth(anchor: string, direction: -1 | 1) { const date = new Date(`${anchor}-01T12:00:00`); date.setMonth(date.getMonth() + direction); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 
 function todayAtFarm() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
 function cycleFor(value: string) { const date = new Date(`${value}T12:00:00`); const day = date.getDate(); date.setDate(day <= 10 ? 1 : day <= 20 ? 11 : 21); return date.toISOString().slice(0, 10); }
@@ -31,6 +34,7 @@ function cycleEnd(value: string) { const [year, month, day] = value.split('-').m
 export default function ReportsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const { session } = useSession();
   const initial = currentMonthRange();
   const [fromDate, setFromDate] = useState(initial.fromDate);
   const [toDate, setToDate] = useState(initial.toDate);
@@ -42,6 +46,12 @@ export default function ReportsScreen() {
   const [qualityRecords, setQualityRecords] = useState<MilkQualityRecord[]>([]);
   const [sourceCycleStart, setSourceCycleStart] = useState(cycleFor(todayAtFarm()));
   const [sourceEntries, setSourceEntries] = useState<MilkProductionDetailRow[]>([]);
+  const [farmId, setFarmId] = useState<string | null>(null);
+  const [diaryMonth, setDiaryMonth] = useState(todayAtFarm().slice(0, 7));
+  const [diaryRows, setDiaryRows] = useState<DailyDiaryRow[]>([]);
+  const [diaryDate, setDiaryDate] = useState(todayAtFarm());
+  const [diaryComment, setDiaryComment] = useState('');
+  const [editingDiaryId, setEditingDiaryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,13 +63,16 @@ export default function ReportsScreen() {
     setMessage(null);
     try {
       const sync = await getPowerSyncSnapshot();
-      if (sync.farmId) { const [period, today, quality, source] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm()), getQualityRecords(sync.farmId, qualityCycleStart, cycleEnd(qualityCycleStart)), getMilkSourceEntries(sync.farmId, sourceCycleStart, cycleEnd(sourceCycleStart))]); setReport(period); setTodaySummary(today); setQualityRecords(quality); setSourceEntries(source); } else { setReport(null); setTodaySummary(null); setQualityRecords([]); setSourceEntries([]); }
+      if (sync.farmId) { const diaryRange = monthRange(diaryMonth); const [period, today, quality, source, diary] = await Promise.all([getPeriodReport(sync.farmId, fromDate, toDate), getDailyDashboardSummary(sync.farmId, todayAtFarm()), getQualityRecords(sync.farmId, qualityCycleStart, cycleEnd(qualityCycleStart)), getMilkSourceEntries(sync.farmId, sourceCycleStart, cycleEnd(sourceCycleStart)), getDailyDiary(sync.farmId, diaryRange.fromDate, diaryRange.toDate)]); setFarmId(sync.farmId); setReport(period); setTodaySummary(today); setQualityRecords(quality); setSourceEntries(source); setDiaryRows(diary); } else { setFarmId(null); setReport(null); setTodaySummary(null); setQualityRecords([]); setSourceEntries([]); setDiaryRows([]); }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to calculate reports.');
     } finally {
       setLoading(false);
     }
-  }, [fromDate, qualityCycleStart, sourceCycleStart, toDate]);
+  }, [diaryMonth, fromDate, qualityCycleStart, sourceCycleStart, toDate]);
+
+  const saveDiary = async () => { if (!farmId || !session || !diaryComment.trim()) return; try { await saveDailyDiary({ farmId, userId: session.user.id, diaryDate, comment: diaryComment, id: editingDiaryId ?? undefined }); setDiaryComment(''); setEditingDiaryId(null); await refresh(); setMessage('Daily Dairy entry saved.'); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to save the Daily Dairy entry.'); } };
+  const removeDiary = async (id: string) => { if (!farmId || !session) return; try { await deleteDailyDiary({ farmId, userId: session.user.id, id }); if (editingDiaryId === id) { setEditingDiaryId(null); setDiaryComment(''); } await refresh(); setMessage('Daily Dairy entry deleted.'); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to delete the Daily Dairy entry.'); } };
 
   const exportCsv = async () => {
     if (!report) return;
@@ -117,6 +130,7 @@ export default function ReportsScreen() {
               <ReportCard label="Investment" value={formatMoney(todaySummary?.investmentPaise ?? 0)} />
             </View>
           </SectionCard>
+          <SectionCard title={`Daily Dairy (${diaryRows.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => setDiaryMonth((value) => shiftMonth(value, -1))}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(`${diaryMonth}-01`).replace(/^\d{2}-/, '')}</Text><Pressable onPress={() => setDiaryMonth((value) => shiftMonth(value, 1))}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View><DateField label="Diary date" value={diaryDate} onChange={setDiaryDate} /><TextInput accessibilityLabel="Daily Dairy comment" multiline onChangeText={setDiaryComment} placeholder="Daily farm comment" placeholderTextColor={colors.textSecondary} style={[styles.diaryInput, { color: colors.text, borderColor: colors.border }]} value={diaryComment} /><Pressable disabled={!diaryComment.trim()} onPress={() => void saveDiary()} style={[styles.refresh, { backgroundColor: colors.primary }, !diaryComment.trim() && styles.disabled]}><Text style={styles.refreshText}>{editingDiaryId ? 'Update comment' : 'Save comment'}</Text></Pressable>{editingDiaryId ? <Pressable onPress={() => { setEditingDiaryId(null); setDiaryComment(''); }}><Text style={{ color: colors.textSecondary }}>Cancel editing</Text></Pressable> : null}{diaryRows.length ? diaryRows.map((entry) => <View key={entry.id} style={[styles.detailRow, { borderTopColor: colors.border }]}><View style={styles.detailCopy}><Text style={[styles.animal, { color: colors.text }]}>{formatFarmDate(entry.diaryDate)}</Text><Text style={[styles.sessions, { color: colors.textSecondary }]}>{entry.comment}</Text></View><View style={styles.diaryActions}><Pressable onPress={() => { setEditingDiaryId(entry.id); setDiaryDate(entry.diaryDate); setDiaryComment(entry.comment); }}><Text style={{ color: colors.primary }}>Edit</Text></Pressable><Pressable onPress={() => void removeDiary(entry.id)}><Text style={{ color: colors.danger }}>Delete</Text></Pressable></View></View>) : <EmptyState>No Daily Dairy comments this month.</EmptyState>}</SectionCard>
           <View style={styles.grid}>
             <ReportCard label="Production" value={formatMilk(report.producedMl)} />
             <ReportCard label="Milk revenue" value={formatMoney(report.milkRevenuePaise)} />
@@ -298,5 +312,7 @@ const styles = StyleSheet.create({
   filter: { minHeight: 34, borderRadius: 17, justifyContent: 'center', paddingHorizontal: 11 },
   filterText: { fontSize: 12, fontWeight: '700' },
   exportCopy: { fontSize: 13, lineHeight: 19 },
+  diaryInput: { borderWidth: 1, borderRadius: 12, minHeight: 76, padding: 12, textAlignVertical: 'top' },
+  diaryActions: { gap: 10 },
   disabled: { opacity: 0.45 },
 });
