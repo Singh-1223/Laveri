@@ -1,6 +1,6 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
@@ -42,6 +42,8 @@ function parseHundredths(value: string): number | null {
   const result = Math.round(Number(normalized) * 100);
   return Number.isSafeInteger(result) ? result : Number.NaN;
 }
+
+const PICKER_PAGE_WIDTH = Math.min(420, Dimensions.get('window').width - 32);
 
 export default function MilkScreen() {
   const scheme = useColorScheme();
@@ -482,10 +484,9 @@ function QualityField({ disabled, label, value, onPress, placeholder, invalid }:
 function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string } | null; onClose: () => void; onSelect: (value: number) => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const values = picker ? Array.from({ length: picker.max * 10 + 1 }, (_, index) => index / 10) : [];
-  const rows = Array.from({ length: Math.ceil(values.length / 3) }, (_, index) => values.slice(index * 3, index * 3 + 3));
-  const initialIndex = picker ? Math.max(0, Math.min(rows.length - 1, Math.floor(Math.round(picker.initial * 10) / 3))) : 0;
-  return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Select a value. All three columns scroll together and start near the previous entry when available.</Text><FlatList key={picker?.key} data={rows} keyExtractor={(_, index) => String(index)} getItemLayout={(_, index) => ({ length: 46, offset: 46 * index, index })} initialNumToRender={12} initialScrollIndex={initialIndex} maxToRenderPerBatch={18} removeClippedSubviews windowSize={7} renderItem={({ item: row }) => <View style={styles.pickerRow}>{row.map((value) => <Pressable key={value} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, picker && Math.abs(value - picker.initial) < 0.01 && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: colors.text }]}>{value.toFixed(1)}</Text></Pressable>)}</View>} /></View></View></Modal>;
+  const starts = picker ? Array.from({ length: Math.max(1, picker.max - 1) }, (_, index) => index) : [];
+  const initialIndex = picker ? Math.max(0, Math.min(starts.length - 1, Math.floor(picker.initial) - 1)) : 0;
+  return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next whole-number range. Each page has three columns and ten decimal rows.</Text><FlatList horizontal pagingEnabled key={picker?.key} data={starts} keyExtractor={String} getItemLayout={(_, index) => ({ length: PICKER_PAGE_WIDTH, offset: PICKER_PAGE_WIDTH * index, index })} initialNumToRender={3} initialScrollIndex={initialIndex} showsHorizontalScrollIndicator={false} renderItem={({ item: start }) => <View style={styles.pickerPage}>{Array.from({ length: 10 }, (_, decimal) => <View key={decimal} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = whole + decimal / 10; const selected = picker !== null && Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View>} /></View></View></Modal>;
 }
 
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
@@ -569,9 +570,10 @@ const styles = StyleSheet.create({
   menuItemTitle: { fontSize: 16, fontWeight: '800' },
   menuItemDetail: { fontSize: 13, lineHeight: 18 },
   pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
-  pickerPanel: { maxHeight: '72%', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 20, paddingTop: 18, paddingBottom: 24 },
+  pickerPanel: { alignSelf: 'center', width: PICKER_PAGE_WIDTH, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 18, paddingBottom: 24 },
   pickerHint: { fontSize: 13, lineHeight: 18, paddingBottom: 10 },
-  pickerRow: { flexDirection: 'row', gap: 8 },
+  pickerPage: { width: PICKER_PAGE_WIDTH },
+  pickerRow: { flexDirection: 'row' },
   pickerValue: { flex: 1, height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
   pickerValueText: { fontSize: 19, fontWeight: '700' },
 });
