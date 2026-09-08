@@ -58,6 +58,8 @@ Source: `Correction 4_260908_142901.pdf`, received 2026-09-08.
 
 ## Confirmed prior decisions carried forward
 
+Confirmed by the client on 2026-09-08.
+
 1. Verka billing comparison and bill-rate calculation apply **only to Verka**.
 2. Verka target cycles are 1st-10th, 11th-20th and 21st-end-of-month; only milk allocated to Verka counts.
 3. Feed, products, treatment and silage are collective production costs, not animal-specific costs.
