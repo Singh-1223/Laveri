@@ -51,7 +51,7 @@ export type CreateTreatmentInput = OperationContext & {
 export type CreateProductInput = OperationContext & {
   animalId: string | null;
   animalCategory: AnimalRow['category'] | null;
-  itemId: string;
+  itemId: string | null;
   category: 'operating_expense' | 'silage' | 'investment' | 'byproduct_sale';
   quantityMilliUnits: number;
   unitCode: string;

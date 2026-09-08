@@ -56,6 +56,7 @@ export default function ExpensesScreen() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState('');
   const [rate, setRate] = useState('');
+  const [totalAmount, setTotalAmount] = useState('');
   const [doctorFee, setDoctorFee] = useState('');
   const [eventType, setEventType] = useState('');
   const [medicineCost, setMedicineCost] = useState('');
@@ -99,6 +100,7 @@ export default function ExpensesScreen() {
   const selectedItem = selectedItemId === null ? availableItems[0] ?? null : availableItems.find((item) => item.id === selectedItemId) ?? null;
   const quantityMilli = parseDecimal(quantity, 1_000);
   const ratePaise = parseDecimal(rate, 100);
+  const totalAmountPaise = parseDecimal(totalAmount, 100);
   const doctorFeePaise = doctorFee.trim() ? parseDecimal(doctorFee, 100) : 0;
   const medicineCostPaise = medicineCost.trim() ? parseDecimal(medicineCost, 100) : 0;
   const visibleHistory = useMemo(() => {
@@ -122,6 +124,7 @@ export default function ExpensesScreen() {
     setSelectedItemId(null);
     setQuantity('');
     setRate('');
+    setTotalAmount('');
     setDoctorFee('');
     setEventType('');
     setMedicineCost('');
@@ -146,6 +149,7 @@ export default function ExpensesScreen() {
     setSelectedItemId(row.itemId);
     setQuantity(row.quantityMilliUnits === null ? '' : String(row.quantityMilliUnits / 1_000));
     setRate(row.ratePaisePerUnit === null ? '' : String(row.ratePaisePerUnit / 100));
+    setTotalAmount(row.amountPaise === null ? '' : String(row.amountPaise / 100));
     setDoctorFee(row.doctorFeePaise === null ? '' : String(row.doctorFeePaise / 100));
     setMedicineCost(row.medicineCostPaise === null ? '' : String(row.medicineCostPaise / 100));
     setNotes(row.notes ?? '');
@@ -171,9 +175,14 @@ export default function ExpensesScreen() {
         if (selectedTreatmentAnimalIds.length === 0 || !Number.isSafeInteger(doctorFeePaise) || doctorFeePaise < 0 || !Number.isSafeInteger(medicineCostPaise) || medicineCostPaise < 0) throw new Error('Select at least one animal and enter non-negative treatment costs.');
         if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedTreatmentAnimalIds[0], medicineItemId: null, doctorFeePaise, medicineCostPaise });
         else await createTreatment({ ...context, animalIds: selectedTreatmentAnimalIds, medicineItemId: null, doseMilliUnits: null, doseUnit: null, doctorFeePaise, medicineCostPaise });
-      } else if (kind === 'product' || kind === 'silage' || kind === 'investment') {
+      } else if (kind === 'product') {
         if (!selectedItem || !Number.isSafeInteger(quantityMilli) || quantityMilli <= 0 || !Number.isSafeInteger(ratePaise) || ratePaise < 0) throw new Error('Select a product, then enter a quantity above zero and a non-negative rate.');
-        const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: kind === 'investment' ? 'investment' as const : kind === 'silage' ? 'silage' as const : productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
+        const input = { ...context, animalId: null, animalCategory: null, itemId: selectedItem.id, category: productCategory, quantityMilliUnits: quantityMilli, unitCode: selectedItem.base_unit, ratePaisePerUnit: ratePaise };
+        if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
+        else await createProductTransaction(input);
+      } else if (kind === 'silage' || kind === 'investment') {
+        if (!Number.isSafeInteger(totalAmountPaise) || totalAmountPaise < 0) throw new Error('Enter a valid non-negative total amount.');
+        const input = { ...context, animalId: null, animalCategory: null, itemId: null, category: kind, quantityMilliUnits: 1_000, unitCode: 'entry', ratePaisePerUnit: totalAmountPaise };
         if (editingRow) await updateProductTransaction({ ...input, id: editingRow.id });
         else await createProductTransaction(input);
       } else if (kind === 'heat') {
@@ -200,14 +209,14 @@ export default function ExpensesScreen() {
   };
 
   const createQuickItem = async () => {
-    if (!farmId || !session || (kind !== 'feed' && kind !== 'product' && kind !== 'silage' && kind !== 'investment') || !quickItemName.trim()) return;
+    if (!farmId || !session || (kind !== 'feed' && kind !== 'product') || !quickItemName.trim()) return;
     setBusy(true);
     setMessage(null);
     try {
       const itemId = await createItem({
         farmId,
         userId: session.user.id,
-        type: kind === 'investment' || kind === 'silage' ? 'product' : kind,
+        type: kind,
         name: quickItemName,
         baseUnit: quickItemUnit.trim() || (kind === 'feed' ? 'kg' : 'unit'),
       });
@@ -262,8 +271,8 @@ export default function ExpensesScreen() {
         {kind === 'heat' ? <ChoiceList label="Animal" rows={animals} selectedId={selectedAnimal?.id ?? null} onSelect={setSelectedAnimalId} /> : null}
         {kind === 'treatment' || kind === 'other' ? <View style={styles.choiceBlock}><Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>{kind === 'other' ? 'Animals affected' : 'Animals treated'}</Text><Pressable onPress={() => setSelectedTreatmentAnimalIds(allAnimalsSelected ? [] : animals.map((animal) => animal.id))} style={[styles.quickItemButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>{allAnimalsSelected ? 'Deselect all' : 'Select all'}</Text></Pressable><View style={styles.choices}>{animals.map((animal) => <Pressable key={animal.id} onPress={() => setSelectedTreatmentAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.choice, { backgroundColor: selectedTreatmentAnimalIds.includes(animal.id) ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: selectedTreatmentAnimalIds.includes(animal.id) ? '#FFFFFF' : colors.text, fontWeight: '600' }}>{animal.tag}</Text></Pressable>)}</View></View> : null}
         {kind === 'other' ? <View style={styles.numericRow}><TextInput accessibilityLabel="Other event type" onChangeText={setEventType} placeholder="Event type (optional)" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={eventType} /><TextInput accessibilityLabel="Other event cost" keyboardType="decimal-pad" onChangeText={setDoctorFee} placeholder="Cost ₹ (optional)" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={doctorFee} /></View> : null}
-        {kind === 'feed' || kind === 'product' || kind === 'silage' || kind === 'investment' ? <ChoiceList label={`${neededItemType} suggestions`} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={selectOperationItem} /> : null}
-        {kind === 'feed' || kind === 'product' || kind === 'silage' || kind === 'investment' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
+        {kind === 'feed' || kind === 'product' ? <ChoiceList label={`${neededItemType} suggestions`} rows={availableItems} selectedId={selectedItem?.id ?? null} onSelect={selectOperationItem} /> : null}
+        {kind === 'feed' || kind === 'product' ? <View style={[styles.quickItem, { borderTopColor: colors.border }]}>
           <Text style={[styles.choiceLabel, { color: colors.textSecondary }]}>New {kindLabel(kind).toLowerCase()} item</Text>
           <View style={styles.numericRow}>
             <TextInput accessibilityLabel={`New ${kind} item name`} onChangeText={setQuickItemName} placeholder="Item name" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quickItemName} />
@@ -272,12 +281,14 @@ export default function ExpensesScreen() {
           <Pressable disabled={busy || !quickItemName.trim()} onPress={() => void createQuickItem()} style={[styles.quickItemButton, { borderColor: colors.primary }, (busy || !quickItemName.trim()) && styles.disabled]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Add item</Text></Pressable>
         </View> : null}
 
-        {kind === 'feed' || kind === 'product' || kind === 'silage' || kind === 'investment' ? (
+        {kind === 'feed' || kind === 'product' ? (
           <View style={styles.numericRow}>
             <TextInput accessibilityLabel="Units" keyboardType="decimal-pad" onChangeText={setQuantity} placeholder={`Units (${selectedItem?.base_unit ?? 'package'})`} placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={quantity} />
             <TextInput accessibilityLabel="Rate" keyboardType="decimal-pad" onChangeText={setRate} placeholder="Rate ₹" placeholderTextColor={colors.textSecondary} style={[styles.numericInput, { color: colors.text, borderColor: colors.border }]} value={rate} />
           </View>
         ) : null}
+
+        {kind === 'silage' || kind === 'investment' ? <TextInput accessibilityLabel={`${kindLabel(kind)} total amount`} keyboardType="decimal-pad" onChangeText={setTotalAmount} placeholder="Total amount ₹" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={totalAmount} /> : null}
 
         {kind === 'treatment' ? (
           <View style={styles.numericRow}>

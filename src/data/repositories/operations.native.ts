@@ -74,7 +74,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
       UNION ALL
 
       SELECT product.id, CASE WHEN product.category = 'investment' THEN 'investment' WHEN product.category = 'silage' THEN 'silage' ELSE 'product' END AS kind, product.transaction_date AS businessDate,
-        item.name AS title, product.category AS detail,
+        coalesce(item.name, CASE WHEN product.category = 'investment' THEN 'Investment' WHEN product.category = 'silage' THEN 'Silage' ELSE 'Product' END) AS title, product.category AS detail,
         product.amount_paise AS amountPaise,
         CASE WHEN product.deleted_at IS NULL THEN 0 ELSE 1 END AS isVoided,
         product.void_reason AS voidReason,
@@ -84,7 +84,7 @@ export async function listRecentOperations(farmId: string, limit = 50): Promise<
         NULL AS doctorFeePaise, NULL AS medicineCostPaise,
         product.notes AS notes, product.category AS productCategory, product.created_at AS createdAt
       FROM product_transactions product
-      JOIN items item ON item.id = product.item_id
+      LEFT JOIN items item ON item.id = product.item_id
       WHERE product.farm_id = ?
 
       UNION ALL
