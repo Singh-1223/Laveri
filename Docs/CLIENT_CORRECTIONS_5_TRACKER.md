@@ -20,7 +20,7 @@ Source: `Correction 5_260909_113806.pdf`, received 2026-09-09.
 | C5-07 | [>] Implemented | Remove suggestion swipe animation and fix close control for long names. | Suggestions now change range immediately through Previous/Next controls; selection still advances automatically, and the persistent Close control remains visible for long names. Awaiting device retest. |
 | C5-08 | [>] Implemented | Remove Today, Buyer Sales and Animal Productivity from Reports UI only. | These three sections are removed from the Reports screen only. Stored transactions and report calculations remain unchanged. Awaiting device retest. |
 | C5-09 | [>] Implemented | Keep labels beneath animal names in original label-addition order. | Labels beneath each animal now sort by immutable custom-label creation time. Dragging top Herd tabs does not change this displayed order. Awaiting device retest. |
-| C5-10 | [ ] | Add soft, distinct background shades for app sections. | Visual-only, app-wide consistency work. |
+| C5-10 | [>] Implemented | Add soft, distinct background shades for app sections. | Section cards now receive consistent, soft complementary shades from their title, in both light and dark themes. Awaiting device retest. |
 | C5-11 | [>] Implemented | Buyer Account bills upload/history. | Images and PDFs can be attached to the selected 10-day period; each entry has open and delete actions. Requires the new Supabase migration and PowerSync deployment before device retest. |
 
 ## Confirmed scope
