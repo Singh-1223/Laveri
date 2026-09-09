@@ -1,17 +1,16 @@
 import { useFocusEffect } from 'expo-router';
 import { Directory } from 'expo-file-system';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { deleteDailyDiary, getDailyDiary, getPeriodReport, getQualityRecords, saveDailyDiary } from '@/data/repositories/reports';
-import type { DailyDiaryRow, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
+import { getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
+import type { MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
 import { formatFarmDate, shiftTenDayCycle, tenDayCycleEnd, tenDayCycleStart } from '@/domain/dates';
-import { useSession } from '@/features/auth/session-provider';
 
 function currentMonthRange() {
   const now = new Date();
@@ -21,30 +20,19 @@ function currentMonthRange() {
   const last = new Date(year, month + 1, 0).getDate();
   return { fromDate, toDate: `${year}-${String(month + 1).padStart(2, '0')}-${last}` };
 }
-function monthRange(anchor: string) { const date = new Date(`${anchor}-01T12:00:00`); return { fromDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`, toDate: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()}` }; }
-function shiftMonth(anchor: string, direction: -1 | 1) { const date = new Date(`${anchor}-01T12:00:00`); date.setMonth(date.getMonth() + direction); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
-
 function todayAtFarm() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
 
 export default function ReportsScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const { session } = useSession();
   const initial = currentMonthRange();
   const [fromDate, setFromDate] = useState(initial.fromDate);
   const [toDate, setToDate] = useState(initial.toDate);
   const [report, setReport] = useState<PeriodReport | null>(null);
   const [qualityCycleStart, setQualityCycleStart] = useState(tenDayCycleStart(todayAtFarm()));
   const [qualityRecords, setQualityRecords] = useState<MilkQualityRecord[]>([]);
-  const [farmId, setFarmId] = useState<string | null>(null);
-  const [diaryMonth, setDiaryMonth] = useState(todayAtFarm().slice(0, 7));
-  const [diaryRows, setDiaryRows] = useState<DailyDiaryRow[]>([]);
-  const [diaryDate, setDiaryDate] = useState(todayAtFarm());
-  const [diaryComment, setDiaryComment] = useState('');
-  const [editingDiaryId, setEditingDiaryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [qualityLoading, setQualityLoading] = useState(false);
-  const [diaryLoading, setDiaryLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -55,7 +43,7 @@ export default function ReportsScreen() {
     setMessage(null);
     try {
       const sync = await getPowerSyncSnapshot();
-      if (sync.farmId) { const period = await getPeriodReport(sync.farmId, fromDate, toDate); setFarmId(sync.farmId); setReport(period); } else { setFarmId(null); setReport(null); setQualityRecords([]); setDiaryRows([]); }
+      if (sync.farmId) { const period = await getPeriodReport(sync.farmId, fromDate, toDate); setReport(period); } else { setReport(null); setQualityRecords([]); }
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to calculate reports.');
     } finally {
@@ -64,11 +52,6 @@ export default function ReportsScreen() {
   }, [fromDate, toDate]);
 
   const loadQuality = useCallback(async () => { setQualityLoading(true); try { const sync = await getPowerSyncSnapshot(); setQualityRecords(sync.farmId ? await getQualityRecords(sync.farmId, qualityCycleStart, tenDayCycleEnd(qualityCycleStart)) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load FAT/SNF records.'); } finally { setQualityLoading(false); } }, [qualityCycleStart]);
-  const loadDiary = useCallback(async () => { setDiaryLoading(true); try { const sync = await getPowerSyncSnapshot(); const range = monthRange(diaryMonth); setDiaryRows(sync.farmId ? await getDailyDiary(sync.farmId, range.fromDate, range.toDate) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load Daily Dairy comments.'); } finally { setDiaryLoading(false); } }, [diaryMonth]);
-
-  const saveDiary = async () => { if (!farmId || !session || !diaryComment.trim()) return; try { await saveDailyDiary({ farmId, userId: session.user.id, diaryDate, comment: diaryComment, id: editingDiaryId ?? undefined }); setDiaryComment(''); setEditingDiaryId(null); await loadDiary(); setMessage('Daily Dairy entry saved.'); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to save the Daily Dairy entry.'); } };
-  const removeDiary = async (id: string) => { if (!farmId || !session) return; try { await deleteDailyDiary({ farmId, userId: session.user.id, id }); if (editingDiaryId === id) { setEditingDiaryId(null); setDiaryComment(''); } await loadDiary(); setMessage('Daily Dairy entry deleted.'); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to delete the Daily Dairy entry.'); } };
-
   const exportCsv = async () => {
     if (!report) return;
     setExporting(true);
@@ -94,7 +77,6 @@ export default function ReportsScreen() {
     }, [refresh]),
   );
   useEffect(() => { const timeout = setTimeout(() => void loadQuality(), 0); return () => clearTimeout(timeout); }, [loadQuality]);
-  useEffect(() => { const timeout = setTimeout(() => void loadDiary(), 0); return () => clearTimeout(timeout); }, [loadDiary]);
 
   const qualityCycleEnd = tenDayCycleEnd(qualityCycleStart);
 
@@ -112,7 +94,6 @@ export default function ReportsScreen() {
       {message ? <Text style={[styles.message, { color: colors.primary }]}>{message}</Text> : null}
       {loading ? <ActivityIndicator color={colors.primary} /> : !report ? <EmptyState>Complete farm setup to calculate reports.</EmptyState> : (
         <>
-          <SectionCard title={`Daily Dairy (${diaryRows.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => setDiaryMonth((value) => shiftMonth(value, -1))}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(`${diaryMonth}-01`).replace(/^\d{2}-/, '')}</Text><Pressable onPress={() => setDiaryMonth((value) => shiftMonth(value, 1))}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View><DateField label="Diary date" value={diaryDate} onChange={setDiaryDate} /><TextInput accessibilityLabel="Daily Dairy comment" multiline onChangeText={setDiaryComment} placeholder="Daily farm comment" placeholderTextColor={colors.textSecondary} style={[styles.diaryInput, { color: colors.text, borderColor: colors.border }]} value={diaryComment} /><Pressable disabled={!diaryComment.trim()} onPress={() => void saveDiary()} style={[styles.refresh, { backgroundColor: colors.primary }, !diaryComment.trim() && styles.disabled]}><Text style={styles.refreshText}>{editingDiaryId ? 'Update comment' : 'Save comment'}</Text></Pressable>{editingDiaryId ? <Pressable onPress={() => { setEditingDiaryId(null); setDiaryComment(''); }}><Text style={{ color: colors.textSecondary }}>Cancel editing</Text></Pressable> : null}{diaryLoading ? <ActivityIndicator color={colors.primary} /> : diaryRows.length ? diaryRows.map((entry) => <View key={entry.id} style={[styles.detailRow, { borderTopColor: colors.border }]}><View style={styles.detailCopy}><Text style={[styles.animal, { color: colors.text }]}>{formatFarmDate(entry.diaryDate)}</Text><Text style={[styles.sessions, { color: colors.textSecondary }]}>{entry.comment}</Text></View><View style={styles.diaryActions}><Pressable onPress={() => { setEditingDiaryId(entry.id); setDiaryDate(entry.diaryDate); setDiaryComment(entry.comment); }}><Text style={{ color: colors.primary }}>Edit</Text></Pressable><Pressable onPress={() => void removeDiary(entry.id)}><Text style={{ color: colors.danger }}>Delete</Text></Pressable></View></View>) : <EmptyState>No Daily Dairy comments this month.</EmptyState>}</SectionCard>
           <View style={styles.grid}>
             <ReportCard label="Production" value={formatMilk(report.producedMl)} />
             <ReportCard label="Milk revenue" value={formatMoney(report.milkRevenuePaise)} />
