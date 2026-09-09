@@ -1,12 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Appearance, type ColorSchemeName } from 'react-native';
+import { Appearance } from 'react-native';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 const storageKey = 'laveri.theme-preference';
 
 function apply(preference: ThemePreference) {
-  Appearance.setColorScheme((preference === 'system' ? null : preference) as ColorSchemeName);
+  // Android's Appearance bridge rejects null. A fresh app launch already
+  // follows the system scheme, so System deliberately performs no native call.
+  if (preference === 'light' || preference === 'dark') Appearance.setColorScheme(preference);
 }
 
 export async function loadThemePreference(): Promise<ThemePreference> {
@@ -19,8 +21,4 @@ export async function loadThemePreference(): Promise<ThemePreference> {
 export async function saveThemePreference(preference: ThemePreference) {
   apply(preference);
   await AsyncStorage.setItem(storageKey, preference);
-}
-
-export function activeThemePreference(scheme: ColorSchemeName): ThemePreference {
-  return scheme === 'dark' ? 'dark' : 'light';
 }
