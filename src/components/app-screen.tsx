@@ -77,13 +77,14 @@ function SyncPill() {
   );
 }
 
-export function SectionCard({ title, children }: PropsWithChildren<{ title?: string }>) {
+export function SectionCard({ title, toneKey, children }: PropsWithChildren<{ title?: string; toneKey?: string }>) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const shades = scheme === 'dark'
     ? ['#182D24', '#1C2B34', '#2A271C', '#27223A']
     : ['#FFFFFF', '#F4FAF7', '#F6F8FF', '#FFF9F0'];
-  const shadeIndex = title ? [...title].reduce((total, character) => total + character.charCodeAt(0), 0) % shades.length : 0;
+  const shadeSource = toneKey ?? title;
+  const shadeIndex = shadeSource ? [...shadeSource].reduce((total, character) => total + character.charCodeAt(0), 0) % shades.length : 0;
   return (
     <View style={[styles.card, { backgroundColor: shades[shadeIndex], borderColor: colors.border }]}>
       {title ? <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text> : null}
