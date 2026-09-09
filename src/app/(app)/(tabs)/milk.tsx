@@ -1,6 +1,6 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
@@ -42,8 +42,6 @@ function parseHundredths(value: string): number | null {
   const result = Math.round(Number(normalized) * 100);
   return Number.isSafeInteger(result) ? result : Number.NaN;
 }
-
-const PICKER_PAGE_WIDTH = Math.min(420, Dimensions.get('window').width - 32);
 
 export default function MilkScreen() {
   const scheme = useColorScheme();
@@ -486,9 +484,15 @@ function QualityField({ disabled, label, value, onPress, placeholder, invalid }:
 function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string } | null; onClose: () => void; onSelect: (value: number) => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const starts = picker ? Array.from({ length: Math.max(1, picker.max - 1) }, (_, index) => index) : [];
-  const initialIndex = picker ? Math.max(0, Math.min(starts.length - 1, Math.floor(picker.initial) - 1)) : 0;
-  return <Modal transparent animationType="slide" visible={picker !== null} onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>{picker?.label}</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next whole-number range. Each page has three columns and ten decimal rows.</Text><FlatList horizontal pagingEnabled key={picker?.key} data={starts} keyExtractor={String} getItemLayout={(_, index) => ({ length: PICKER_PAGE_WIDTH, offset: PICKER_PAGE_WIDTH * index, index })} initialNumToRender={3} initialScrollIndex={initialIndex} showsHorizontalScrollIndicator={false} renderItem={({ item: start }) => <View style={styles.pickerPage}>{Array.from({ length: 10 }, (_, decimal) => <View key={decimal} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = whole + decimal / 10; const selected = picker !== null && Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View>} /></View></View></Modal>;
+  if (!picker) return null;
+  return <Modal transparent animationType="none" visible onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.pickerHeader}><Text numberOfLines={1} style={[styles.pickerTitle, { color: colors.text }]}>{picker.label}</Text><Pressable accessibilityLabel="Close suggestions" hitSlop={8} onPress={onClose} style={styles.closeButton}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><SuggestionGrid key={picker.key} colors={colors} picker={picker} onSelect={onSelect} /></View></View></Modal>;
+}
+
+function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number }; onSelect: (value: number) => void }) {
+  const maxStart = Math.max(0, picker.max - 2);
+  const [start, setStart] = useState(() => Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1)));
+  const unit = picker.max === 10 ? '%' : 'L';
+  return <><View style={styles.pickerNavigation}><Pressable accessibilityLabel="Previous suggestion range" disabled={start === 0} onPress={() => setStart((value) => Math.max(0, value - 1))}><Text style={[styles.pickerNavigationText, { color: colors.primary }, start === 0 && styles.disabled]}>‹ Previous</Text></Pressable><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>{start.toFixed(0)}–{Math.min(picker.max, start + 2).toFixed(0)} {unit}</Text><Pressable accessibilityLabel="Next suggestion range" disabled={start === maxStart} onPress={() => setStart((value) => Math.min(maxStart, value + 1))}><Text style={[styles.pickerNavigationText, { color: colors.primary }, start === maxStart && styles.disabled]}>Next ›</Text></Pressable></View><View>{Array.from({ length: 10 }, (_, decimal) => <View key={decimal} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = whole + decimal / 10; const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
@@ -576,9 +580,13 @@ const styles = StyleSheet.create({
   menuItemTitle: { fontSize: 16, fontWeight: '800' },
   menuItemDetail: { fontSize: 13, lineHeight: 18 },
   pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
-  pickerPanel: { alignSelf: 'center', width: PICKER_PAGE_WIDTH, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 18, paddingBottom: 24 },
-  pickerHint: { fontSize: 13, lineHeight: 18, paddingBottom: 10 },
-  pickerPage: { width: PICKER_PAGE_WIDTH },
+  pickerPanel: { alignSelf: 'center', width: '100%', maxWidth: 420, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 18, paddingBottom: 24 },
+  pickerHeader: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingBottom: 10 },
+  pickerTitle: { flex: 1, flexShrink: 1, fontSize: 22, fontWeight: '800' },
+  closeButton: { minWidth: 46, alignItems: 'flex-end' },
+  pickerNavigation: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10 },
+  pickerNavigationText: { fontSize: 14, fontWeight: '800' },
+  pickerHint: { fontSize: 13, lineHeight: 18 },
   pickerRow: { flexDirection: 'row' },
   pickerValue: { flex: 1, height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
   pickerValueText: { fontSize: 19, fontWeight: '700' },
