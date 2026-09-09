@@ -1,7 +1,7 @@
 import { Link, useFocusEffect } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -13,13 +13,14 @@ type AppScreenProps = PropsWithChildren<{
   subtitle?: string;
   action?: ReactNode;
   scroll?: boolean;
+  contentStyle?: StyleProp<ViewStyle>;
 }>;
 
-export function AppScreen({ title, subtitle, action, scroll = true, children }: AppScreenProps) {
+export function AppScreen({ title, subtitle, action, scroll = true, contentStyle, children }: AppScreenProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const content = (
-    <View style={styles.content}>
+    <View style={[styles.content, contentStyle]}>
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={[styles.title, { color: colors.text }]}>{title}</Text>

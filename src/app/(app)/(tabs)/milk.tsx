@@ -335,7 +335,7 @@ export default function MilkScreen() {
   };
 
   return (
-    <AppScreen scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel="Open Daily Dairy" onPress={() => router.push('/daily-diary' as never)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>📖</Text></Pressable><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
+    <AppScreen contentStyle={styles.milkScreenContent} scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel="Open Daily Dairy" onPress={() => router.push('/daily-diary' as never)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>📖</Text></Pressable><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
       <MilkMenu
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
@@ -523,7 +523,8 @@ function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onC
 
 const styles = StyleSheet.create({
   pageScroll: { flex: 1 },
-  pageContent: { gap: 16, paddingBottom: 28 },
+  milkScreenContent: { paddingBottom: 0 },
+  pageContent: { gap: 16, paddingBottom: 8 },
   dateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   dateCenter: { alignItems: 'center', gap: 3 },
   date: { fontSize: 17, fontWeight: '800' },
