@@ -373,7 +373,7 @@ export default function MilkScreen() {
       </View>
       {isLocked ? <Text style={[styles.helper, { color: colors.textSecondary }]}>This date is locked. Tap the lock icon to temporarily edit it; it locks again when you move to another date.</Text> : null}
 
-      <SectionCard>
+      <SectionCard title="Milk entry">
         {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <NestableDraggableFlatList
           data={entries}
           keyExtractor={(entry) => entry.animalId}
@@ -392,14 +392,14 @@ export default function MilkScreen() {
         />}
       </SectionCard>
 
-      <SectionCard>
+      <SectionCard title="FAT & SNF entry">
         <View style={styles.qualityRow}>
           <QualityField disabled={isLocked} label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0.0' : (previousFat / 100).toFixed(1)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
           <QualityField disabled={isLocked} label="SNF %" value={snf} onPress={() => openPicker('snf', 10, 'SNF %', previousSnf)} placeholder={previousSnf === null ? '0.0' : (previousSnf / 100).toFixed(1)} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
         </View>
       </SectionCard>
 
-      <SectionCard>
+      <SectionCard title="Buyer entry">
         {allocations.filter((allocation) => allocation.destination === 'buyer').length ? <NestableDraggableFlatList
           data={allocations.filter((allocation) => allocation.destination === 'buyer')}
           keyExtractor={(allocation) => allocation.key}
