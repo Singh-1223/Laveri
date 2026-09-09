@@ -12,7 +12,7 @@ import type { DailyDashboardSummary } from '@/data/repositories/dashboard.types'
 import { deleteDailyDiary, getDailyDiary, getMilkSourceEntries, getPeriodReport, getQualityRecords, saveDailyDiary } from '@/data/repositories/reports';
 import type { DailyDiaryRow, MilkProductionDetailRow, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
-import { formatFarmDate } from '@/domain/dates';
+import { formatFarmDate, shiftTenDayCycle, tenDayCycleEnd, tenDayCycleStart } from '@/domain/dates';
 import { useSession } from '@/features/auth/session-provider';
 
 function currentMonthRange() {
@@ -27,9 +27,6 @@ function monthRange(anchor: string) { const date = new Date(`${anchor}-01T12:00:
 function shiftMonth(anchor: string, direction: -1 | 1) { const date = new Date(`${anchor}-01T12:00:00`); date.setMonth(date.getMonth() + direction); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`; }
 
 function todayAtFarm() { const now = new Date(); return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`; }
-function cycleFor(value: string) { const date = new Date(`${value}T12:00:00`); const day = date.getDate(); date.setDate(day <= 10 ? 1 : day <= 20 ? 11 : 21); return date.toISOString().slice(0, 10); }
-function shiftCycle(value: string, direction: -1 | 1) { const date = new Date(`${value}T12:00:00`); date.setDate(date.getDate() + direction * 11); return cycleFor(date.toISOString().slice(0, 10)); }
-function cycleEnd(value: string) { const [year, month, day] = value.split('-').map(Number); const endDay = day === 1 ? 10 : day === 11 ? 20 : new Date(year, month, 0).getDate(); return `${year}-${String(month).padStart(2, '0')}-${String(endDay).padStart(2, '0')}`; }
 
 export default function ReportsScreen() {
   const scheme = useColorScheme();
@@ -42,9 +39,9 @@ export default function ReportsScreen() {
   const [todaySummary, setTodaySummary] = useState<DailyDashboardSummary | null>(null);
   const [animalFilter, setAnimalFilter] = useState('all');
   const [buyerFilter, setBuyerFilter] = useState('all');
-  const [qualityCycleStart, setQualityCycleStart] = useState(cycleFor(todayAtFarm()));
+  const [qualityCycleStart, setQualityCycleStart] = useState(tenDayCycleStart(todayAtFarm()));
   const [qualityRecords, setQualityRecords] = useState<MilkQualityRecord[]>([]);
-  const [sourceCycleStart, setSourceCycleStart] = useState(cycleFor(todayAtFarm()));
+  const [sourceCycleStart, setSourceCycleStart] = useState(tenDayCycleStart(todayAtFarm()));
   const [sourceEntries, setSourceEntries] = useState<MilkProductionDetailRow[]>([]);
   const [farmId, setFarmId] = useState<string | null>(null);
   const [diaryMonth, setDiaryMonth] = useState(todayAtFarm().slice(0, 7));
@@ -74,8 +71,8 @@ export default function ReportsScreen() {
     }
   }, [fromDate, toDate]);
 
-  const loadQuality = useCallback(async () => { setQualityLoading(true); try { const sync = await getPowerSyncSnapshot(); setQualityRecords(sync.farmId ? await getQualityRecords(sync.farmId, qualityCycleStart, cycleEnd(qualityCycleStart)) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load FAT/SNF records.'); } finally { setQualityLoading(false); } }, [qualityCycleStart]);
-  const loadSource = useCallback(async () => { setSourceLoading(true); try { const sync = await getPowerSyncSnapshot(); setSourceEntries(sync.farmId ? await getMilkSourceEntries(sync.farmId, sourceCycleStart, cycleEnd(sourceCycleStart)) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load milk source entries.'); } finally { setSourceLoading(false); } }, [sourceCycleStart]);
+  const loadQuality = useCallback(async () => { setQualityLoading(true); try { const sync = await getPowerSyncSnapshot(); setQualityRecords(sync.farmId ? await getQualityRecords(sync.farmId, qualityCycleStart, tenDayCycleEnd(qualityCycleStart)) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load FAT/SNF records.'); } finally { setQualityLoading(false); } }, [qualityCycleStart]);
+  const loadSource = useCallback(async () => { setSourceLoading(true); try { const sync = await getPowerSyncSnapshot(); setSourceEntries(sync.farmId ? await getMilkSourceEntries(sync.farmId, sourceCycleStart, tenDayCycleEnd(sourceCycleStart)) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load milk source entries.'); } finally { setSourceLoading(false); } }, [sourceCycleStart]);
   const loadDiary = useCallback(async () => { setDiaryLoading(true); try { const sync = await getPowerSyncSnapshot(); const range = monthRange(diaryMonth); setDiaryRows(sync.farmId ? await getDailyDiary(sync.farmId, range.fromDate, range.toDate) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load Daily Dairy comments.'); } finally { setDiaryLoading(false); } }, [diaryMonth]);
 
   const saveDiary = async () => { if (!farmId || !session || !diaryComment.trim()) return; try { await saveDailyDiary({ farmId, userId: session.user.id, diaryDate, comment: diaryComment, id: editingDiaryId ?? undefined }); setDiaryComment(''); setEditingDiaryId(null); await loadDiary(); setMessage('Daily Dairy entry saved.'); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to save the Daily Dairy entry.'); } };
@@ -113,8 +110,8 @@ export default function ReportsScreen() {
   const buyerOptions = useMemo(() => uniqueOptions(report?.buyerSales.map((row) => ({ id: row.buyerId, label: row.buyerName })) ?? []), [report]);
   const visibleMilkEntries = useMemo(() => sourceEntries.filter((row) => animalFilter === 'all' || row.animalId === animalFilter), [animalFilter, sourceEntries]);
   const visibleBuyerSales = useMemo(() => report?.buyerSales.filter((row) => buyerFilter === 'all' || row.buyerId === buyerFilter) ?? [], [buyerFilter, report]);
-  const qualityCycleEnd = cycleEnd(qualityCycleStart);
-  const sourceCycleEnd = cycleEnd(sourceCycleStart);
+  const qualityCycleEnd = tenDayCycleEnd(qualityCycleStart);
+  const sourceCycleEnd = tenDayCycleEnd(sourceCycleStart);
 
   return (
     <AppScreen title="Reports" subtitle="Calculated locally from source transactions">
@@ -158,13 +155,13 @@ export default function ReportsScreen() {
             <ReportLine label={report.unallocatedMl < 0 ? 'Over-allocated' : 'Unallocated'} value={formatMilk(Math.abs(report.unallocatedMl))} danger={report.unallocatedMl < 0} />
           </SectionCard>
 
-          <SectionCard title={`FAT & SNF records (${qualityRecords.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => setQualityCycleStart((value) => shiftCycle(value, -1))}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(qualityCycleStart)} – {formatFarmDate(qualityCycleEnd)}</Text><Pressable onPress={() => setQualityCycleStart((value) => shiftCycle(value, 1))}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
+          <SectionCard title={`FAT & SNF records (${qualityRecords.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => setQualityCycleStart((value) => shiftTenDayCycle(value, -1))}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(qualityCycleStart)} – {formatFarmDate(qualityCycleEnd)}</Text><Pressable onPress={() => setQualityCycleStart((value) => shiftTenDayCycle(value, 1))}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
             {qualityLoading ? <ActivityIndicator color={colors.primary} /> : qualityRecords.length === 0 ? <EmptyState>No FAT/SNF records in this date range.</EmptyState> : qualityRecords.map((record) => (
               <ReportLine key={`${record.milkDate}:${record.session}`} label={`${formatFarmDate(record.milkDate)} · ${record.session === 'morning' ? 'Morning' : 'Evening'}`} value={`FAT ${record.fatHundredths === null ? '—' : `${record.fatHundredths / 100}%`} · SNF ${record.snfHundredths === null ? '—' : `${record.snfHundredths / 100}%`}`} />
             ))}
           </SectionCard>
 
-          <SectionCard title={`Milk source entries (${visibleMilkEntries.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => { setAnimalFilter('all'); setSourceCycleStart((value) => shiftCycle(value, -1)); }}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(sourceCycleStart)} – {formatFarmDate(sourceCycleEnd)}</Text><Pressable onPress={() => { setAnimalFilter('all'); setSourceCycleStart((value) => shiftCycle(value, 1)); }}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
+          <SectionCard title={`Milk source entries (${visibleMilkEntries.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => { setAnimalFilter('all'); setSourceCycleStart((value) => shiftTenDayCycle(value, -1)); }}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(sourceCycleStart)} – {formatFarmDate(sourceCycleEnd)}</Text><Pressable onPress={() => { setAnimalFilter('all'); setSourceCycleStart((value) => shiftTenDayCycle(value, 1)); }}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
             <FilterChips label="Animal" options={animalOptions} selected={animalFilter} onSelect={setAnimalFilter} />
             {sourceLoading ? <ActivityIndicator color={colors.primary} /> : visibleMilkEntries.length === 0 ? <EmptyState>No milk entries match this filter.</EmptyState> : visibleMilkEntries.map((entry) => (
               <View key={entry.id} style={[styles.detailRow, { borderTopColor: colors.border }]}>

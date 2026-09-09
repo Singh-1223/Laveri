@@ -22,6 +22,36 @@ export function formatElapsedMonthsDays(startDate: string, endDate = new Date().
   return `${months}M ${days}D`;
 }
 
+export function tenDayCycleStart(value: string): string {
+  const date = parseFarmDate(value);
+  if (!date) return value;
+  date.setUTCDate(date.getUTCDate() <= 10 ? 1 : date.getUTCDate() <= 20 ? 11 : 21);
+  return date.toISOString().slice(0, 10);
+}
+
+export function shiftTenDayCycle(value: string, direction: -1 | 1): string {
+  const start = parseFarmDate(tenDayCycleStart(value));
+  if (!start) return value;
+  const day = start.getUTCDate();
+  if (direction === 1) {
+    if (day === 1) start.setUTCDate(11);
+    else if (day === 11) start.setUTCDate(21);
+    else { start.setUTCMonth(start.getUTCMonth() + 1); start.setUTCDate(1); }
+  } else if (day === 21) start.setUTCDate(11);
+  else if (day === 11) start.setUTCDate(1);
+  else { start.setUTCMonth(start.getUTCMonth() - 1); start.setUTCDate(21); }
+  return start.toISOString().slice(0, 10);
+}
+
+export function tenDayCycleEnd(value: string): string {
+  const start = parseFarmDate(tenDayCycleStart(value));
+  if (!start) return value;
+  const day = start.getUTCDate();
+  const endDay = day === 1 ? 10 : day === 11 ? 20 : new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0)).getUTCDate();
+  start.setUTCDate(endDay);
+  return start.toISOString().slice(0, 10);
+}
+
 function parseFarmDate(value: string): Date | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) return null;
