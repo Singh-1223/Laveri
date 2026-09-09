@@ -1,9 +1,11 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, StyleSheet, View, useColorScheme } from 'react-native';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { SessionProvider, useSession } from '@/features/auth/session-provider';
+import { loadThemePreference } from '@/features/theme/theme-preference';
 
 export default function RootLayout() {
   return (
@@ -18,6 +20,8 @@ export default function RootLayout() {
 function RootNavigator() {
   const colorScheme = useColorScheme();
   const { loading, session } = useSession();
+
+  useEffect(() => { void loadThemePreference(); }, []);
 
   if (loading) {
     return (

@@ -13,6 +13,7 @@ import { formatFarmDate } from '@/domain/dates';
 import type { MilkSession } from '@/domain/types';
 import { useSession } from '@/features/auth/session-provider';
 import { refreshMilkSessionReminder } from '@/features/reminders/milk-reminders';
+import { loadThemePreference, saveThemePreference, type ThemePreference } from '@/features/theme/theme-preference';
 
 function todayAtFarm(): string {
   const now = new Date();
@@ -498,6 +499,8 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const [themePreference, setThemePreference] = useState<ThemePreference>('system');
+  useEffect(() => { if (open) void loadThemePreference().then(setThemePreference); }, [open]);
   const options: { label: string; detail: string; path: '/master-data' | '/pricing' | '/corrections' | '/reminders' }[] = [
     { label: 'Manage master data', detail: 'Animals, buyers, feed, medicine, and products', path: '/master-data' },
     { label: 'Price calculator', detail: 'Calculate a reference price from FAT and SNF', path: '/pricing' },
@@ -510,6 +513,7 @@ function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onC
           <View style={[styles.menuPanel, { backgroundColor: colors.backgroundElement, borderColor: colors.border }]}>
           <View style={styles.menuHeader}><Text style={[styles.menuTitle, { color: colors.text }]}>Milk menu</Text><Pressable onPress={onClose}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View>
           {options.map((option) => <Pressable key={option.path} onPress={() => onNavigate(option.path)} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.text }]}>{option.label}</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>{option.detail}</Text></Pressable>)}
+          <View style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.text }]}>Theme</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>Choose how the app looks on this device</Text><View style={styles.themeOptions}>{(['system', 'light', 'dark'] as const).map((option) => <Pressable key={option} onPress={() => { setThemePreference(option); void saveThemePreference(option); }} style={[styles.themeOption, { backgroundColor: themePreference === option ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: themePreference === option ? '#FFFFFF' : colors.text }}>{option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}</Text></Pressable>)}</View></View>
           <Pressable onPress={onSignOut} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.danger }]}>Sign out</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>Sign out of this Google account on this device</Text></Pressable>
         </View>
       </View>
@@ -579,6 +583,8 @@ const styles = StyleSheet.create({
   menuItem: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, gap: 4 },
   menuItemTitle: { fontSize: 16, fontWeight: '800' },
   menuItemDetail: { fontSize: 13, lineHeight: 18 },
+  themeOptions: { flexDirection: 'row', gap: 8, marginTop: 4 },
+  themeOption: { alignItems: 'center', borderRadius: 9, flex: 1, paddingVertical: 9 },
   pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   pickerPanel: { alignSelf: 'center', width: '100%', maxWidth: 420, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingTop: 18, paddingBottom: 24 },
   pickerHeader: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingBottom: 10 },
