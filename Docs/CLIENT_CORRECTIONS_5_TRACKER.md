@@ -11,8 +11,8 @@ Source: `Correction 5_260909_113806.pdf`, received 2026-09-09.
 
 | ID | Status | Client request | Scope |
 |---|---|---|---|
-| C5-01 | [~] | Apply regular buyer rate changes to inclusive historical date ranges. | Existing feature; retest. |
-| C5-02 | [~] | Verka cumulative 100 kg/day target balance. | Verify exact cumulative formula and cycle presentation. |
+| C5-01 | [>] Verified | Apply regular buyer rate changes to inclusive historical date ranges. | Existing Master Data buyer editor applies the entered rate to that buyer’s saved allocations from the selected start date through end date, inclusive. Awaiting device retest. |
+| C5-02 | [>] Verified | Verka cumulative 100 kg/day target balance. | Milk calculates only saved Verka allocations from the current cycle start to the selected date and compares them with elapsed days × 100 kg. Awaiting device retest. |
 | C5-03 | [>] Implemented | Previous/Next 10-day navigation must move exactly one adjacent cycle. | Buyer Account and Reports now use one shared cycle helper: `1-10 → 11-20 → 21-end`, including correct previous-month handling from the 1st shift. Awaiting device retest. |
 | C5-04 | [>] Implemented | Remove Milk Source Entries from Reports UI only. | Milk Source Entries, navigation and filters are removed from Reports. Source data and repository logic are preserved. Awaiting device retest. |
 | C5-05 | [>] Implemented | Add daily total milk table below Animal Profile graph. | The table is directly below the unchanged graph and uses the same displayed daily points/date range. It has one combined morning/evening total per day and a Total milk row. Awaiting device retest. |
