@@ -43,7 +43,7 @@ export async function listMasterData(): Promise<MasterDataSnapshot> {
       `SELECT id, type, name, base_unit, default_rate_paise_per_unit, active, notes
        FROM items WHERE deleted_at IS NULL ORDER BY type, active DESC, name COLLATE NOCASE`,
     ),
-    database.getAll<MasterDataSnapshot['animalLabels'][number]>(`SELECT id, name, color, display_order FROM animal_labels WHERE deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`),
+    database.getAll<MasterDataSnapshot['animalLabels'][number]>(`SELECT id, name, color, display_order, created_at FROM animal_labels WHERE deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`),
     database.getAll<MasterDataSnapshot['animalLabelLinks'][number]>(`SELECT animal_id, label_id FROM animal_label_links WHERE deleted_at IS NULL`),
   ]);
   return { animals, buyers, items, animalLabels, animalLabelLinks };

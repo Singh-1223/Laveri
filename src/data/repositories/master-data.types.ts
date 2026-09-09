@@ -32,7 +32,7 @@ export type ItemRow = {
   notes?: string | null;
 };
 
-export type AnimalLabelRow = { id: string; name: string; color: string; display_order: number };
+export type AnimalLabelRow = { id: string; name: string; color: string; display_order: number; created_at: string };
 export type AnimalLabelLinkRow = { animal_id: string; label_id: string };
 
 export type MasterDataSnapshot = {

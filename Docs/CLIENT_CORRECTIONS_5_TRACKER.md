@@ -19,7 +19,7 @@ Source: `Correction 5_260909_113806.pdf`, received 2026-09-09.
 | C5-06 | [ ] | Move Daily Dairy to its own page from a Book icon on Milk. | Preserve its existing functions/data. |
 | C5-07 | [ ] | Remove suggestion swipe animation and fix close control for long names. | Apply to animal, buyer, FAT and SNF pickers. |
 | C5-08 | [>] Implemented | Remove Today, Buyer Sales and Animal Productivity from Reports UI only. | These three sections are removed from the Reports screen only. Stored transactions and report calculations remain unchanged. Awaiting device retest. |
-| C5-09 | [ ] | Keep labels beneath animal names in original label-addition order. | Independent of top Herd tab order. |
+| C5-09 | [>] Implemented | Keep labels beneath animal names in original label-addition order. | Labels beneath each animal now sort by immutable custom-label creation time. Dragging top Herd tabs does not change this displayed order. Awaiting device retest. |
 | C5-10 | [ ] | Add soft, distinct background shades for app sections. | Visual-only, app-wide consistency work. |
 | C5-11 | [ ] | Buyer Account bills upload/history. | Images and PDFs, dated history, open/delete actions. |
 
