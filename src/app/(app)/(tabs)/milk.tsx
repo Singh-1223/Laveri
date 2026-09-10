@@ -473,7 +473,7 @@ function SmallButton({ label, onPress }: { label: string; onPress: () => void })
 function SuggestionField({ accessibilityLabel, disabled, onPress, value, placeholder, invalid }: { accessibilityLabel: string; disabled?: boolean; onPress: () => void; value: string; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const enteredColor = scheme === 'dark' ? '#FF8A80' : '#8B1E1E';
+  const enteredColor = scheme === 'dark' ? '#B9D8FF' : '#123D72';
   const enteredSurface = scheme === 'dark' ? '#245E46' : '#BFE3CB';
   const enteredBorder = scheme === 'dark' ? '#72D7A5' : '#207A54';
   return <Pressable accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={[styles.volumeInput, { backgroundColor: value ? enteredSurface : 'transparent', borderColor: invalid ? colors.danger : value ? enteredBorder : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? enteredColor : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
@@ -482,7 +482,7 @@ function SuggestionField({ accessibilityLabel, disabled, onPress, value, placeho
 function QualityField({ disabled, label, value, onPress, placeholder, invalid }: { disabled?: boolean; label: string; value: string; onPress: () => void; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
-  const enteredColor = scheme === 'dark' ? '#FF8A80' : '#8B1E1E';
+  const enteredColor = scheme === 'dark' ? '#B9D8FF' : '#123D72';
   const enteredSurface = scheme === 'dark' ? '#245E46' : '#BFE3CB';
   const enteredBorder = scheme === 'dark' ? '#72D7A5' : '#207A54';
   return (
