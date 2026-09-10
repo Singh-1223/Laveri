@@ -577,7 +577,7 @@ const styles = StyleSheet.create({
   volumeInput: { width: 52, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 6, textAlign: 'right', fontSize: 17 },
   volumeText: { fontSize: 17, textAlign: 'right', lineHeight: 44 },
   litre: { width: 16, fontSize: 14 },
-  total: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  total: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   householdLink: { alignItems: 'center', borderRadius: 12, borderWidth: 1, minHeight: 44, justifyContent: 'center' },
   householdLinkText: { fontSize: 14, fontWeight: '800' },
   totalLabel: { fontSize: 13, fontWeight: '600' },
