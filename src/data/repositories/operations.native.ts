@@ -35,7 +35,7 @@ function auditedId(input: { farmId: string; userId: string }) {
   return { id: Crypto.randomUUID(), now: new Date().toISOString(), ...input };
 }
 
-export async function listRecentOperations(farmId: string, limit = 50): Promise<OperationHistoryRow[]> {
+export async function listRecentOperations(farmId: string, limit = 1_000): Promise<OperationHistoryRow[]> {
   const database = await getPowerSyncDatabase();
   return database.getAll<OperationHistoryRow>(
     `SELECT * FROM (

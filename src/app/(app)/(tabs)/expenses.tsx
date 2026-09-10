@@ -36,6 +36,9 @@ function parseDecimal(value: string, scale: number) {
 }
 
 type HistoryFilter = 'all' | OperationKind;
+type HistoryRange = '1m' | '6m' | '12m' | 'custom';
+
+function monthsAgo(months: number) { const date = new Date(); date.setMonth(date.getMonth() - months); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; }
 
 export default function ExpensesScreen() {
   const scheme = useColorScheme();
@@ -48,6 +51,10 @@ export default function ExpensesScreen() {
   const [history, setHistory] = useState<OperationHistoryRow[]>([]);
   const [historyFilter, setHistoryFilter] = useState<HistoryFilter>('feed');
   const [historySearch, setHistorySearch] = useState('');
+  const [historyRange, setHistoryRange] = useState<HistoryRange>('1m');
+  const [historySearchScope, setHistorySearchScope] = useState<'range' | 'all'>('range');
+  const [historyFromDate, setHistoryFromDate] = useState(monthsAgo(1));
+  const [historyToDate, setHistoryToDate] = useState(todayAtFarm);
   const [businessDate, setBusinessDate] = useState(todayAtFarm);
   const [selectedTreatmentAnimalIds, setSelectedTreatmentAnimalIds] = useState<string[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -99,15 +106,18 @@ export default function ExpensesScreen() {
   const totalAmountPaise = parseDecimal(totalAmount, 100);
   const doctorFeePaise = doctorFee.trim() ? parseDecimal(doctorFee, 100) : 0;
   const medicineCostPaise = medicineCost.trim() ? parseDecimal(medicineCost, 100) : 0;
-  const visibleHistory = useMemo(() => {
+  const historyDateRange = useMemo(() => historyRange === 'custom' ? { from: historyFromDate, to: historyToDate } : { from: monthsAgo(historyRange === '1m' ? 1 : historyRange === '6m' ? 6 : 12), to: todayAtFarm() }, [historyFromDate, historyRange, historyToDate]);
+  const filteredHistory = useMemo(() => {
     const query = historySearch.trim().toLocaleLowerCase();
     return history.filter((row) => {
       if (historyFilter !== 'all' && row.kind !== historyFilter) return false;
+      if (historySearchScope === 'range' && (row.businessDate < historyDateRange.from || row.businessDate > historyDateRange.to)) return false;
       if (!query) return true;
-      return [row.businessDate, row.title, row.detail, row.voidReason]
-        .some((value) => value?.toLocaleLowerCase().includes(query));
+      return [row.businessDate, row.title, row.detail, row.voidReason, row.notes, row.amountPaise, row.quantityMilliUnits, row.unitCode, row.ratePaisePerUnit, row.doctorFeePaise, row.medicineCostPaise, row.productCategory]
+        .some((value) => String(value ?? '').toLocaleLowerCase().includes(query));
     });
-  }, [history, historyFilter, historySearch]);
+  }, [history, historyDateRange.from, historyDateRange.to, historyFilter, historySearch, historySearchScope]);
+  const selectedRangeTotal = useMemo(() => history.filter((row) => (historyFilter === 'all' || row.kind === historyFilter) && row.businessDate >= historyDateRange.from && row.businessDate <= historyDateRange.to && row.isVoided === 0).reduce((sum, row) => sum + row.amountPaise, 0), [history, historyDateRange.from, historyDateRange.to, historyFilter]);
 
   const clearForm = () => {
     setSelectedTreatmentAnimalIds([]);
@@ -286,8 +296,12 @@ export default function ExpensesScreen() {
 
       {message ? <Text style={[styles.message, { color: message.includes('saved') || message.includes('updated') || message.includes('voided') || message.includes('Editing') ? colors.primary : colors.danger }]}>{message}</Text> : null}
 
-      <SectionCard title={`Recent activity (${visibleHistory.length})`}>
-        <TextInput accessibilityLabel="Search operation history" onChangeText={setHistorySearch} placeholder="Search date, animal, item, or void reason" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={historySearch} />
+      <SectionCard title={`Recent activity (${filteredHistory.length})`}>
+        <View style={styles.historyFilters}>{([['1m', '1 month'], ['6m', '6 months'], ['12m', '12 months'], ['custom', 'Custom']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setHistoryRange(value)} style={[styles.historyFilter, { backgroundColor: historyRange === value ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: historyRange === value ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '700' }}>{label}</Text></Pressable>)}</View>
+        {historyRange === 'custom' ? <View style={styles.numericRow}><View style={styles.dateInput}><DateField label="From date" value={historyFromDate} onChange={setHistoryFromDate} /></View><View style={styles.dateInput}><DateField label="To date" value={historyToDate} onChange={setHistoryToDate} /></View></View> : null}
+        <Text style={[styles.historyTotal, { color: colors.text }]}>Total spent ({formatFarmDate(historyDateRange.from)} - {formatFarmDate(historyDateRange.to)}): {formatMoney(selectedRangeTotal)}</Text>
+        <TextInput accessibilityLabel="Search operation history" onChangeText={setHistorySearch} placeholder="Search any activity detail, comment, unit, quantity, rate, price or void reason" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={historySearch} />
+        <View style={styles.historyFilters}>{([['range', 'Selected date range'], ['all', 'Entire record']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setHistorySearchScope(value)} style={[styles.historyFilter, { backgroundColor: historySearchScope === value ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: historySearchScope === value ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '700' }}>{label}</Text></Pressable>)}</View>
         <View style={styles.historyFilters}>
           {(['all', 'feed', 'treatment', 'product', 'silage', 'investment'] as const).map((value) => (
             <Pressable key={value} onPress={() => setHistoryFilter(value)} style={[styles.historyFilter, { backgroundColor: historyFilter === value ? colors.primary : colors.backgroundSelected }]}>
@@ -295,7 +309,7 @@ export default function ExpensesScreen() {
             </Pressable>
           ))}
         </View>
-        {loading ? <ActivityIndicator color={colors.primary} /> : history.length === 0 ? <EmptyState>No farm operations recorded yet.</EmptyState> : visibleHistory.length === 0 ? <EmptyState>No records match this history filter.</EmptyState> : visibleHistory.map((row) => {
+        {loading ? <ActivityIndicator color={colors.primary} /> : history.length === 0 ? <EmptyState>No farm operations recorded yet.</EmptyState> : filteredHistory.length === 0 ? <EmptyState>No records match this history filter.</EmptyState> : filteredHistory.map((row) => {
           const rowKey = `${row.kind}-${row.id}`;
           return (
             <View key={rowKey} style={[styles.historyRecord, { borderTopColor: colors.border }, row.isVoided === 1 && styles.voidedRecord]}>
@@ -393,6 +407,8 @@ const styles = StyleSheet.create({
   historyRecord: { gap: 10, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },
   historyFilters: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   historyFilter: { minHeight: 34, borderRadius: 17, justifyContent: 'center', paddingHorizontal: 11 },
+  historyTotal: { fontSize: 15, fontWeight: '800' },
+  dateInput: { flex: 1 },
   historyRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   historyCopy: { flex: 1, gap: 3 },
   historyTitle: { fontSize: 15, fontWeight: '700' },
