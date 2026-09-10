@@ -1,6 +1,6 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
@@ -63,7 +63,7 @@ export default function MilkScreen() {
   const [previousFat, setPreviousFat] = useState<number | null>(null);
   const [previousSnf, setPreviousSnf] = useState<number | null>(null);
   const [verkaTarget, setVerkaTarget] = useState<{ cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null>(null);
-  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string } | null>(null);
+  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 } | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -292,7 +292,8 @@ export default function MilkScreen() {
     if (isLocked) return;
     const current = key === 'fat' ? fat : key === 'snf' ? snf : values[key] ?? allocationValues[key] ?? '';
     const initial = current ? Number(current) : prior === null ? 0 : prior / (max === 10 ? 100 : 1_000);
-    setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0 });
+    const isBuyer = allocations.some((allocation) => allocation.destination === 'buyer' && allocation.key === key);
+    setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0, step: isBuyer ? 0.5 : 0.1 });
   };
 
   const selectSuggestion = (value: number) => {
@@ -484,18 +485,26 @@ function QualityField({ disabled, label, value, onPress, placeholder, invalid }:
   );
 }
 
-function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string } | null; onClose: () => void; onSelect: (value: number) => void }) {
+function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 } | null; onClose: () => void; onSelect: (value: number) => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   if (!picker) return null;
   return <Modal transparent animationType="none" visible onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.pickerHeader}><Text numberOfLines={1} style={[styles.pickerTitle, { color: colors.text }]}>{picker.label}</Text><Pressable accessibilityLabel="Close suggestions" hitSlop={8} onPress={onClose} style={styles.closeButton}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><SuggestionGrid key={picker.key} colors={colors} picker={picker} onSelect={onSelect} /></View></View></Modal>;
 }
 
-function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number }; onSelect: (value: number) => void }) {
+function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number; step?: 0.1 | 0.5 }; onSelect: (value: number) => void }) {
   const maxStart = Math.max(0, picker.max - 2);
   const [start, setStart] = useState(() => Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1)));
   const unit = picker.max === 10 ? '%' : 'L';
-  return <><View style={styles.pickerNavigation}><Pressable accessibilityLabel="Previous suggestion range" disabled={start === 0} onPress={() => setStart((value) => Math.max(0, value - 1))}><Text style={[styles.pickerNavigationText, { color: colors.primary }, start === 0 && styles.disabled]}>‹ Previous</Text></Pressable><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>{start.toFixed(0)}–{Math.min(picker.max, start + 2).toFixed(0)} {unit}</Text><Pressable accessibilityLabel="Next suggestion range" disabled={start === maxStart} onPress={() => setStart((value) => Math.min(maxStart, value + 1))}><Text style={[styles.pickerNavigationText, { color: colors.primary }, start === maxStart && styles.disabled]}>Next ›</Text></Pressable></View><View>{Array.from({ length: 10 }, (_, decimal) => <View key={decimal} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = whole + decimal / 10; const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
+  const step = picker.step ?? 0.1;
+  const gesture = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, movement) => Math.abs(movement.dx) > 12 && Math.abs(movement.dx) > Math.abs(movement.dy),
+    onPanResponderRelease: (_, movement) => {
+      if (movement.dx <= -30) setStart((value) => Math.min(maxStart, value + 1));
+      else if (movement.dx >= 30) setStart((value) => Math.max(0, value - 1));
+    },
+  }), [maxStart]);
+  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {start.toFixed(0)}–{Math.min(picker.max, start + 2).toFixed(0)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: 10 }, (_, decimal) => <View key={decimal} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = whole + decimal * step; const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
@@ -593,8 +602,7 @@ const styles = StyleSheet.create({
   pickerHeader: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingBottom: 10 },
   pickerTitle: { flex: 1, flexShrink: 1, fontSize: 22, fontWeight: '800' },
   closeButton: { minWidth: 46, alignItems: 'flex-end' },
-  pickerNavigation: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 10 },
-  pickerNavigationText: { fontSize: 14, fontWeight: '800' },
+  pickerNavigation: { alignItems: 'center', paddingHorizontal: 16, paddingBottom: 10 },
   pickerHint: { fontSize: 13, lineHeight: 18 },
   pickerRow: { flexDirection: 'row' },
   pickerValue: { flex: 1, height: 46, justifyContent: 'center', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth },
