@@ -427,13 +427,9 @@ export default function MilkScreen() {
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
       </SectionCard>
 
-      {verkaTargetResult !== null ? <SectionCard>
-        <Text style={[styles.totalValue, { color: colors.text }]}>Verka target = {verkaTargetResult}</Text>
-      </SectionCard> : null}
-
       <View style={[styles.total, { backgroundColor: colors.backgroundSelected }]}>
         <View><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Produced</Text><Text style={[styles.totalValue, { color: colors.text }]}>{formatMilk(totalMl)}</Text></View>
-        <View style={styles.variance}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{allocationSummary.exceedsProduction ? `${formatMilk(Math.abs(allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View>
+        <View style={styles.variance}>{verkaTargetResult !== null ? <View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Verka target</Text><Text style={[styles.varianceValue, { color: colors.text }]}>{verkaTargetResult}</Text></View> : null}<View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{allocationSummary.exceedsProduction ? `${formatMilk(Math.abs(allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View></View>
       </View>
       <Pressable accessibilityLabel="Open Household Consumption" onPress={() => router.push('/household-consumption' as never)} style={[styles.householdLink, { borderColor: colors.primary }]}><Text style={[styles.householdLinkText, { color: colors.primary }]}>Open Household Consumption</Text></Pressable>
 
@@ -586,7 +582,8 @@ const styles = StyleSheet.create({
   householdLinkText: { fontSize: 14, fontWeight: '800' },
   totalLabel: { fontSize: 13, fontWeight: '600' },
   totalValue: { fontSize: 28, fontWeight: '800' },
-  variance: { alignItems: 'flex-end' },
+  variance: { alignItems: 'flex-end', gap: 10 },
+  summaryBlock: { alignItems: 'flex-end' },
   varianceValue: { fontSize: 18, fontWeight: '800' },
   error: { fontSize: 13, lineHeight: 19 },
   save: { minHeight: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
