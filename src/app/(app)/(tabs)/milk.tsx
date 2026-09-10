@@ -504,6 +504,7 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
   const [start, setStart] = useState(() => Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1)));
   const unit = picker.max === 10 ? '%' : 'L';
   const step = picker.step ?? 0.1;
+  const fractionRows = Math.round(1 / step);
   const gesture = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_, movement) => Math.abs(movement.dx) > 12 && Math.abs(movement.dx) > Math.abs(movement.dy),
     onPanResponderRelease: (_, movement) => {
@@ -511,7 +512,7 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
       else if (movement.dx >= 30) setStart((value) => Math.max(0, value - 1));
     },
   }), [maxStart]);
-  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {start.toFixed(0)}–{Math.min(picker.max, start + 2).toFixed(0)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: 10 }, (_, decimal) => <View key={decimal} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = whole + decimal * step; const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
+  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {start.toFixed(0)}–{Math.min(picker.max, start + 2).toFixed(0)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: fractionRows }, (_, fraction) => <View key={fraction} style={styles.pickerRow}>{[start, start + 1, start + 2].map((whole) => { const value = Number((whole + fraction * step).toFixed(1)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={whole} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
