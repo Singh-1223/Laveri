@@ -82,11 +82,11 @@ export function SectionCard({ title, toneKey, tone, children }: PropsWithChildre
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const shades = scheme === 'dark'
-    ? ['#182D24', '#1C2B34', '#2A271C', '#27223A']
-    : ['#FFFFFF', '#F4FAF7', '#F6F8FF', '#FFF9F0'];
+    ? ['#1C2340', '#202947', '#292545', '#2C2640']
+    : ['#FFFFFF', '#F6F7FF', '#F5F3FF', '#FAF7FF'];
   const shadeSource = toneKey ?? title;
   const shadeIndex = shadeSource ? [...shadeSource].reduce((total, character) => total + character.charCodeAt(0), 0) % shades.length : 0;
-  const backgroundColor = tone === 'blue' ? scheme === 'dark' ? '#172D42' : '#EAF3FF' : shades[shadeIndex];
+  const backgroundColor = tone === 'blue' ? scheme === 'dark' ? '#1B2B51' : '#EAF2FF' : shades[shadeIndex];
   return (
     <View style={[styles.card, { backgroundColor, borderColor: colors.border }]}>
       {title ? <Text style={[styles.cardTitle, { color: colors.text }]}>{title}</Text> : null}

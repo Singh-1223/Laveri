@@ -477,8 +477,8 @@ function SuggestionField({ accessibilityLabel, disabled, onPress, value, placeho
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const enteredColor = scheme === 'dark' ? '#B9D8FF' : '#123D72';
-  const enteredSurface = scheme === 'dark' ? '#245E46' : '#BFE3CB';
-  const enteredBorder = scheme === 'dark' ? '#72D7A5' : '#207A54';
+  const enteredSurface = scheme === 'dark' ? '#273D71' : '#D9E8FF';
+  const enteredBorder = scheme === 'dark' ? '#9CB4FF' : '#4361C7';
   return <Pressable accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={[styles.volumeInput, { backgroundColor: value ? enteredSurface : 'transparent', borderColor: invalid ? colors.danger : value ? enteredBorder : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? enteredColor : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
 }
 
@@ -486,8 +486,8 @@ function QualityField({ disabled, label, value, onPress, placeholder, invalid }:
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const enteredColor = scheme === 'dark' ? '#B9D8FF' : '#123D72';
-  const enteredSurface = scheme === 'dark' ? '#245E46' : '#BFE3CB';
-  const enteredBorder = scheme === 'dark' ? '#72D7A5' : '#207A54';
+  const enteredSurface = scheme === 'dark' ? '#273D71' : '#D9E8FF';
+  const enteredBorder = scheme === 'dark' ? '#9CB4FF' : '#4361C7';
   return (
     <View style={styles.qualityField}>
       <Text style={[styles.qualityLabel, { color: colors.text }]}>{label}</Text>
