@@ -64,7 +64,7 @@ export default function MilkScreen() {
   const [previousFat, setPreviousFat] = useState<number | null>(null);
   const [previousSnf, setPreviousSnf] = useState<number | null>(null);
   const [verkaTarget, setVerkaTarget] = useState<{ cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null>(null);
-  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 } | null>(null);
+  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 | 1 } | null>(null);
   const [loading, setLoading] = useState(true);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -299,8 +299,9 @@ export default function MilkScreen() {
     if (isLocked) return;
     const current = key === 'fat' ? fat : key === 'snf' ? snf : values[key] ?? allocationValues[key] ?? '';
     const initial = current ? Number(current) : prior === null ? 0 : prior / (max === 10 ? 100 : 1_000);
-    const isBuyer = allocations.some((allocation) => allocation.destination === 'buyer' && allocation.key === key);
-    setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0, step: isBuyer ? 0.5 : 0.1 });
+    const buyer = allocations.find((allocation) => allocation.destination === 'buyer' && allocation.key === key);
+    const step = buyer ? buyer.label.trim().toLocaleLowerCase() === 'verka' ? 1 : 0.5 : 0.1;
+    setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0, step });
   };
 
   const selectSuggestion = (value: number) => {
@@ -327,7 +328,7 @@ export default function MilkScreen() {
     if (buyerIndex >= 0 && buyerIndex < buyerRows.length - 1) {
       const next = buyerRows[buyerIndex + 1];
       const currentValue = Number(allocationValues[next.key]);
-      setPicker({ key: next.key, max: 100, label: `${next.label} litres`, initial: allocationValues[next.key] !== '' && Number.isFinite(currentValue) ? currentValue : (previousAllocationVolumes[next.key] ?? 0) / 1_000 });
+      setPicker({ key: next.key, max: 100, label: `${next.label} litres`, initial: allocationValues[next.key] !== '' && Number.isFinite(currentValue) ? currentValue : (previousAllocationVolumes[next.key] ?? 0) / 1_000, step: next.label.trim().toLocaleLowerCase() === 'verka' ? 1 : 0.5 });
       return;
     }
     if (buyerIndex === buyerRows.length - 1) {
@@ -492,20 +493,20 @@ function QualityField({ disabled, label, value, onPress, placeholder, invalid }:
   );
 }
 
-function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 } | null; onClose: () => void; onSelect: (value: number) => void }) {
+function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 | 1 } | null; onClose: () => void; onSelect: (value: number) => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   if (!picker) return null;
   return <Modal transparent animationType="none" visible onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.pickerHeader}><Text numberOfLines={1} style={[styles.pickerTitle, { color: colors.text }]}>{picker.label}</Text><Pressable accessibilityLabel="Close suggestions" hitSlop={8} onPress={onClose} style={styles.closeButton}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><SuggestionGrid key={picker.key} colors={colors} picker={picker} onSelect={onSelect} /></View></View></Modal>;
 }
 
-function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number; step?: 0.1 | 0.5 }; onSelect: (value: number) => void }) {
+function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number; step?: 0.1 | 0.5 | 1 }; onSelect: (value: number) => void }) {
   const unit = picker.max === 10 ? '%' : 'L';
   const step = picker.step ?? 0.1;
   const rowCount = 10;
   const columnCount = 3;
-  const usesHalfLitreSteps = step === 0.5;
-  const rangeSpan = usesHalfLitreSteps ? (rowCount * columnCount - 1) * step : (columnCount - 1) + (rowCount - 1) * step;
+  const usesBuyerSteps = step !== 0.1;
+  const rangeSpan = usesBuyerSteps ? (rowCount * columnCount - 1) * step : (columnCount - 1) + (rowCount - 1) * step;
   const maxStart = Math.max(0, picker.max - rangeSpan);
   const [start, setStart] = useState(() => Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1)));
   const rangeEnd = Number((start + rangeSpan).toFixed(1));
@@ -516,7 +517,7 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
       else if (movement.dx >= 30) setStart((value) => Math.max(0, value - 1));
     },
   }), [maxStart]);
-  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {start.toFixed(1)}–{rangeEnd.toFixed(1)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesHalfLitreSteps ? start + (row * columnCount + column) * step : start + column + row * step).toFixed(1)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
+  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {start.toFixed(1)}–{rangeEnd.toFixed(1)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + (row * columnCount + column) * step : start + column + row * step).toFixed(1)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
 function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
