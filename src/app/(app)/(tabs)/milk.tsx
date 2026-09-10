@@ -471,17 +471,21 @@ function SuggestionField({ accessibilityLabel, disabled, onPress, value, placeho
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const enteredColor = scheme === 'dark' ? '#FF8A80' : '#8B1E1E';
-  return <Pressable accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={[styles.volumeInput, { borderColor: invalid ? colors.danger : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? enteredColor : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
+  const enteredSurface = scheme === 'dark' ? '#245E46' : '#BFE3CB';
+  const enteredBorder = scheme === 'dark' ? '#72D7A5' : '#207A54';
+  return <Pressable accessibilityLabel={accessibilityLabel} disabled={disabled} onPress={onPress} style={[styles.volumeInput, { backgroundColor: value ? enteredSurface : 'transparent', borderColor: invalid ? colors.danger : value ? enteredBorder : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? enteredColor : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>;
 }
 
 function QualityField({ disabled, label, value, onPress, placeholder, invalid }: { disabled?: boolean; label: string; value: string; onPress: () => void; placeholder: string; invalid: boolean }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const enteredColor = scheme === 'dark' ? '#FF8A80' : '#8B1E1E';
+  const enteredSurface = scheme === 'dark' ? '#245E46' : '#BFE3CB';
+  const enteredBorder = scheme === 'dark' ? '#72D7A5' : '#207A54';
   return (
     <View style={styles.qualityField}>
       <Text style={[styles.qualityLabel, { color: colors.text }]}>{label}</Text>
-      <Pressable accessibilityLabel={label} disabled={disabled} onPress={onPress} style={[styles.qualityInput, { borderColor: invalid ? colors.danger : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? enteredColor : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
+      <Pressable accessibilityLabel={label} disabled={disabled} onPress={onPress} style={[styles.qualityInput, { backgroundColor: value ? enteredSurface : 'transparent', borderColor: invalid ? colors.danger : value ? enteredBorder : colors.border }, disabled && styles.lockedRow]}><Text style={[styles.volumeText, { color: value ? enteredColor : colors.textSecondary }]}>{value || placeholder}</Text></Pressable>
     </View>
   );
 }
