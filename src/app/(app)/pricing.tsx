@@ -35,7 +35,7 @@ export default function PricingScreen() {
   const smFatValue = parseNumber(smFat);
   const calculatedPaise = useMemo(() => {
     if ([fatValue, snfValue, cmFatValue, smFatValue].some((value) => value === null)) return null;
-    return Math.round(((fatValue! * cmFatValue!) + (snfValue! * smFatValue!)) * 100);
+    return Math.round((((fatValue! * cmFatValue!) / 100) + ((snfValue! * smFatValue!) / 100)) * 100);
   }, [cmFatValue, fatValue, smFatValue, snfValue]);
 
   const refreshHistory = useCallback(async () => {
@@ -57,8 +57,8 @@ export default function PricingScreen() {
         userId: session.user.id,
         fatThousandths: Math.round(fatValue! * 1_000),
         snfThousandths: Math.round(snfValue! * 1_000),
-        cmFatPaise: Math.round(cmFatValue! * 100),
-        cmSnfPaise: Math.round(smFatValue! * 100),
+        cmFatPaise: Math.round(cmFatValue!),
+        cmSnfPaise: Math.round(smFatValue!),
         resultPaisePerLitre: calculatedPaise,
       });
       setMessage('Calculation saved to history.');
@@ -79,12 +79,12 @@ export default function PricingScreen() {
         </View>
       </SectionCard>
       <SectionCard title="Coefficients">
-        <Field label="CMFAT coefficient (₹)" value={cmFat} onChangeText={setCmFat} placeholder="Example: 6.00" invalid={cmFat.length > 0 && cmFatValue === null} />
-        <Field label="CMSNF coefficient (₹)" value={smFat} onChangeText={setSmFat} placeholder="Example: 2.00" invalid={smFat.length > 0 && smFatValue === null} />
+        <Field label="CMFAT coefficient" value={cmFat} onChangeText={setCmFat} placeholder="Example: 415" invalid={cmFat.length > 0 && cmFatValue === null} />
+        <Field label="CMSNF coefficient" value={smFat} onChangeText={setSmFat} placeholder="Example: 287" invalid={smFat.length > 0 && smFatValue === null} />
       </SectionCard>
       <SectionCard title="Calculated price">
         <Text style={[styles.result, { color: colors.text }]}>{calculatedPaise === null ? 'Enter FAT, SNF, CMFAT, and CMSNF.' : `${formatMoney(calculatedPaise)} / L`}</Text>
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>Formula: FAT% × CMFAT + SNF% × CMSNF.</Text>
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>Formula: ((FAT × CMFAT) / 100) + ((SNF × CMSNF) / 100).</Text>
         <Pressable accessibilityLabel="Save calculation to history" disabled={saving || calculatedPaise === null} onPress={() => void saveCalculation()} style={[styles.save, { backgroundColor: colors.primary }, (saving || calculatedPaise === null) && styles.disabled]}>{saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>Save calculation</Text>}</Pressable>
         {message ? <Text style={[styles.helper, { color: colors.textSecondary }]}>{message}</Text> : null}
       </SectionCard>
@@ -96,7 +96,7 @@ export default function PricingScreen() {
 }
 
 function formatThousandths(value: number) { return (value / 1_000).toFixed(3).replace(/\.0+$/, ''); }
-function formatPaise(value: number) { return (value / 100).toFixed(2); }
+function formatPaise(value: number) { return String(value); }
 
 function Field({ label, value, onChangeText, placeholder, invalid, numeric }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; invalid: boolean; numeric?: boolean }) {
   const scheme = useColorScheme();

@@ -109,7 +109,7 @@ export async function getQualityRecords(farmId: string, fromDate: string, toDate
      WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL
        AND (fat_hundredths IS NOT NULL OR snf_hundredths IS NOT NULL)
      GROUP BY milk_date, session
-     ORDER BY milk_date DESC, session ASC`,
+     ORDER BY milk_date ASC, session ASC`,
     [farmId, fromDate, toDate],
   );
 }
