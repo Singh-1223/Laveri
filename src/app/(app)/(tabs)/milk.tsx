@@ -156,6 +156,11 @@ export default function MilkScreen() {
   const enteredCount = parsedEntries.filter((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl)).length;
   const hasSavedSession = entries.some((entry) => entry.entryId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
   const verkaDifferenceMl = verkaTarget ? verkaTarget.suppliedMl - verkaTarget.targetMl : null;
+  const verkaTargetResult = verkaDifferenceMl === null
+    ? null
+    : verkaDifferenceMl === 0
+      ? '0 L'
+      : `${verkaDifferenceMl > 0 ? '+' : '-'}${formatMilk(Math.abs(verkaDifferenceMl))}`;
 
   const save = async (automatic = false, fingerprint?: string) => {
     if (!farmId || !session || invalidVolume || invalidAllocation || !dailyQualityValid || allocationSummary.exceedsProduction || buyerRateMissing) return;
@@ -422,10 +427,8 @@ export default function MilkScreen() {
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
       </SectionCard>
 
-      {verkaTarget && verkaDifferenceMl !== null ? <SectionCard title="Verka 100 kg target">
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>{formatFarmDate(verkaTarget.cycleStart)} – {formatFarmDate(verkaTarget.cycleEnd)} · saved Verka allocations only</Text>
-        <Text style={[styles.verkaValue, { color: colors.text }]}>Supplied {formatMilk(verkaTarget.suppliedMl)} / target {formatMilk(verkaTarget.targetMl)}</Text>
-        <Text style={[styles.helper, { color: verkaDifferenceMl >= 0 ? colors.primary : colors.danger }]}>{verkaDifferenceMl >= 0 ? `${formatMilk(verkaDifferenceMl)} above target` : `${formatMilk(Math.abs(verkaDifferenceMl))} short of target`}</Text>
+      {verkaTargetResult !== null ? <SectionCard title="Verka target">
+        <Text style={[styles.totalValue, { color: colors.text }]}>Verka target = {verkaTargetResult}</Text>
       </SectionCard> : null}
 
       <View style={[styles.total, { backgroundColor: colors.backgroundSelected }]}>
