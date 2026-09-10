@@ -427,7 +427,7 @@ export default function MilkScreen() {
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
       </SectionCard>
 
-      {verkaTargetResult !== null ? <SectionCard title="Verka target">
+      {verkaTargetResult !== null ? <SectionCard>
         <Text style={[styles.totalValue, { color: colors.text }]}>Verka target = {verkaTargetResult}</Text>
       </SectionCard> : null}
 
