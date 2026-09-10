@@ -1,6 +1,6 @@
 export type BuyerAccountSnapshot = {
   buyer: { id: string; name: string; defaultRatePaisePerLitre: number | null };
-  sales: { id: string; milkDate: string; session: string; volumeMl: number; amountPaise: number }[];
+  sales: { id: string; milkDate: string; session: string; volumeMl: number; amountPaise: number; ratePaisePerLitre: number }[];
   payments: { id: string; paymentDate: string; amountPaise: number; mode: string; notes: string | null }[];
   bills: { id: string; billDate: string; storagePath: string; fileName: string }[];
 };

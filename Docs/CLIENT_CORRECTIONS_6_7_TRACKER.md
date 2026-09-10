@@ -13,7 +13,7 @@ Sources: `Correct 6_260909_232640.pdf` and `Correct 7_260910_112735.pdf`, receiv
 
 | ID | Status | Client request | Scope and acceptance criteria |
 |---|---|---|---|
-| C6-01 | [>] Verified | Update a regular buyer's previously saved milk rate by inclusive From/To dates. | Existing Master Data buyer editor updates only that buyer's allocations inside the inclusive selected range and preserves volume/quality data. Awaiting device retest against the stated example. |
+| C6-01 | [>] Verified | Update a regular buyer's previously saved milk rate by inclusive From/To dates. | Existing Master Data buyer editor updates only that buyer's allocations inside the inclusive selected range and preserves volume/quality data. Buyer Account's 10-day milk list also shows the saved historical rate for each date. Awaiting device retest against the stated example. |
 | C6-02 | [>] Verified | Change Verka target to cumulative supplied milk minus days completed × 100 kg. | Existing Milk Verka indicator sums saved Verka allocations from the cycle start to the selected date, then subtracts elapsed days × 100 kg, allowing later supply to recover an earlier shortfall. Awaiting device retest. |
 | C6-03 | [>] Implemented | Replace the milk-rate calculator formula. | Calculator now uses the exact requested formula and accepts coefficients in the requested 415/287 form. Awaiting device retest. |
 | C6-04 | [>] Implemented | Use dark-red text for entered/saved Milk page values. | Entered animal, buyer, FAT, and SNF values use a readable dark-red tone in Light theme and accessible red in Dark theme; placeholders remain unchanged. Awaiting device retest. |
