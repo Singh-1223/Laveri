@@ -26,6 +26,7 @@ const UPLOADABLE_TABLES = new Set([
   'milk_pricing_configs',
   'calculator_history',
   'daily_diary',
+  'household_monthly_settings',
   'animals',
   'animal_labels',
   'animal_label_links',

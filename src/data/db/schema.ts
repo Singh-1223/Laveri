@@ -86,6 +86,10 @@ const dailyDiary = new Table(
   { farm_id: column.text, diary_date: column.text, comment: column.text, ...auditColumns },
   { ...versioned, indexes: { by_farm_date: ['farm_id', '-diary_date'] } },
 );
+const householdMonthlySettings = new Table(
+  { farm_id: column.text, month_key: column.text, rate_paise_per_litre: column.integer, self_payment_paise: column.integer, ...auditColumns },
+  { ...versioned, indexes: { by_farm_month: ['farm_id', '-month_key'] } },
+);
 
 const animals = new Table(
   {
@@ -339,6 +343,7 @@ export const appSchema = new Schema({
   milk_pricing_configs: milkPricingConfigs,
   calculator_history: calculatorHistory,
   daily_diary: dailyDiary,
+  household_monthly_settings: householdMonthlySettings,
   animals,
   animal_labels: animalLabels,
   animal_label_links: animalLabelLinks,

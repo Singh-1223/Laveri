@@ -28,7 +28,7 @@ Sources: `Correct 6_260909_232640.pdf` and `Correct 7_260910_112735.pdf`, receiv
 |---|---|---|---|
 | C7-01 | [>] Implemented | Make Buyer milk suggestions increment by 0.5 L. | Buyer suggestions now use 0.5 L increments only; animal suggestions remain at 0.1 L and the shared swipe/selection behavior is preserved. Awaiting device retest. |
 | C7-02 | [>] Implemented | Sort Buyer Account and Reports FAT/SNF rows oldest to newest. | Buyer 10-day entries and Reports FAT/SNF records now sort from earliest date to latest date. Awaiting device retest. |
-| C7-03 | [ ] Open | Add a Household Consumption page from Milk Entry. | Tapping Household Consumption opens a monthly-only view: total consumed milk, editable monthly rate, calculated total amount, and separately saved self-payment. No daily entries displayed. Existing Milk Entry household allocation remains the source of consumption volume. |
+| C7-03 | [>] Implemented | Add a Household Consumption page from Milk Entry. | Milk now opens a monthly-only Household Consumption page. It derives total litres from existing household allocations and stores each month's rate and self-payment separately; total amount is calculated automatically. Requires the new Supabase migration and PowerSync deployment before device retest. |
 
 ## Implementation order
 

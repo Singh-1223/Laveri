@@ -410,7 +410,7 @@ export default function MilkScreen() {
           renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <Pressable accessibilityLabel={`Hold drag handle to reorder ${allocation.label}`} delayLongPress={350} disabled={busy || isLocked} onLongPress={drag} style={[styles.dragHandle, { borderColor: colors.border }]}><Text style={[styles.dragHandleText, { color: colors.textSecondary }]}>↕</Text></Pressable>
             <View style={styles.animalCopy}>
-              {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
+              {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : allocation.destination === 'household' ? <Pressable accessibilityLabel="Open Household Consumption" onPress={() => router.push('/household-consumption' as never)}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
             <SuggestionField disabled={isLocked} accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
@@ -429,6 +429,7 @@ export default function MilkScreen() {
         <View><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Produced</Text><Text style={[styles.totalValue, { color: colors.text }]}>{formatMilk(totalMl)}</Text></View>
         <View style={styles.variance}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{allocationSummary.exceedsProduction ? `${formatMilk(Math.abs(allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View>
       </View>
+      <Pressable accessibilityLabel="Open Household Consumption" onPress={() => router.push('/household-consumption' as never)} style={[styles.householdLink, { borderColor: colors.primary }]}><Text style={[styles.householdLinkText, { color: colors.primary }]}>Open Household Consumption</Text></Pressable>
 
       {invalidVolume ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for litres.</Text> : null}
       {invalidAllocation ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for allocation litres.</Text> : null}
@@ -571,6 +572,8 @@ const styles = StyleSheet.create({
   volumeText: { fontSize: 17, textAlign: 'right', lineHeight: 44 },
   litre: { width: 16, fontSize: 14 },
   total: { borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  householdLink: { alignItems: 'center', borderRadius: 12, borderWidth: 1, minHeight: 44, justifyContent: 'center' },
+  householdLinkText: { fontSize: 14, fontWeight: '800' },
   totalLabel: { fontSize: 13, fontWeight: '600' },
   totalValue: { fontSize: 28, fontWeight: '800' },
   variance: { alignItems: 'flex-end' },
