@@ -32,6 +32,7 @@ export default function HouseholdConsumptionScreen() {
   const [editingMonthKey, setEditingMonthKey] = useState<string | null>(null);
   const [savingMonthKey, setSavingMonthKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
 
   const load = useCallback(async () => {
     const sync = await getPowerSyncSnapshot();
@@ -43,6 +44,9 @@ export default function HouseholdConsumptionScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  const selectedMonths = months.filter((row) => Number(row.monthKey.slice(0, 4)) === selectedYear);
+  const canMoveForward = selectedYear < new Date().getFullYear();
 
   const updateDraft = (monthKey: string, patch: Partial<MonthDraft>) => {
     setDrafts((current) => ({ ...current, [monthKey]: { ...(current[monthKey] ?? { rate: '', payment: '' }), ...patch } }));
@@ -73,7 +77,12 @@ export default function HouseholdConsumptionScreen() {
   return (
     <AppScreen title="Household consumption" subtitle="Monthly totals from Milk Entry">
       <SectionCard title="Monthly consumption">
-        {months.length ? months.map((row) => {
+        <View style={styles.yearNavigation}>
+          <Pressable accessibilityLabel="Previous year" onPress={() => { setEditingMonthKey(null); setSelectedYear((year) => year - 1); }} style={[styles.yearButton, { borderColor: colors.border }]}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable>
+          <Text style={[styles.yearTitle, { color: colors.text }]}>{selectedYear}</Text>
+          <Pressable accessibilityLabel="Next year" disabled={!canMoveForward} onPress={() => { setEditingMonthKey(null); setSelectedYear((year) => year + 1); }} style={[styles.yearButton, { borderColor: colors.border }, !canMoveForward && styles.disabled]}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable>
+        </View>
+        {selectedMonths.length ? selectedMonths.map((row) => {
           const draft = drafts[row.monthKey] ?? storedDraft(row);
           const isSaved = row.settingsId !== null;
           const isEditing = !isSaved || editingMonthKey === row.monthKey;
@@ -102,7 +111,7 @@ export default function HouseholdConsumptionScreen() {
               </View> : <View style={[styles.summaryRow, styles.paymentRow, { borderTopColor: colors.border }]}><Text style={[styles.summaryLabel, { color: colors.textSecondary }]}>Self payment</Text><Text style={[styles.summaryValue, { color: colors.text }]}>{row.selfPaymentPaise ? formatMoney(row.selfPaymentPaise) : 'Not recorded'}</Text></View>}
             </View>
           );
-        }) : <EmptyState>No household consumption has been recorded yet.</EmptyState>}
+        }) : <EmptyState>No household consumption has been recorded in {selectedYear}.</EmptyState>}
         {message ? <Text style={{ color: colors.textSecondary }}>{message}</Text> : null}
       </SectionCard>
     </AppScreen>
@@ -110,6 +119,9 @@ export default function HouseholdConsumptionScreen() {
 }
 
 const styles = StyleSheet.create({
+  yearNavigation: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  yearButton: { borderRadius: 9, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8 },
+  yearTitle: { fontSize: 20, fontWeight: '800' },
   monthCard: { borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, gap: 10, padding: 14 },
   monthHeader: { alignItems: 'center', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
   monthTitle: { flex: 1, fontSize: 18, fontWeight: '800' },
