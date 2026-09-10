@@ -378,7 +378,7 @@ export default function MilkScreen() {
       {isLocked ? <Text style={[styles.helper, { color: colors.textSecondary }]}>This date is locked. Tap the lock icon to temporarily edit it; it locks again when you move to another date.</Text> : null}
 
       <SectionCard title="Milk entry" tone="blue">
-        {loading ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <NestableDraggableFlatList
+        {loading && entries.length === 0 ? <ActivityIndicator color={colors.primary} /> : entries.length === 0 ? <EmptyState>No active milking animals. Add an animal in Master data first.</EmptyState> : <NestableDraggableFlatList
           data={entries}
           keyExtractor={(entry) => entry.animalId}
           scrollEnabled={false}
