@@ -1,6 +1,7 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
@@ -71,6 +72,7 @@ export default function MilkScreen() {
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [unlockedDate, setUnlockedDate] = useState<string | null>(null);
   const lastAutoSaveFingerprint = useRef<string | null>(null);
   const hasChosenLaunchTarget = useRef(false);
@@ -357,13 +359,14 @@ export default function MilkScreen() {
       <View style={styles.dateRow}>
         <SmallButton label="‹" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
-          <Text style={[styles.date, { color: colors.text }]}>{formatFarmDate(milkDate)}</Text>
+          <Pressable accessibilityLabel="Choose milk date" accessibilityHint="Opens the calendar" onPress={() => setCalendarOpen(true)}><Text style={[styles.date, { color: colors.text }]}>{formatFarmDate(milkDate)}</Text></Pressable>
           {milkDate === todayAtFarm()
             ? <Text style={[styles.today, { color: colors.primary }]}>Today</Text>
             : <Pressable onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate(todayAtFarm()); }}><Text style={[styles.today, { color: colors.primary }]}>Go to today</Text></Pressable>}
         </View>
         <SmallButton label="›" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, 1)); }} />
       </View>
+      {calendarOpen ? <DateTimePicker display={Platform.OS === 'ios' ? 'compact' : 'default'} mode="date" value={new Date(`${milkDate}T12:00:00`)} onChange={(_event, selectedDate) => { if (Platform.OS === 'android') setCalendarOpen(false); if (!selectedDate) return; setHydrated(false); setUnlockedDate(null); setMilkDate(`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`); }} /> : null}
 
       <View style={styles.sessionRow}>
         {(['morning', 'evening'] as const).map((value) => (
