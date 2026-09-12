@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View, useColorScheme } 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
-import { getPowerSyncSnapshot } from '@/data/powersync/platform';
+import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platform';
 import { getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
 import type { MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
@@ -81,7 +81,7 @@ export default function ReportsScreen() {
   const qualityCycleEnd = tenDayCycleEnd(qualityCycleStart);
 
   return (
-    <AppScreen title="Reports" subtitle="Calculated locally from source transactions">
+    <AppScreen enableTabSwipe onRefresh={async () => { try { await refreshPowerSync(); } finally { await Promise.all([refresh(), loadQuality()]); } }} title="Reports">
       <SectionCard title="Date range">
         <View style={styles.dateRow}>
           <View style={styles.dateInput}><DateField label="From date" onChange={setFromDate} value={fromDate} /></View>
@@ -112,9 +112,10 @@ export default function ReportsScreen() {
           </SectionCard>
 
           <SectionCard title={`FAT & SNF records (${qualityRecords.length})`}><View style={styles.shiftNavigation}><Pressable onPress={() => setQualityCycleStart((value) => shiftTenDayCycle(value, -1))}><Text style={{ color: colors.primary }}>‹ Previous</Text></Pressable><Text style={{ color: colors.text }}>{formatFarmDate(qualityCycleStart)} – {formatFarmDate(qualityCycleEnd)}</Text><Pressable onPress={() => setQualityCycleStart((value) => shiftTenDayCycle(value, 1))}><Text style={{ color: colors.primary }}>Next ›</Text></Pressable></View>
-            {qualityLoading ? <ActivityIndicator color={colors.primary} /> : qualityRecords.length === 0 ? <EmptyState>No FAT/SNF records in this date range.</EmptyState> : qualityRecords.map((record) => (
-              <ReportLine key={`${record.milkDate}:${record.session}`} label={`${formatFarmDate(record.milkDate)} · ${record.session === 'morning' ? 'Morning' : 'Evening'}`} value={`FAT ${record.fatHundredths === null ? '—' : `${record.fatHundredths / 100}%`} · SNF ${record.snfHundredths === null ? '—' : `${record.snfHundredths / 100}%`}`} />
-            ))}
+            {qualityLoading ? <ActivityIndicator color={colors.primary} /> : qualityRecords.length === 0 ? <EmptyState>No FAT/SNF records in this date range.</EmptyState> : <View style={styles.qualityTable}>
+              <View style={[styles.qualityTableRow, styles.qualityTableHeader, { borderBottomColor: colors.border }]}><Text style={[styles.qualityDateColumn, styles.qualityTableHeading, { color: colors.textSecondary }]}>Date & time</Text><Text style={[styles.qualityValueColumn, styles.qualityTableHeading, { color: colors.textSecondary }]}>FAT %</Text><Text style={[styles.qualityValueColumn, styles.qualityTableHeading, { color: colors.textSecondary }]}>SNF %</Text></View>
+              {qualityRecords.map((record) => <View key={`${record.milkDate}:${record.session}`} style={[styles.qualityTableRow, { borderBottomColor: colors.border }]}><Text style={[styles.qualityDateColumn, { color: colors.text }]}>{formatFarmDate(record.milkDate)} · {record.session === 'morning' ? 'Morning' : 'Evening'}</Text><Text style={[styles.qualityValueColumn, { color: colors.text }]}>{record.fatHundredths === null ? '—' : record.fatHundredths / 100}</Text><Text style={[styles.qualityValueColumn, { color: colors.text }]}>{record.snfHundredths === null ? '—' : record.snfHundredths / 100}</Text></View>)}
+            </View>}
           </SectionCard>
 
 
@@ -202,6 +203,12 @@ const styles = StyleSheet.create({
   line: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   lineLabel: { flex: 1, fontSize: 14 },
   lineValue: { fontSize: 14, fontWeight: '800' },
+  qualityTable: { gap: 0 },
+  qualityTableRow: { flexDirection: 'row', alignItems: 'center', minHeight: 40, borderBottomWidth: StyleSheet.hairlineWidth },
+  qualityTableHeader: { minHeight: 34 },
+  qualityDateColumn: { flex: 1.6, fontSize: 13 },
+  qualityValueColumn: { flex: 0.7, fontSize: 13, fontWeight: '700', textAlign: 'center' },
+  qualityTableHeading: { fontWeight: '800', textTransform: 'uppercase', fontSize: 11 },
   animal: { fontSize: 15, fontWeight: '700' },
   sessions: { fontSize: 12 },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12 },

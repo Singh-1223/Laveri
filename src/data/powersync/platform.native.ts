@@ -251,6 +251,13 @@ export async function disconnectPowerSync() {
   await database.disconnectAndClear({ clearLocal: true });
 }
 
+/** Requests a fresh server stream without clearing local/offline records. */
+export async function refreshPowerSync() {
+  await initializePowerSync();
+  if (database.connected) await database.disconnect();
+  await connectPowerSync();
+}
+
 export async function getPowerSyncSnapshot(): Promise<PowerSyncSnapshot> {
   await initializePowerSync();
 

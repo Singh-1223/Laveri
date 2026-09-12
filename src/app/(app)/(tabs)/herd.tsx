@@ -1,13 +1,13 @@
 import { Link, useFocusEffect } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import DraggableFlatList, { ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { listMasterData, saveAnimalLabelOrder } from '@/data/repositories/master-data';
-import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { requireSupabase } from '@/data/supabase/client';
+import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platform';
+import { getCachedSignedUrl } from '@/data/supabase/signed-url-cache';
 import type { AnimalLabelLinkRow, AnimalLabelRow, AnimalRow } from '@/data/repositories/master-data.types';
 import { formatElapsedMonthsDays } from '@/domain/dates';
 import { useSession } from '@/features/auth/session-provider';
@@ -22,12 +22,14 @@ export default function HerdScreen() {
   const [labelLinks, setLabelLinks] = useState<AnimalLabelLinkRow[]>([]);
   const [search, setSearch] = useState('');
   const [selectedLabelId, setSelectedLabelId] = useState('all');
+  const [reorderingLabels, setReorderingLabels] = useState(false);
   const [farmId, setFarmId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasLoaded = useRef(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
+    if (!hasLoaded.current) setLoading(true);
     setError(null);
     try {
       const sync = await getPowerSyncSnapshot();
@@ -36,11 +38,13 @@ export default function HerdScreen() {
       setAnimals(master.animals);
       setLabels(master.animalLabels);
       setLabelLinks(master.animalLabelLinks);
-      const signed = await Promise.all(master.animals.filter((animal) => animal.primary_photo_path).map(async (animal) => { const url = await requireSupabase().storage.from('animal-files').createSignedUrl(animal.primary_photo_path!, 600); return [animal.id, url.data?.signedUrl] as const; }));
-      setPhotoUrls(Object.fromEntries(signed.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))));
+      const signed = await Promise.all(master.animals.filter((animal) => animal.primary_photo_path).map(async (animal) => [animal.id, await getCachedSignedUrl('animal-files', animal.primary_photo_path!)] as const));
+      const nextPhotoUrls = Object.fromEntries(signed.filter((entry): entry is readonly [string, string] => Boolean(entry[1])));
+      setPhotoUrls((current) => samePhotoUrls(current, nextPhotoUrls) ? current : nextPhotoUrls);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Unable to load the herd.');
     } finally {
+      hasLoaded.current = true;
       setLoading(false);
     }
   }, []);
@@ -72,13 +76,17 @@ export default function HerdScreen() {
     }
   };
 
+  const refreshWithSync = useCallback(async () => {
+    try { await refreshPowerSync(); } finally { await refresh(); }
+  }, [refresh]);
+
   return (
-    <AppScreen title="Herd" subtitle={`${animals.filter((animal) => animal.status === 'active').length} active animals`}>
+    <AppScreen enableTabSwipe={!reorderingLabels} onRefresh={refreshWithSync} title="Herd" subtitle={`${animals.filter((animal) => animal.status === 'active').length} active animals`}>
       <TextInput accessibilityLabel="Search herd" onChangeText={setSearch} placeholder="Search tag or breed" placeholderTextColor={colors.textSecondary} style={[styles.search, { color: colors.text, borderColor: colors.border }]} value={search} />
       <View style={styles.filterBlock}>
         <Text style={[styles.filterHint, { color: colors.textSecondary }]}>Filter by label. Press and hold a label to change its tab order.</Text>
         <View style={styles.allTabRow}><Pressable onPress={() => setSelectedLabelId('all')} style={[styles.filterTab, { borderColor: colors.primary }, selectedLabelId === 'all' && { backgroundColor: colors.primary }]}><Text style={[styles.filterTabText, { color: selectedLabelId === 'all' ? '#FFFFFF' : colors.primary }]}>All</Text></Pressable></View>
-        <DraggableFlatList horizontal data={labels} keyExtractor={(label) => label.id} onDragEnd={({ data }) => void persistLabelOrder(data)} contentContainerStyle={styles.filterList} renderItem={({ item: label, drag, isActive }) => <ScaleDecorator><Pressable delayLongPress={180} onLongPress={drag} onPress={() => setSelectedLabelId(label.id)} style={[styles.filterTab, { borderColor: label.color }, selectedLabelId === label.id && { backgroundColor: label.color }, isActive && styles.dragging]}><Text style={[styles.filterTabText, { color: selectedLabelId === label.id ? '#FFFFFF' : colors.text }]}>{label.name}</Text></Pressable></ScaleDecorator>} />
+        <DraggableFlatList horizontal data={labels} keyExtractor={(label) => label.id} onDragBegin={() => setReorderingLabels(true)} onDragEnd={({ data }) => { setReorderingLabels(false); void persistLabelOrder(data); }} contentContainerStyle={styles.filterList} renderItem={({ item: label, drag, isActive }) => <ScaleDecorator><Pressable delayLongPress={180} onLongPress={drag} onPress={() => setSelectedLabelId(label.id)} style={[styles.filterTab, { borderColor: label.color }, selectedLabelId === label.id && { backgroundColor: label.color }, isActive && styles.dragging]}><Text style={[styles.filterTabText, { color: selectedLabelId === label.id ? '#FFFFFF' : colors.text }]}>{label.name}</Text></Pressable></ScaleDecorator>} />
       </View>
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
       <SectionCard title={`Animals (${visible.length})`}>
@@ -100,6 +108,12 @@ export default function HerdScreen() {
       </Link>
     </AppScreen>
   );
+}
+
+function samePhotoUrls(left: Record<string, string>, right: Record<string, string>) {
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  return leftKeys.length === rightKeys.length && leftKeys.every((key) => left[key] === right[key]);
 }
 
 const styles = StyleSheet.create({

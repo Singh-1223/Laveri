@@ -7,6 +7,8 @@ export async function connectPowerSync() {}
 
 export async function disconnectPowerSync() {}
 
+export async function refreshPowerSync() {}
+
 export async function getPowerSyncSnapshot() {
   return unavailablePowerSyncSnapshot;
 }

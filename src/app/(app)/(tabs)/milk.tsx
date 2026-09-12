@@ -1,13 +1,14 @@
 import { Link, useFocusEffect, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Constants from 'expo-constants';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Modal, PanResponder, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
-import { getPowerSyncSnapshot } from '@/data/powersync/platform';
-import { getMilkLaunchTarget, loadMilkSession, saveMilkAnimalOrder, saveMilkBuyerOrder, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
+import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platform';
+import { getFarmName, getMilkLaunchTarget, loadMilkSession, saveMilkAnimalOrder, saveMilkBuyerOrder, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
 import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
 import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
@@ -45,6 +46,10 @@ function parseHundredths(value: string): number | null {
   return Number.isSafeInteger(result) ? result : Number.NaN;
 }
 
+function formatMilkEntryNumber(value: number, decimals = 1) {
+  return String(Number(value.toFixed(decimals)));
+}
+
 export default function MilkScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
@@ -53,6 +58,7 @@ export default function MilkScreen() {
   const [milkDate, setMilkDate] = useState(todayAtFarm);
   const [milkSession, setMilkSession] = useState<MilkSession>('morning');
   const [farmId, setFarmId] = useState<string | null>(null);
+  const [farmName, setFarmName] = useState<string | null>(null);
   const [entries, setEntries] = useState<MilkAnimalEntry[]>([]);
   const [allocations, setAllocations] = useState<MilkAllocationEntry[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -66,8 +72,11 @@ export default function MilkScreen() {
   const [verkaTarget, setVerkaTarget] = useState<{ cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null>(null);
   const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 | 1 } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshArmed, setRefreshArmed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [reordering, setReordering] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [voiding, setVoiding] = useState(false);
   const [voidReason, setVoidReason] = useState('');
@@ -88,6 +97,7 @@ export default function MilkScreen() {
       setFarmId(sync.farmId);
       if (!sync.farmId) {
         setEntries([]);
+        setFarmName(null);
         return;
       }
 
@@ -101,7 +111,8 @@ export default function MilkScreen() {
         }
       }
 
-      const snapshot = await loadMilkSession(sync.farmId, milkDate, milkSession);
+      const [snapshot, name] = await Promise.all([loadMilkSession(sync.farmId, milkDate, milkSession), getFarmName(sync.farmId)]);
+      setFarmName(name);
       setEntries(snapshot.entries);
       setAllocations(snapshot.allocations);
       setValues(Object.fromEntries(snapshot.entries.map((entry) => [entry.animalId, entry.volumeMl === null ? '' : String(entry.volumeMl / 1_000)])));
@@ -128,6 +139,26 @@ export default function MilkScreen() {
       return () => clearTimeout(timeout);
     }, [refresh]),
   );
+
+  const refreshWithSync = useCallback(async () => {
+    try {
+      await refreshPowerSync();
+    } finally {
+      await refresh();
+    }
+  }, [refresh]);
+
+  const startRefresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const task = Promise.resolve().then(refreshWithSync).catch(() => undefined);
+    const timeout = new Promise<void>((resolve) => { timeoutId = setTimeout(resolve, 10_000); });
+    void Promise.race([task, timeout]).finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+      setRefreshing(false);
+    });
+  };
 
   const parsedEntries = useMemo(
     () => entries.map((entry) => ({ entry, volumeMl: parseLitres(values[entry.animalId] ?? '') })),
@@ -306,7 +337,7 @@ export default function MilkScreen() {
 
   const selectSuggestion = (value: number) => {
     if (!picker) return;
-    const valueText = value.toFixed(1);
+    const valueText = formatMilkEntryNumber(value);
     if (picker.key === 'fat') setFat(valueText);
     else if (picker.key === 'snf') setSnf(valueText);
     else if (entries.some((entry) => entry.animalId === picker.key)) setValues((current) => ({ ...current, [picker.key]: valueText }));
@@ -340,13 +371,26 @@ export default function MilkScreen() {
       setPicker({ key: 'snf', max: 10, label: 'SNF %', initial: snf !== '' && Number.isFinite(currentValue) ? currentValue : (previousSnf ?? 0) / 100 });
       return;
     }
+    if (picker.key === 'snf') {
+      const firstBuyer = buyerRows[0];
+      if (!firstBuyer) {
+        setPicker(null);
+        return;
+      }
+      const currentValue = Number(allocationValues[firstBuyer.key]);
+      setPicker({ key: firstBuyer.key, max: 100, label: `${firstBuyer.label} litres`, initial: allocationValues[firstBuyer.key] !== '' && Number.isFinite(currentValue) ? currentValue : (previousAllocationVolumes[firstBuyer.key] ?? 0) / 1_000, step: firstBuyer.label.trim().toLocaleLowerCase() === 'verka' ? 1 : 0.5 });
+      return;
+    }
     setPicker(null);
   };
 
   return (
-    <AppScreen contentStyle={styles.milkScreenContent} scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel="Open Daily Dairy" onPress={() => router.push('/daily-diary' as never)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>📖</Text></Pressable><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
+    <AppScreen contentStyle={styles.milkScreenContent} enableTabSwipe={!picker && !menuOpen && !calendarOpen && !reordering} scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel="Open Daily Dairy" onPress={() => router.push('/daily-diary' as never)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>📖</Text></Pressable><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
       <MilkMenu
         open={menuOpen}
+        appVersion={Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0'}
+        farmName={farmName}
+        loginId={session?.user.email ?? session?.user.id ?? 'Not signed in'}
         onClose={() => setMenuOpen(false)}
         onNavigate={(path) => { setMenuOpen(false); router.push(path); }}
         onSignOut={() => {
@@ -361,7 +405,7 @@ export default function MilkScreen() {
           );
         }}
       />
-      <NestableScrollContainer contentContainerStyle={styles.pageContent} style={styles.pageScroll} keyboardShouldPersistTaps="handled">
+      <NestableScrollContainer contentContainerStyle={styles.pageContent} style={styles.pageScroll} keyboardShouldPersistTaps="handled" onScrollBeginDrag={(event) => setRefreshArmed(event.nativeEvent.contentOffset.y <= 1)} refreshControl={<RefreshControl colors={[colors.primary]} enabled={refreshArmed} onRefresh={startRefresh} refreshing={refreshing} tintColor={colors.primary} />}>
       <View style={styles.dateRow}>
         <SmallButton label="‹" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
@@ -389,23 +433,24 @@ export default function MilkScreen() {
           keyExtractor={(entry) => entry.animalId}
           scrollEnabled={false}
           activationDistance={32}
-          onDragEnd={({ data }) => void saveAnimalOrder(data)}
+          onDragBegin={() => setReordering(true)}
+          onDragEnd={({ data }) => { setReordering(false); void saveAnimalOrder(data); }}
           renderItem={({ item: entry, drag, isActive }) => <ScaleDecorator><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <Pressable accessibilityLabel={`Hold drag handle to reorder ${entry.tag}`} delayLongPress={350} disabled={busy || isLocked} onLongPress={drag} style={[styles.dragHandle, { borderColor: colors.border }]}><Text style={[styles.dragHandleText, { color: colors.textSecondary }]}>↕</Text></Pressable>
             <View style={styles.animalCopy}>
               <Link href={{ pathname: '/animal-profile/[id]', params: { id: entry.animalId } }} asChild><Pressable accessibilityLabel={`Open ${entry.tag} profile`}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text></Pressable></Link>
               {entry.labels.length ? <View style={styles.labelList}>{entry.labels.map((label) => <View key={label.id} style={[styles.labelChip, { backgroundColor: label.color }]}><Text numberOfLines={1} style={styles.labelText}>{label.name}</Text></View>)}</View> : null}
             </View>
-            <SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : (previousVolumes[entry.animalId] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
+            <SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} litres`} onPress={() => openPicker(entry.animalId, 30, `${entry.tag} litres`, previousVolumes[entry.animalId] ?? null)} value={values[entry.animalId] ?? ''} placeholder={previousVolumes[entry.animalId] === undefined ? '—' : formatMilkEntryNumber(previousVolumes[entry.animalId] / 1_000, 3)} invalid={Number.isNaN(parseLitres(values[entry.animalId] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View></ScaleDecorator>}
         />}
       </SectionCard>
 
-      <SectionCard title="FAT & SNF entry">
+      <SectionCard>
         <View style={styles.qualityRow}>
-          <QualityField disabled={isLocked} label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0.0' : (previousFat / 100).toFixed(1)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
-          <QualityField disabled={isLocked} label="SNF %" value={snf} onPress={() => openPicker('snf', 10, 'SNF %', previousSnf)} placeholder={previousSnf === null ? '0.0' : (previousSnf / 100).toFixed(1)} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
+          <QualityField disabled={isLocked} label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0' : formatMilkEntryNumber(previousFat / 100, 2)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
+          <QualityField disabled={isLocked} label="SNF %" value={snf} onPress={() => openPicker('snf', 10, 'SNF %', previousSnf)} placeholder={previousSnf === null ? '0' : formatMilkEntryNumber(previousSnf / 100, 2)} invalid={Number.isNaN(snfHundredths) || (snfHundredths !== null && snfHundredths > 1_500)} />
         </View>
       </SectionCard>
 
@@ -415,14 +460,15 @@ export default function MilkScreen() {
           keyExtractor={(allocation) => allocation.key}
           scrollEnabled={false}
           activationDistance={32}
-          onDragEnd={({ data }) => void saveBuyerOrder(data)}
+          onDragBegin={() => setReordering(true)}
+          onDragEnd={({ data }) => { setReordering(false); void saveBuyerOrder(data); }}
           renderItem={({ item: allocation, drag, isActive }) => <ScaleDecorator><View style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow, isActive && { opacity: 0.75 }]}>
             <Pressable accessibilityLabel={`Hold drag handle to reorder ${allocation.label}`} delayLongPress={350} disabled={busy || isLocked} onLongPress={drag} style={[styles.dragHandle, { borderColor: colors.border }]}><Text style={[styles.dragHandleText, { color: colors.textSecondary }]}>↕</Text></Pressable>
             <View style={styles.animalCopy}>
               {allocation.buyerId ? <Link href={{ pathname: '/buyer-account/[id]', params: { id: allocation.buyerId } }} asChild><Pressable accessibilityLabel={`Open ${allocation.label} account`}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable></Link> : allocation.destination === 'household' ? <Pressable accessibilityLabel="Open Household Consumption" onPress={() => router.push('/household-consumption' as never)}><Text style={[styles.animalName, { color: colors.primary }]}>{allocation.label}</Text></Pressable> : <Text style={[styles.animalName, { color: colors.text }]}>{allocation.label}</Text>}
               <Text style={[styles.entryState, { color: allocation.ratePaisePerLitre === null && allocation.label.trim().toLocaleLowerCase() !== 'verka' ? colors.danger : colors.textSecondary }]}>{allocation.label.trim().toLocaleLowerCase() === 'verka' ? 'Verka rate finalized after billing cycle' : allocation.ratePaisePerLitre === null ? 'Set rate in Master data' : `${formatMoney(allocation.ratePaisePerLitre)} / L`}</Text>
             </View>
-            <SuggestionField disabled={isLocked} accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : (previousAllocationVolumes[allocation.key] / 1_000).toFixed(1)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
+            <SuggestionField disabled={isLocked} accessibilityLabel={`${allocation.label} litres`} onPress={() => openPicker(allocation.key, 100, `${allocation.label} litres`, previousAllocationVolumes[allocation.key] ?? null)} value={allocationValues[allocation.key] ?? ''} placeholder={previousAllocationVolumes[allocation.key] === undefined ? '—' : formatMilkEntryNumber(previousAllocationVolumes[allocation.key] / 1_000, 3)} invalid={Number.isNaN(parseLitres(allocationValues[allocation.key] ?? ''))} />
             <Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text>
           </View></ScaleDecorator>}
         /> : <Text style={[styles.helper, { color: colors.textSecondary }]}>Add buyers in Master data to allocate milk sales.</Text>}
@@ -506,21 +552,27 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
   const rowCount = 10;
   const columnCount = 3;
   const usesBuyerSteps = step !== 0.1;
+  const isVerkaPicker = step === 1;
+  const usesVerticalBuyerColumns = usesBuyerSteps;
   const rangeSpan = usesBuyerSteps ? (rowCount * columnCount - 1) * step : (columnCount - 1) + (rowCount - 1) * step;
-  const maxStart = Math.max(0, picker.max - rangeSpan);
-  const [start, setStart] = useState(() => Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1)));
+  const maxStart = Math.max(isVerkaPicker ? 1 : 0, picker.max - rangeSpan);
+  const [start, setStart] = useState(() => {
+    if (isVerkaPicker) return Math.max(1, Math.min(maxStart, Math.floor(Math.max(0, picker.initial - 1) / (rowCount * columnCount)) * (rowCount * columnCount) + 1));
+    return Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1));
+  });
   const rangeEnd = Number((start + rangeSpan).toFixed(1));
   const gesture = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_, movement) => Math.abs(movement.dx) > 12 && Math.abs(movement.dx) > Math.abs(movement.dy),
     onPanResponderRelease: (_, movement) => {
-      if (movement.dx <= -30) setStart((value) => Math.min(maxStart, value + 1));
-      else if (movement.dx >= 30) setStart((value) => Math.max(0, value - 1));
+      const rangeStep = usesBuyerSteps ? rowCount * step : 1;
+      if (movement.dx <= -30) setStart((value) => Math.min(maxStart, value + rangeStep));
+      else if (movement.dx >= 30) setStart((value) => Math.max(isVerkaPicker ? 1 : 0, value - rangeStep));
     },
-  }), [maxStart]);
-  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {start.toFixed(1)}–{rangeEnd.toFixed(1)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + (row * columnCount + column) * step : start + column + row * step).toFixed(1)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{value.toFixed(1)}</Text></Pressable>; })}</View>)}</View></>;
+  }), [isVerkaPicker, maxStart, rowCount, step, usesBuyerSteps]);
+  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {formatMilkEntryNumber(start)}–{formatMilkEntryNumber(rangeEnd)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + ((usesVerticalBuyerColumns ? column * rowCount + row : row * columnCount + column) * step) : start + column + row * step).toFixed(1)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{formatMilkEntryNumber(value)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
-function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
+function MilkMenu({ appVersion, farmName, loginId, open, onClose, onNavigate, onSignOut }: { appVersion: string; farmName: string | null; loginId: string; open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const [themePreference, setThemePreference] = useState<ThemePreference>('system');
@@ -539,10 +591,20 @@ function MilkMenu({ open, onClose, onNavigate, onSignOut }: { open: boolean; onC
           {options.map((option) => <Pressable key={option.path} onPress={() => onNavigate(option.path)} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.text }]}>{option.label}</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>{option.detail}</Text></Pressable>)}
           <View style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.text }]}>Theme</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>Choose how the app looks on this device</Text><View style={styles.themeOptions}>{(['system', 'light', 'dark'] as const).map((option) => <Pressable key={option} onPress={() => { setThemePreference(option); void saveThemePreference(option); }} style={[styles.themeOption, { backgroundColor: themePreference === option ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: themePreference === option ? '#FFFFFF' : colors.text }}>{option === 'system' ? 'System' : option === 'light' ? 'Light' : 'Dark'}</Text></Pressable>)}</View></View>
           <Pressable onPress={onSignOut} style={[styles.menuItem, { borderTopColor: colors.border }]}><Text style={[styles.menuItemTitle, { color: colors.danger }]}>Sign out</Text><Text style={[styles.menuItemDetail, { color: colors.textSecondary }]}>Sign out of this Google account on this device</Text></Pressable>
+          <View style={[styles.menuItem, styles.menuInfoSection, { borderTopColor: colors.border }]}>
+            <Text style={[styles.menuItemTitle, { color: colors.text }]}>App information</Text>
+            <MenuInfoRow colors={colors} label="Login ID" value={loginId} />
+            <MenuInfoRow colors={colors} label="Farm name" value={farmName ?? 'Loading…'} />
+            <MenuInfoRow colors={colors} label="App version" value={appVersion} />
+          </View>
         </View>
       </View>
     </Modal>
   );
+}
+
+function MenuInfoRow({ colors, label, value }: { colors: typeof Colors[keyof typeof Colors]; label: string; value: string }) {
+  return <View style={styles.menuInfoRow}><Text style={[styles.menuInfoLabel, { color: colors.textSecondary }]}>{label}</Text><Text selectable style={[styles.menuInfoValue, { color: colors.text }]}>{value}</Text></View>;
 }
 
 const styles = StyleSheet.create({
@@ -564,9 +626,9 @@ const styles = StyleSheet.create({
   helper: { fontSize: 13, lineHeight: 19 },
   verkaValue: { fontSize: 16, fontWeight: '800' },
   qualityRow: { flexDirection: 'row', gap: 10 },
-  qualityField: { flex: 1, gap: 6 },
-  qualityLabel: { fontSize: 13, fontWeight: '700' },
-  qualityInput: { minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, fontSize: 17 },
+  qualityField: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
+  qualityLabel: { fontSize: 13, fontWeight: '700', minWidth: 38 },
+  qualityInput: { width: '50%', minHeight: 48, borderWidth: 1, borderRadius: 10, paddingHorizontal: 8, fontSize: 17 },
   entryRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 12, gap: 8 },
   dragHandle: { alignItems: 'center', borderWidth: 1, borderRadius: 10, justifyContent: 'center', minHeight: 44, width: 32 },
   dragHandleText: { fontSize: 20, fontWeight: '800' },
@@ -604,13 +666,17 @@ const styles = StyleSheet.create({
   voidActionText: { fontSize: 14, fontWeight: '700' },
   voidSession: { minHeight: 46, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   menuOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-start' },
-  menuPanel: { width: '86%', maxWidth: 420, minHeight: '100%', borderRightWidth: StyleSheet.hairlineWidth, paddingTop: 58, paddingHorizontal: 20 },
+  menuPanel: { width: '86%', maxWidth: 420, flex: 1, borderRightWidth: StyleSheet.hairlineWidth, paddingTop: 58, paddingHorizontal: 20 },
   menuHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 18 },
   menuTitle: { fontSize: 24, fontWeight: '800' },
   closeText: { fontSize: 14, fontWeight: '800' },
   menuItem: { borderTopWidth: StyleSheet.hairlineWidth, paddingVertical: 16, gap: 4 },
   menuItemTitle: { fontSize: 16, fontWeight: '800' },
   menuItemDetail: { fontSize: 13, lineHeight: 18 },
+  menuInfoSection: { marginTop: 'auto' },
+  menuInfoRow: { gap: 2, marginTop: 6 },
+  menuInfoLabel: { fontSize: 12, fontWeight: '700' },
+  menuInfoValue: { fontSize: 14, fontWeight: '600' },
   themeOptions: { flexDirection: 'row', gap: 8, marginTop: 4 },
   themeOption: { alignItems: 'center', borderRadius: 9, flex: 1, paddingVertical: 9 },
   pickerOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },

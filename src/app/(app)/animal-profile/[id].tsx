@@ -11,6 +11,7 @@ import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import { createAnimalPhoto, createLactationRecord, createProfileHeatEvent, deleteAnimalPhoto, loadAnimalProfile } from '@/data/repositories/animal-profile';
 import type { AnimalProfile } from '@/data/repositories/animal-profile.types';
 import { requireSupabase } from '@/data/supabase/client';
+import { getCachedSignedUrl, invalidateCachedSignedUrl } from '@/data/supabase/signed-url-cache';
 import { formatMilk, formatMoney } from '@/domain/calculations';
 import { formatElapsedMonthsDays, formatFarmDate } from '@/domain/dates';
 import { useSession } from '@/features/auth/session-provider';
@@ -52,21 +53,19 @@ export default function AnimalProfileScreen() {
     const photo = nextProfile.photos.find((item) => item.isProfile === 1);
     if (!photo) setProfilePhotoUrl(null);
     else {
-      const signed = await requireSupabase().storage.from('animal-files').createSignedUrl(photo.storagePath, 600);
-      setProfilePhotoUrl(signed.data?.signedUrl ?? null);
+      setProfilePhotoUrl(await getCachedSignedUrl('animal-files', photo.storagePath));
     }
     const imageAttachments = nextProfile.photos.filter((item) => !item.isProfile && isImageFile(item.fileName));
     const attachmentLinks = await Promise.all(imageAttachments.map(async (item) => {
-      const signed = await requireSupabase().storage.from('animal-files').createSignedUrl(item.storagePath, 600);
-      return [item.id, signed.data?.signedUrl] as const;
+      return [item.id, await getCachedSignedUrl('animal-files', item.storagePath)] as const;
     }));
     setAttachmentImageUrls(Object.fromEntries(attachmentLinks.filter((entry): entry is readonly [string, string] => Boolean(entry[1]))));
   }, [id]);
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
   const openFile = async (storagePath: string) => {
-    const link = await requireSupabase().storage.from('animal-files').createSignedUrl(storagePath, 600);
-    if (link.data?.signedUrl) await Linking.openURL(link.data.signedUrl);
+    const link = await getCachedSignedUrl('animal-files', storagePath);
+    if (link) await Linking.openURL(link);
   };
 
   const removeAttachment = async (photo: NonNullable<AnimalProfile['photos']>[number]) => {
@@ -75,6 +74,7 @@ export default function AnimalProfileScreen() {
       if (!sync.farmId || !session) return;
       const removed = await requireSupabase().storage.from('animal-files').remove([photo.storagePath]);
       if (removed.error) throw removed.error;
+      invalidateCachedSignedUrl('animal-files', photo.storagePath);
       await deleteAnimalPhoto({ farmId: sync.farmId, photoId: photo.id, userId: session.user.id });
       setMessage('Attachment deleted.');
       await load();

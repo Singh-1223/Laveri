@@ -1,7 +1,7 @@
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect, usePathname, useRouter } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
-import { useCallback, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { KeyboardAvoidingView, PanResponder, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -14,11 +14,41 @@ type AppScreenProps = PropsWithChildren<{
   action?: ReactNode;
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  onRefresh?: () => Promise<void>;
+  enableTabSwipe?: boolean;
 }>;
 
-export function AppScreen({ title, subtitle, action, scroll = true, contentStyle, children }: AppScreenProps) {
+const mainTabRoutes = ['/milk', '/herd', '/expenses', '/reports'] as const;
+
+export function AppScreen({ title, subtitle, action, scroll = true, contentStyle, children, onRefresh, enableTabSwipe = false }: AppScreenProps) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
+  const pathname = usePathname();
+  const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshArmed, setRefreshArmed] = useState(false);
+  const startRefresh = () => {
+    if (!onRefresh || refreshing) return;
+    setRefreshing(true);
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    const task = Promise.resolve().then(onRefresh).catch(() => undefined);
+    const timeout = new Promise<void>((resolve) => { timeoutId = setTimeout(resolve, 10_000); });
+    void Promise.race([task, timeout]).finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+      setRefreshing(false);
+    });
+  };
+  const refreshControl = onRefresh ? <RefreshControl colors={[colors.primary]} enabled={refreshArmed} onRefresh={startRefresh} refreshing={refreshing} tintColor={colors.primary} /> : undefined;
+  const tabSwipe = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_event, gesture) => enableTabSwipe && Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+    onPanResponderRelease: (_event, gesture) => {
+      if (Math.abs(gesture.dx) < 72 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.5) return;
+      const currentIndex = mainTabRoutes.indexOf(pathname as typeof mainTabRoutes[number]);
+      if (currentIndex === -1) return;
+      const nextRoute = mainTabRoutes[gesture.dx < 0 ? currentIndex + 1 : currentIndex - 1];
+      if (nextRoute) router.navigate(nextRoute as never);
+    },
+  }), [enableTabSwipe, pathname, router]);
   const content = (
     <View style={[styles.content, contentStyle]}>
       <View style={styles.header}>
@@ -38,7 +68,9 @@ export function AppScreen({ title, subtitle, action, scroll = true, contentStyle
   return (
     <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView behavior={Platform.select({ ios: 'padding', android: 'height' })} style={styles.keyboardAvoiding}>
-        {scroll ? <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={styles.scroll} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled">{content}</ScrollView> : content}
+        <View {...(enableTabSwipe ? tabSwipe.panHandlers : {})} style={styles.screen}>
+          {scroll ? <ScrollView automaticallyAdjustKeyboardInsets contentContainerStyle={styles.scroll} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" onScrollBeginDrag={(event) => setRefreshArmed(event.nativeEvent.contentOffset.y <= 1)} refreshControl={refreshControl}>{content}</ScrollView> : content}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -104,6 +136,7 @@ export function EmptyState({ children }: PropsWithChildren) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   keyboardAvoiding: { flex: 1 },
+  screen: { flex: 1 },
   scroll: { flexGrow: 1 },
   content: { flex: 1, paddingHorizontal: 20, paddingBottom: 28, gap: 16 },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, paddingTop: 12 },

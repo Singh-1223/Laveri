@@ -14,6 +14,10 @@ export async function getMilkLaunchTarget(_farmId: string): Promise<MilkLaunchTa
   throw unavailable();
 }
 
+export async function getFarmName(_farmId: string): Promise<string | null> {
+  throw unavailable();
+}
+
 export async function saveMilkSession(_input: SaveMilkSessionInput) {
   throw unavailable();
 }

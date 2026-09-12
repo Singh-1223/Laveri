@@ -44,6 +44,15 @@ export async function getMilkLaunchTarget(farmId: string): Promise<MilkLaunchTar
   return { milkDate: todayAtFarm(), session: now.getHours() < 12 ? 'morning' : 'evening' };
 }
 
+export async function getFarmName(farmId: string): Promise<string | null> {
+  const database = await getPowerSyncDatabase();
+  const farm = await database.getOptional<{ name: string }>(
+    'SELECT name FROM farms WHERE id = ? AND deleted_at IS NULL LIMIT 1',
+    [farmId],
+  );
+  return farm?.name ?? null;
+}
+
 export async function loadMilkSession(
   farmId: string,
   milkDate: string,
@@ -121,7 +130,7 @@ export async function loadMilkSession(
        FROM animal_label_links link
        INNER JOIN animal_labels label ON label.id = link.label_id
        WHERE link.farm_id = ? AND link.deleted_at IS NULL AND label.deleted_at IS NULL
-       ORDER BY label.name COLLATE NOCASE`,
+       ORDER BY label.created_at, label.id`,
       [farmId],
     ),
     database.getAll<{ animalId: string; volumeMl: number }>(

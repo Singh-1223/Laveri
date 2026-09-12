@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useCol
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
-import { getPowerSyncSnapshot } from '@/data/powersync/platform';
+import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platform';
 import { createItem, listMasterData } from '@/data/repositories/master-data';
 import type { AnimalRow, ItemRow } from '@/data/repositories/master-data.types';
 import {
@@ -250,7 +250,7 @@ export default function ExpensesScreen() {
   };
 
   return (
-    <AppScreen title="Farm operations" subtitle="Farm-wide feed, products, and health records">
+    <AppScreen enableTabSwipe onRefresh={async () => { try { await refreshPowerSync(); } finally { await refresh(); } }} title="Farm operations">
       <View style={styles.tabs}>
         {(['feed', 'product', 'treatment', 'investment', 'silage'] as const).map((value) => (
           <Pressable key={value} onPress={() => { setKind(value); setHistoryFilter(value); clearForm(); }} style={[styles.tab, { backgroundColor: kind === value ? colors.primary : colors.backgroundSelected }]}>
