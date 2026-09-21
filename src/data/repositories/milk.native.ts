@@ -4,12 +4,7 @@ import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import { recordCorrection } from '@/data/repositories/corrections.native';
 import { calculateFlatMilkAmountPaise } from '@/domain/calculations';
 
-import type { MilkLaunchTarget, MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkAnimalOrderInput, SaveMilkBuyerOrderInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
-
-function todayAtFarm(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
+import type { MilkSessionSnapshot, ReorderMilkAnimalsInput, SaveMilkAnimalOrderInput, SaveMilkBuyerOrderInput, SaveMilkSessionInput, VoidMilkSessionInput } from './milk.types';
 
 function verkaCycle(date: string) {
   const [year, month, day] = date.split('-').map(Number);
@@ -17,31 +12,6 @@ function verkaCycle(date: string) {
   const endDay = day <= 10 ? 10 : day <= 20 ? 20 : new Date(year, month, 0).getDate();
   const format = (value: number) => `${year}-${String(month).padStart(2, '0')}-${String(value).padStart(2, '0')}`;
   return { start: format(startDay), end: format(endDay), elapsedDays: day - startDay + 1 };
-}
-
-export async function getMilkLaunchTarget(farmId: string): Promise<MilkLaunchTarget> {
-  const database = await getPowerSyncDatabase();
-  const activeAnimals = await database.getOptional<{ count: number }>(
-    `SELECT count(*) AS count FROM animals
-     WHERE farm_id = ? AND status = 'active' AND is_milking = 1 AND deleted_at IS NULL`,
-    [farmId],
-  );
-  const animalCount = activeAnimals?.count ?? 0;
-  const incomplete = animalCount > 0 ? await database.getOptional<MilkLaunchTarget>(
-    `SELECT entry.milk_date AS milkDate, entry.session
-     FROM milk_entries entry
-     WHERE entry.farm_id = ? AND entry.deleted_at IS NULL
-     GROUP BY entry.milk_date, entry.session
-     HAVING count(distinct entry.animal_id) < ?
-     ORDER BY entry.milk_date DESC,
-       CASE entry.session WHEN 'evening' THEN 1 ELSE 0 END DESC
-     LIMIT 1`,
-    [farmId, animalCount],
-  ) : null;
-  if (incomplete) return incomplete;
-
-  const now = new Date();
-  return { milkDate: todayAtFarm(), session: now.getHours() < 12 ? 'morning' : 'evening' };
 }
 
 export async function getFarmName(farmId: string): Promise<string | null> {
@@ -60,7 +30,7 @@ export async function loadMilkSession(
 ): Promise<MilkSessionSnapshot> {
   const database = await getPowerSyncDatabase();
   const cycle = verkaCycle(milkDate);
-  const [entries, buyerAllocations, householdAllocation, labelRows, previousEntries, previousAllocations, previousQuality, verkaAllocation] = await Promise.all([
+  const [entries, milkCalves, buyerAllocations, householdAllocation, labelRows, previousEntries, previousAllocations, previousMilkCalves, previousQuality, verkaAllocation] = await Promise.all([
     database.getAll<MilkSessionSnapshot['entries'][number]>(
       `SELECT
         animal.id AS animalId,
@@ -86,6 +56,16 @@ export async function loadMilkSession(
         AND animal.deleted_at IS NULL
         AND ((animal.status = 'active' AND animal.is_milking = 1) OR entry.id IS NOT NULL)
       ORDER BY animal.milk_display_order, animal.tag COLLATE NOCASE`,
+      [milkDate, session, farmId],
+    ),
+    database.getAll<MilkSessionSnapshot['milkCalves'][number]>(
+      `SELECT animal.id AS animalId, animal.tag, allocation.id AS allocationId, allocation.volume_ml AS volumeMl
+       FROM animals animal
+       LEFT JOIN milk_calf_allocations allocation
+         ON allocation.animal_id = animal.id AND allocation.milk_date = ? AND allocation.session = ? AND allocation.deleted_at IS NULL
+       WHERE animal.farm_id = ? AND animal.deleted_at IS NULL
+         AND animal.status = 'active' AND animal.milk_entry_category = 'milk_calf'
+       ORDER BY animal.milk_display_order, animal.tag COLLATE NOCASE`,
       [milkDate, session, farmId],
     ),
     database.getAll<MilkSessionSnapshot['allocations'][number]>(
@@ -157,6 +137,18 @@ export async function loadMilkSession(
        WHERE allocation.farm_id = ? AND allocation.session = ? AND allocation.destination = 'buyer' AND allocation.deleted_at IS NULL`,
       [farmId, session, milkDate, farmId, session],
     ),
+    database.getAll<{ animalId: string; volumeMl: number }>(
+      `SELECT allocation.animal_id AS animalId, allocation.volume_ml AS volumeMl
+       FROM milk_calf_allocations allocation
+       INNER JOIN (
+         SELECT animal_id, max(milk_date) AS milk_date
+         FROM milk_calf_allocations
+         WHERE farm_id = ? AND session = ? AND milk_date < ? AND deleted_at IS NULL
+         GROUP BY animal_id
+       ) previous ON previous.animal_id = allocation.animal_id AND previous.milk_date = allocation.milk_date
+       WHERE allocation.farm_id = ? AND allocation.session = ? AND allocation.deleted_at IS NULL`,
+      [farmId, session, milkDate, farmId, session],
+    ),
     database.getOptional<{ fatHundredths: number | null; snfHundredths: number | null }>(
       `SELECT fat_hundredths AS fatHundredths, snf_hundredths AS snfHundredths
        FROM milk_entries
@@ -178,6 +170,7 @@ export async function loadMilkSession(
 
   return {
     entries: entries.map((entry) => ({ ...entry, labels: labelsByAnimal.get(entry.animalId) ?? [] })),
+    milkCalves,
     allocations: [
       ...buyerAllocations,
       {
@@ -195,6 +188,7 @@ export async function loadMilkSession(
     suggestedCmFatPaise: null,
     suggestedCmSnfPaise: null,
     previousVolumesMl: Object.fromEntries(previousEntries.map((entry) => [entry.animalId, entry.volumeMl])),
+    previousMilkCalfVolumesMl: Object.fromEntries(previousMilkCalves.map((entry) => [entry.animalId, entry.volumeMl])),
     previousAllocationVolumesMl: Object.fromEntries(previousAllocations.map((allocation) => [allocation.buyerId, allocation.volumeMl])),
     previousFatHundredths: previousQuality?.fatHundredths ?? null,
     previousSnfHundredths: previousQuality?.snfHundredths ?? null,
@@ -265,6 +259,7 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
     throw new Error('Milk production no longer stores a shared sales rate.');
   }
   const isCorrection = input.entries.some((entry) => entry.entryId !== null)
+    || input.milkCalfAllocations.some((entry) => entry.allocationId !== null)
     || input.allocations.some((allocation) => allocation.allocationId !== null);
 
   await database.writeTransaction(async (transaction) => {
@@ -275,6 +270,10 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
       ),
       allocations: await transaction.getAll<Record<string, unknown>>(
         `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY destination, buyer_id`,
+        [input.farmId, input.milkDate, input.session],
+      ),
+      milkCalfAllocations: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_calf_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY animal_id`,
         [input.farmId, input.milkDate, input.session],
       ),
     } : null;
@@ -410,6 +409,17 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
       }
     }
 
+    for (const allocation of input.milkCalfAllocations) {
+      if (!Number.isSafeInteger(allocation.volumeMl) || allocation.volumeMl < 0) throw new RangeError('Milk Calf volume must be a non-negative safe integer.');
+      if (allocation.allocationId) {
+        await transaction.execute(`UPDATE milk_calf_allocations SET volume_ml = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ? AND farm_id = ?`, [allocation.volumeMl, now, input.userId, allocation.allocationId, input.farmId]);
+      } else {
+        const existing = await transaction.getOptional<{ id: string }>(`SELECT id FROM milk_calf_allocations WHERE farm_id = ? AND animal_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL LIMIT 1`, [input.farmId, allocation.animalId, input.milkDate, input.session]);
+        if (existing) await transaction.execute(`UPDATE milk_calf_allocations SET volume_ml = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ?`, [allocation.volumeMl, now, input.userId, existing.id]);
+        else await transaction.execute(`INSERT INTO milk_calf_allocations (id,farm_id,animal_id,milk_date,session,volume_ml,created_at,updated_at,created_by,updated_by,deleted_at,version) VALUES (?,?,?,?,?,?,?,?,?,?,NULL,1)`, [Crypto.randomUUID(), input.farmId, allocation.animalId, input.milkDate, input.session, allocation.volumeMl, now, now, input.userId, input.userId]);
+      }
+    }
+
     for (const allocationId of input.deletedAllocationIds) {
       await transaction.execute(
         `UPDATE milk_allocations
@@ -428,6 +438,10 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
       );
     }
 
+    for (const animalId of input.clearedMilkCalfAnimalIds) {
+      await transaction.execute(`UPDATE milk_calf_allocations SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE farm_id = ? AND animal_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL`, [now, now, input.userId, input.farmId, animalId, input.milkDate, input.session]);
+    }
+
     if (before) {
       const after = {
         entries: await transaction.getAll<Record<string, unknown>>(
@@ -436,6 +450,10 @@ export async function saveMilkSession(input: SaveMilkSessionInput) {
         ),
         allocations: await transaction.getAll<Record<string, unknown>>(
           `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY destination, buyer_id`,
+          [input.farmId, input.milkDate, input.session],
+        ),
+        milkCalfAllocations: await transaction.getAll<Record<string, unknown>>(
+          `SELECT * FROM milk_calf_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY animal_id`,
           [input.farmId, input.milkDate, input.session],
         ),
       };
@@ -468,6 +486,10 @@ export async function voidMilkSession(input: VoidMilkSessionInput) {
         `SELECT * FROM milk_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY destination, buyer_id`,
         [input.farmId, input.milkDate, input.session],
       ),
+      milkCalfAllocations: await transaction.getAll<Record<string, unknown>>(
+        `SELECT * FROM milk_calf_allocations WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL ORDER BY animal_id`,
+        [input.farmId, input.milkDate, input.session],
+      ),
     };
     const values = [reason, now, now, input.userId, input.farmId, input.milkDate, input.session];
     await transaction.execute(
@@ -476,6 +498,12 @@ export async function voidMilkSession(input: VoidMilkSessionInput) {
            version = version + 1
        WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL`,
       values,
+    );
+    await transaction.execute(
+      `UPDATE milk_calf_allocations
+       SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1
+       WHERE farm_id = ? AND milk_date = ? AND session = ? AND deleted_at IS NULL`,
+      [now, now, input.userId, input.farmId, input.milkDate, input.session],
     );
     await transaction.execute(
       `UPDATE milk_allocations

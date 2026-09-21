@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
@@ -69,8 +69,6 @@ export default function ExpensesScreen() {
   const [quickItemUnit, setQuickItemUnit] = useState('');
   const [productCategory, setProductCategory] = useState<'operating_expense' | 'investment'>('operating_expense');
   const [editingRow, setEditingRow] = useState<OperationHistoryRow | null>(null);
-  const [voidingKey, setVoidingKey] = useState<string | null>(null);
-  const [voidReason, setVoidReason] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -113,7 +111,7 @@ export default function ExpensesScreen() {
       if (historyFilter !== 'all' && row.kind !== historyFilter) return false;
       if (historySearchScope === 'range' && (row.businessDate < historyDateRange.from || row.businessDate > historyDateRange.to)) return false;
       if (!query) return true;
-      return [row.businessDate, row.title, row.detail, row.voidReason, row.notes, row.amountPaise, row.quantityMilliUnits, row.unitCode, row.ratePaisePerUnit, row.doctorFeePaise, row.medicineCostPaise, row.productCategory]
+      return [row.businessDate, row.title, row.detail, row.notes, row.amountPaise, row.quantityMilliUnits, row.unitCode, row.ratePaisePerUnit, row.doctorFeePaise, row.medicineCostPaise, row.productCategory]
         .some((value) => String(value ?? '').toLocaleLowerCase().includes(query));
     });
   }, [history, historyDateRange.from, historyDateRange.to, historyFilter, historySearch, historySearchScope]);
@@ -154,8 +152,6 @@ export default function ExpensesScreen() {
     setNotes(row.notes ?? '');
     setProductCategory(row.productCategory === 'investment' ? 'investment' : 'operating_expense');
     setEditingRow(row);
-    setVoidingKey(null);
-    setVoidReason('');
     setMessage(`Editing ${kindLabel(row.kind).toLowerCase()} from ${formatFarmDate(row.businessDate)}. Use the form above.`);
   };
 
@@ -226,8 +222,8 @@ export default function ExpensesScreen() {
     }
   };
 
-  const confirmVoid = async (row: OperationHistoryRow) => {
-    if (!farmId || !session || !voidReason.trim()) return;
+  const deleteRecord = async (row: OperationHistoryRow) => {
+    if (!farmId || !session) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -236,14 +232,12 @@ export default function ExpensesScreen() {
         userId: session.user.id,
         id: row.id,
         kind: row.kind,
-        reason: voidReason,
+        reason: 'Deleted by user',
       });
-      setVoidingKey(null);
-      setVoidReason('');
       await refresh();
-      setMessage(`${kindLabel(row.kind)} voided locally. It will no longer count in reports.`);
+      setMessage(`${kindLabel(row.kind)} deleted locally. It will no longer count in reports.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Unable to void this operation.');
+      setMessage(error instanceof Error ? error.message : 'Unable to delete this operation.');
     } finally {
       setBusy(false);
     }
@@ -300,7 +294,7 @@ export default function ExpensesScreen() {
         <View style={styles.historyFilters}>{([['1m', '1 month'], ['6m', '6 months'], ['12m', '12 months'], ['custom', 'Custom']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setHistoryRange(value)} style={[styles.historyFilter, { backgroundColor: historyRange === value ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: historyRange === value ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '700' }}>{label}</Text></Pressable>)}</View>
         {historyRange === 'custom' ? <View style={styles.numericRow}><View style={styles.dateInput}><DateField label="From date" value={historyFromDate} onChange={setHistoryFromDate} /></View><View style={styles.dateInput}><DateField label="To date" value={historyToDate} onChange={setHistoryToDate} /></View></View> : null}
         <Text style={[styles.historyTotal, { color: colors.text }]}>Total spent ({formatFarmDate(historyDateRange.from)} - {formatFarmDate(historyDateRange.to)}): {formatMoney(selectedRangeTotal)}</Text>
-        <TextInput accessibilityLabel="Search operation history" onChangeText={setHistorySearch} placeholder="Search any activity detail, comment, unit, quantity, rate, price or void reason" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={historySearch} />
+        <TextInput accessibilityLabel="Search operation history" onChangeText={setHistorySearch} placeholder="Search any activity detail, comment, unit, quantity, rate or price" placeholderTextColor={colors.textSecondary} style={[styles.input, { color: colors.text, borderColor: colors.border }]} value={historySearch} />
         <View style={styles.historyFilters}>{([['range', 'Selected date range'], ['all', 'Entire record']] as const).map(([value, label]) => <Pressable key={value} onPress={() => setHistorySearchScope(value)} style={[styles.historyFilter, { backgroundColor: historySearchScope === value ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: historySearchScope === value ? '#FFFFFF' : colors.text, fontSize: 12, fontWeight: '700' }}>{label}</Text></Pressable>)}</View>
         <View style={styles.historyFilters}>
           {(['all', 'feed', 'treatment', 'product', 'silage', 'investment'] as const).map((value) => (
@@ -318,23 +312,13 @@ export default function ExpensesScreen() {
                   <Text style={[styles.historyTitle, { color: colors.text }]}>{row.title}</Text>
                   <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>{formatFarmDate(row.businessDate)} • {kindLabel(row.kind)}{formatOperationDetail(row) ? ` • ${formatOperationDetail(row)}` : ''}</Text>
                   {row.notes ? <Text style={[styles.historyDetail, { color: colors.textSecondary }]}>Comment: {row.notes}</Text> : null}
-                  {row.isVoided === 1 ? <Text style={[styles.voidReason, { color: colors.danger }]}>Voided: {row.voidReason}</Text> : null}
                 </View>
                 {row.amountPaise > 0 ? <Text style={[styles.amount, { color: colors.text }]}>{formatMoney(row.amountPaise)}</Text> : null}
               </View>
-              {row.isVoided !== 1 && voidingKey !== rowKey ? (
+              {row.isVoided !== 1 ? (
                 <View style={styles.historyActions}>
                   <Pressable disabled={busy} onPress={() => startEdit(row)} style={[styles.historyButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Edit</Text></Pressable>
-                  <Pressable disabled={busy} onPress={() => { setVoidingKey(rowKey); setVoidReason(''); }} style={[styles.historyButton, { borderColor: colors.danger }]}><Text style={[styles.voidButtonText, { color: colors.danger }]}>Void record</Text></Pressable>
-                </View>
-              ) : null}
-              {voidingKey === rowKey ? (
-                <View style={styles.voidEditor}>
-                  <TextInput accessibilityLabel="Void reason" multiline onChangeText={setVoidReason} placeholder="Reason for correction (required)" placeholderTextColor={colors.textSecondary} style={[styles.notes, { color: colors.text, borderColor: colors.danger }]} value={voidReason} />
-                  <View style={styles.voidActions}>
-                    <Pressable disabled={busy} onPress={() => { setVoidingKey(null); setVoidReason(''); }} style={[styles.voidAction, { borderColor: colors.border }]}><Text style={{ color: colors.textSecondary, fontWeight: '700' }}>Cancel</Text></Pressable>
-                    <Pressable disabled={busy || !voidReason.trim()} onPress={() => void confirmVoid(row)} style={[styles.voidAction, { backgroundColor: colors.danger }, (busy || !voidReason.trim()) && styles.disabled]}><Text style={styles.saveText}>Confirm void</Text></Pressable>
-                  </View>
+                  <Pressable disabled={busy} onPress={() => Alert.alert('Delete record?', 'This activity will be removed and excluded from reports.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void deleteRecord(row) }])} style={[styles.historyButton, { borderColor: colors.danger }]}><Text style={[styles.voidButtonText, { color: colors.danger }]}>Delete</Text></Pressable>
                 </View>
               ) : null}
             </View>

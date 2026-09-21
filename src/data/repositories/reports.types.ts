@@ -27,9 +27,28 @@ export type MilkQualityRecord = {
   snfHundredths: number | null;
 };
 
-export type DailyDiaryRow = { id: string; diaryDate: string; comment: string };
-export type SaveDailyDiaryInput = { farmId: string; userId: string; diaryDate: string; comment: string; id?: string };
+export type AnimalMilkGraphAnimal = {
+  id: string;
+  tag: string;
+};
+
+export type AnimalMilkGraphPoint = {
+  animalId: string;
+  milkDate: string;
+  volumeMl: number;
+};
+
+export type AnimalMilkGraphSnapshot = {
+  animals: AnimalMilkGraphAnimal[];
+  points: AnimalMilkGraphPoint[];
+};
+
+export type DailyDiaryRow = { id: string; diaryDate: string; comment: string; categoryId: string | null; categoryName: string };
+export type DailyDiaryCategory = { id: string; name: string; displayOrder: number };
+export type SaveDailyDiaryInput = { farmId: string; userId: string; diaryDate: string; comment: string; categoryId: string | null; id?: string };
 export type DeleteDailyDiaryInput = { farmId: string; userId: string; id: string };
+export type SaveDailyDiaryCategoryInput = { farmId: string; userId: string; name: string; id?: string };
+export type DeleteDailyDiaryCategoryInput = { farmId: string; userId: string; id: string };
 
 export type BuyerSaleDetailRow = {
   id: string;
@@ -49,6 +68,7 @@ export type PeriodReport = {
   eveningMl: number;
   producedMl: number;
   buyerMl: number;
+  milkCalfMl: number;
   householdMl: number;
   unallocatedMl: number;
   milkRevenuePaise: number;

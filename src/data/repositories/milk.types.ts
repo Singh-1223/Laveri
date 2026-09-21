@@ -19,16 +19,25 @@ export type MilkAnimalEntry = {
 
 export type MilkSessionSnapshot = {
   entries: MilkAnimalEntry[];
+  milkCalves: MilkCalfEntry[];
   allocations: MilkAllocationEntry[];
   pricingMode: 'flat' | 'quality';
   suggestedRatePaisePerLitre: number | null;
   suggestedCmFatPaise: number | null;
   suggestedCmSnfPaise: number | null;
   previousVolumesMl: Record<string, number>;
+  previousMilkCalfVolumesMl: Record<string, number>;
   previousAllocationVolumesMl: Record<string, number>;
   previousFatHundredths: number | null;
   previousSnfHundredths: number | null;
   verkaTarget: { cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null;
+};
+
+export type MilkCalfEntry = {
+  animalId: string;
+  tag: string;
+  allocationId: string | null;
+  volumeMl: number | null;
 };
 
 export type MilkAllocationEntry = {
@@ -47,6 +56,12 @@ export type SaveMilkEntry = {
   volumeMl: number;
 };
 
+export type SaveMilkCalfAllocation = {
+  animalId: string;
+  allocationId: string | null;
+  volumeMl: number;
+};
+
 export type SaveMilkSessionInput = {
   farmId: string;
   userId: string;
@@ -60,6 +75,7 @@ export type SaveMilkSessionInput = {
   cmSnfPaise: null;
   ratePaisePerLitre: 0;
   entries: SaveMilkEntry[];
+  milkCalfAllocations: SaveMilkCalfAllocation[];
   allocations: {
     allocationId: string | null;
     destination: 'buyer' | 'household';
@@ -68,6 +84,7 @@ export type SaveMilkSessionInput = {
     ratePaisePerLitre: number;
   }[];
   clearedAnimalIds: string[];
+  clearedMilkCalfAnimalIds: string[];
   deletedAllocationIds: string[];
 };
 
@@ -77,11 +94,6 @@ export type VoidMilkSessionInput = {
   milkDate: string;
   session: MilkSession;
   reason: string;
-};
-
-export type MilkLaunchTarget = {
-  milkDate: string;
-  session: MilkSession;
 };
 
 export type ReorderMilkAnimalsInput = {

@@ -52,7 +52,7 @@ export async function listRecentOperations(farmId: string, limit = 1_000): Promi
       FROM feed_transactions feed
       JOIN items item ON item.id = feed.item_id
       LEFT JOIN animals animal ON animal.id = feed.animal_id
-      WHERE feed.farm_id = ?
+      WHERE feed.farm_id = ? AND feed.deleted_at IS NULL
 
       UNION ALL
 
@@ -69,7 +69,7 @@ export async function listRecentOperations(farmId: string, limit = 1_000): Promi
       FROM treatments treatment
       JOIN animals animal ON animal.id = treatment.animal_id
       LEFT JOIN items item ON item.id = treatment.medicine_item_id
-      WHERE treatment.farm_id = ?
+      WHERE treatment.farm_id = ? AND treatment.deleted_at IS NULL
 
       UNION ALL
 
@@ -85,7 +85,7 @@ export async function listRecentOperations(farmId: string, limit = 1_000): Promi
         product.notes AS notes, product.category AS productCategory, product.created_at AS createdAt
       FROM product_transactions product
       LEFT JOIN items item ON item.id = product.item_id
-      WHERE product.farm_id = ?
+      WHERE product.farm_id = ? AND product.deleted_at IS NULL
     ) operations
     ORDER BY businessDate DESC, createdAt DESC
     LIMIT ?`,

@@ -83,8 +83,12 @@ const calculatorHistory = new Table(
 );
 
 const dailyDiary = new Table(
-  { farm_id: column.text, diary_date: column.text, comment: column.text, ...auditColumns },
+  { farm_id: column.text, diary_date: column.text, category_id: column.text, comment: column.text, ...auditColumns },
   { ...versioned, indexes: { by_farm_date: ['farm_id', '-diary_date'] } },
+);
+const dailyDiaryCategories = new Table(
+  { farm_id: column.text, name: column.text, display_order: column.integer, ...auditColumns },
+  { ...versioned, indexes: { by_farm_name: ['farm_id', 'name'] } },
 );
 const householdMonthlySettings = new Table(
   { farm_id: column.text, month_key: column.text, rate_paise_per_litre: column.integer, self_payment_paise: column.integer, ...auditColumns },
@@ -99,6 +103,7 @@ const animals = new Table(
     sex: column.text,
     status: column.text,
     is_milking: column.integer,
+    milk_entry_category: column.text,
     breed: column.text,
     birth_date: column.text,
     acquisition_date: column.text,
@@ -216,6 +221,10 @@ const milkAllocations = new Table(
     ...auditColumns,
   },
   { ...versioned, indexes: { by_farm_date: ['farm_id', '-milk_date', 'session'], by_buyer_date: ['buyer_id', '-milk_date'] } },
+);
+const milkCalfAllocations = new Table(
+  { farm_id: column.text, animal_id: column.text, milk_date: column.text, session: column.text, volume_ml: column.integer, ...auditColumns },
+  { ...versioned, indexes: { by_farm_date: ['farm_id', '-milk_date', 'session'], by_animal_date: ['animal_id', '-milk_date'] } },
 );
 
 const feedTransactions = new Table(
@@ -343,6 +352,7 @@ export const appSchema = new Schema({
   milk_pricing_configs: milkPricingConfigs,
   calculator_history: calculatorHistory,
   daily_diary: dailyDiary,
+  daily_diary_categories: dailyDiaryCategories,
   household_monthly_settings: householdMonthlySettings,
   animals,
   animal_labels: animalLabels,
@@ -357,6 +367,7 @@ export const appSchema = new Schema({
   items,
   milk_entries: milkEntries,
   milk_allocations: milkAllocations,
+  milk_calf_allocations: milkCalfAllocations,
   feed_transactions: feedTransactions,
   treatments,
   treatment_animals: treatmentAnimals,

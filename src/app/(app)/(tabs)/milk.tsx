@@ -8,8 +8,8 @@ import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } fr
 import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platform';
-import { getFarmName, getMilkLaunchTarget, loadMilkSession, saveMilkAnimalOrder, saveMilkBuyerOrder, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
-import type { MilkAllocationEntry, MilkAnimalEntry } from '@/data/repositories/milk.types';
+import { getFarmName, loadMilkSession, saveMilkAnimalOrder, saveMilkBuyerOrder, saveMilkSession, voidMilkSession } from '@/data/repositories/milk';
+import type { MilkAllocationEntry, MilkAnimalEntry, MilkSessionSnapshot } from '@/data/repositories/milk.types';
 import { formatMilk, formatMoney, summarizeMilkAllocation } from '@/domain/calculations';
 import { formatFarmDate } from '@/domain/dates';
 import type { MilkSession } from '@/domain/types';
@@ -56,24 +56,26 @@ export default function MilkScreen() {
   const router = useRouter();
   const { session, signOut } = useSession();
   const [milkDate, setMilkDate] = useState(todayAtFarm);
-  const [milkSession, setMilkSession] = useState<MilkSession>('morning');
+  const [milkSession, setMilkSession] = useState<MilkSession>(() => new Date().getHours() < 12 ? 'morning' : 'evening');
   const [farmId, setFarmId] = useState<string | null>(null);
   const [farmName, setFarmName] = useState<string | null>(null);
   const [entries, setEntries] = useState<MilkAnimalEntry[]>([]);
+  const [milkCalves, setMilkCalves] = useState<MilkSessionSnapshot['milkCalves']>([]);
   const [allocations, setAllocations] = useState<MilkAllocationEntry[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
+  const [milkCalfValues, setMilkCalfValues] = useState<Record<string, string>>({});
   const [allocationValues, setAllocationValues] = useState<Record<string, string>>({});
   const [fat, setFat] = useState('');
   const [snf, setSnf] = useState('');
   const [previousVolumes, setPreviousVolumes] = useState<Record<string, number>>({});
+  const [previousMilkCalfVolumes, setPreviousMilkCalfVolumes] = useState<Record<string, number>>({});
   const [previousAllocationVolumes, setPreviousAllocationVolumes] = useState<Record<string, number>>({});
   const [previousFat, setPreviousFat] = useState<number | null>(null);
   const [previousSnf, setPreviousSnf] = useState<number | null>(null);
   const [verkaTarget, setVerkaTarget] = useState<{ cycleStart: string; cycleEnd: string; suppliedMl: number; targetMl: number } | null>(null);
-  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 | 1 } | null>(null);
+  const [picker, setPicker] = useState<{ key: string; max: number; initial: number; label: string; step?: 0.1 | 0.25 | 0.5 | 1 } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshArmed, setRefreshArmed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [reordering, setReordering] = useState(false);
@@ -84,7 +86,7 @@ export default function MilkScreen() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [unlockedDate, setUnlockedDate] = useState<string | null>(null);
   const lastAutoSaveFingerprint = useRef<string | null>(null);
-  const hasChosenLaunchTarget = useRef(false);
+  const refreshInFlight = useRef(false);
 
   const refresh = useCallback(async () => {
     setHydrated(false);
@@ -101,26 +103,19 @@ export default function MilkScreen() {
         return;
       }
 
-      if (!hasChosenLaunchTarget.current) {
-        const target = await getMilkLaunchTarget(sync.farmId);
-        hasChosenLaunchTarget.current = true;
-        if (target.milkDate !== milkDate || target.session !== milkSession) {
-          setMilkDate(target.milkDate);
-          setMilkSession(target.session);
-          return;
-        }
-      }
-
       const [snapshot, name] = await Promise.all([loadMilkSession(sync.farmId, milkDate, milkSession), getFarmName(sync.farmId)]);
       setFarmName(name);
       setEntries(snapshot.entries);
+      setMilkCalves(snapshot.milkCalves);
       setAllocations(snapshot.allocations);
       setValues(Object.fromEntries(snapshot.entries.map((entry) => [entry.animalId, entry.volumeMl === null ? '' : String(entry.volumeMl / 1_000)])));
+      setMilkCalfValues(Object.fromEntries(snapshot.milkCalves.map((entry) => [entry.animalId, entry.volumeMl === null ? '' : String(entry.volumeMl / 1_000)])));
       setAllocationValues(Object.fromEntries(snapshot.allocations.map((allocation) => [allocation.key, allocation.volumeMl === null ? '' : String(allocation.volumeMl / 1_000)])));
       const existingPricing = snapshot.entries.find((entry) => entry.entryId !== null);
       setFat(existingPricing?.fatHundredths === null || existingPricing?.fatHundredths === undefined ? '' : String(existingPricing.fatHundredths / 100));
       setSnf(existingPricing?.snfHundredths === null || existingPricing?.snfHundredths === undefined ? '' : String(existingPricing.snfHundredths / 100));
       setPreviousVolumes(snapshot.previousVolumesMl);
+      setPreviousMilkCalfVolumes(snapshot.previousMilkCalfVolumesMl);
       setPreviousAllocationVolumes(snapshot.previousAllocationVolumesMl);
       setPreviousFat(snapshot.previousFatHundredths);
       setPreviousSnf(snapshot.previousSnfHundredths);
@@ -148,17 +143,19 @@ export default function MilkScreen() {
     }
   }, [refresh]);
 
-  const startRefresh = () => {
-    if (refreshing) return;
+  const startRefresh = useCallback(() => {
+    if (refreshInFlight.current || picker || reordering) return;
+    refreshInFlight.current = true;
     setRefreshing(true);
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     const task = Promise.resolve().then(refreshWithSync).catch(() => undefined);
     const timeout = new Promise<void>((resolve) => { timeoutId = setTimeout(resolve, 10_000); });
     void Promise.race([task, timeout]).finally(() => {
       if (timeoutId) clearTimeout(timeoutId);
+      refreshInFlight.current = false;
       setRefreshing(false);
     });
-  };
+  }, [picker, refreshWithSync, reordering]);
 
   const parsedEntries = useMemo(
     () => entries.map((entry) => ({ entry, volumeMl: parseLitres(values[entry.animalId] ?? '') })),
@@ -166,6 +163,9 @@ export default function MilkScreen() {
   );
   const totalMl = parsedEntries.reduce((sum, item) => sum + (Number.isFinite(item.volumeMl) && item.volumeMl !== null ? item.volumeMl : 0), 0);
   const invalidVolume = parsedEntries.some((item) => Number.isNaN(item.volumeMl));
+  const parsedMilkCalves = useMemo(() => milkCalves.map((entry) => ({ entry, volumeMl: parseLitres(milkCalfValues[entry.animalId] ?? '') })), [milkCalfValues, milkCalves]);
+  const milkCalfMl = parsedMilkCalves.reduce((sum, item) => sum + (Number.isFinite(item.volumeMl) && item.volumeMl !== null ? item.volumeMl : 0), 0);
+  const invalidMilkCalfVolume = parsedMilkCalves.some((item) => Number.isNaN(item.volumeMl));
   const parsedAllocations = useMemo(
     () => allocations.map((allocation) => ({ allocation, volumeMl: parseLitres(allocationValues[allocation.key] ?? '') })),
     [allocationValues, allocations],
@@ -178,14 +178,15 @@ export default function MilkScreen() {
       .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl))
       .map(({ allocation, volumeMl }) => ({ destination: allocation.destination, volumeMl })),
   );
-  const householdMl = Math.max(0, allocationSummary.unallocatedMl);
+  const allocationExceedsProduction = allocationSummary.exceedsProduction || milkCalfMl > allocationSummary.unallocatedMl;
+  const householdMl = Math.max(0, allocationSummary.unallocatedMl - milkCalfMl);
   const fatHundredths = parseHundredths(fat);
   const snfHundredths = parseHundredths(snf);
   const dailyQualityValid = [fatHundredths, snfHundredths].every((value) => value === null || (Number.isSafeInteger(value) && value >= 0 && value <= 1_500));
   const buyerRateMissing = buyerAllocations.some((item) => item.volumeMl !== null && item.volumeMl > 0 && item.allocation.ratePaisePerLitre === null && item.allocation.label.trim().toLocaleLowerCase() !== 'verka');
   const isLocked = milkDate !== todayAtFarm() && unlockedDate !== milkDate;
   const enteredCount = parsedEntries.filter((item) => item.volumeMl !== null && Number.isFinite(item.volumeMl)).length;
-  const hasSavedSession = entries.some((entry) => entry.entryId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
+  const hasSavedSession = entries.some((entry) => entry.entryId !== null) || milkCalves.some((entry) => entry.allocationId !== null) || allocations.some((allocation) => allocation.allocationId !== null);
   const verkaDifferenceMl = verkaTarget ? verkaTarget.suppliedMl - verkaTarget.targetMl : null;
   const verkaTargetResult = verkaDifferenceMl === null
     ? null
@@ -194,7 +195,7 @@ export default function MilkScreen() {
       : `${verkaDifferenceMl > 0 ? '+' : '-'}${formatMilk(Math.abs(verkaDifferenceMl))}`;
 
   const save = async (automatic = false, fingerprint?: string) => {
-    if (!farmId || !session || invalidVolume || invalidAllocation || !dailyQualityValid || allocationSummary.exceedsProduction || buyerRateMissing) return;
+    if (!farmId || !session || invalidVolume || invalidMilkCalfVolume || invalidAllocation || !dailyQualityValid || allocationExceedsProduction || buyerRateMissing) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -213,6 +214,9 @@ export default function MilkScreen() {
         entries: parsedEntries
           .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl))
           .map(({ entry, volumeMl }) => ({ animalId: entry.animalId, entryId: entry.entryId, volumeMl })),
+        milkCalfAllocations: parsedMilkCalves
+          .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl))
+          .map(({ entry, volumeMl }) => ({ animalId: entry.animalId, allocationId: entry.allocationId, volumeMl })),
         allocations: buyerAllocations
           .filter((item): item is typeof item & { volumeMl: number } => item.volumeMl !== null && Number.isFinite(item.volumeMl) && item.volumeMl > 0)
           .map(({ allocation, volumeMl }) => ({
@@ -230,6 +234,9 @@ export default function MilkScreen() {
             ratePaisePerLitre: 0,
           }] : []),
         clearedAnimalIds: parsedEntries
+          .filter((item) => item.volumeMl === null)
+          .map((item) => item.entry.animalId),
+        clearedMilkCalfAnimalIds: parsedMilkCalves
           .filter((item) => item.volumeMl === null)
           .map((item) => item.entry.animalId),
         deletedAllocationIds: parsedAllocations
@@ -254,15 +261,16 @@ export default function MilkScreen() {
   };
 
   const autoSaveReady = !isLocked && !busy && !loading && hydrated && enteredCount > 0
-    && !invalidVolume && !invalidAllocation && dailyQualityValid && !allocationSummary.exceedsProduction && !buyerRateMissing;
+    && !invalidVolume && !invalidMilkCalfVolume && !invalidAllocation && dailyQualityValid && !allocationExceedsProduction && !buyerRateMissing;
   const autoSaveFingerprint = useMemo(() => JSON.stringify({
     allocationValues,
     fat,
+    milkCalfValues,
     milkDate,
     milkSession,
     snf,
     values,
-  }), [allocationValues, fat, milkDate, milkSession, snf, values]);
+  }), [allocationValues, fat, milkCalfValues, milkDate, milkSession, snf, values]);
 
   // `save` intentionally uses this render's snapshot. Adding it as a dependency
   // would reschedule after its own busy-state updates and repeatedly save unchanged data.
@@ -328,10 +336,11 @@ export default function MilkScreen() {
 
   const openPicker = (key: string, max: number, label: string, prior: number | null) => {
     if (isLocked) return;
-    const current = key === 'fat' ? fat : key === 'snf' ? snf : values[key] ?? allocationValues[key] ?? '';
+    const current = key === 'fat' ? fat : key === 'snf' ? snf : values[key] ?? milkCalfValues[key] ?? allocationValues[key] ?? '';
     const initial = current ? Number(current) : prior === null ? 0 : prior / (max === 10 ? 100 : 1_000);
     const buyer = allocations.find((allocation) => allocation.destination === 'buyer' && allocation.key === key);
-    const step = buyer ? buyer.label.trim().toLocaleLowerCase() === 'verka' ? 1 : 0.5 : 0.1;
+    const calf = milkCalves.find((entry) => entry.animalId === key);
+    const step = calf ? 0.25 : buyer ? buyer.label.trim().toLocaleLowerCase() === 'verka' ? 1 : 0.5 : 0.1;
     setPicker({ key, max, label, initial: Number.isFinite(initial) ? initial : 0, step });
   };
 
@@ -341,6 +350,7 @@ export default function MilkScreen() {
     if (picker.key === 'fat') setFat(valueText);
     else if (picker.key === 'snf') setSnf(valueText);
     else if (entries.some((entry) => entry.animalId === picker.key)) setValues((current) => ({ ...current, [picker.key]: valueText }));
+    else if (milkCalves.some((entry) => entry.animalId === picker.key)) setMilkCalfValues((current) => ({ ...current, [picker.key]: valueText }));
     else setAllocationValues((current) => ({ ...current, [picker.key]: valueText }));
     const entryIndex = entries.findIndex((entry) => entry.animalId === picker.key);
     if (entryIndex >= 0 && entryIndex < entries.length - 1) {
@@ -350,6 +360,24 @@ export default function MilkScreen() {
       return;
     }
     if (entryIndex === entries.length - 1) {
+      const firstCalf = milkCalves[0];
+      if (firstCalf) {
+        const currentValue = Number(milkCalfValues[firstCalf.animalId]);
+        setPicker({ key: firstCalf.animalId, max: 7.25, label: `${firstCalf.tag} milk consumption`, initial: milkCalfValues[firstCalf.animalId] !== '' && Number.isFinite(currentValue) ? currentValue : (previousMilkCalfVolumes[firstCalf.animalId] ?? 0) / 1_000, step: 0.25 });
+        return;
+      }
+      const currentValue = Number(fat);
+      setPicker({ key: 'fat', max: 10, label: 'FAT %', initial: fat !== '' && Number.isFinite(currentValue) ? currentValue : (previousFat ?? 0) / 100 });
+      return;
+    }
+    const calfIndex = milkCalves.findIndex((entry) => entry.animalId === picker.key);
+    if (calfIndex >= 0 && calfIndex < milkCalves.length - 1) {
+      const next = milkCalves[calfIndex + 1];
+      const currentValue = Number(milkCalfValues[next.animalId]);
+      setPicker({ key: next.animalId, max: 7.25, label: `${next.tag} milk consumption`, initial: milkCalfValues[next.animalId] !== '' && Number.isFinite(currentValue) ? currentValue : (previousMilkCalfVolumes[next.animalId] ?? 0) / 1_000, step: 0.25 });
+      return;
+    }
+    if (calfIndex === milkCalves.length - 1) {
       const currentValue = Number(fat);
       setPicker({ key: 'fat', max: 10, label: 'FAT %', initial: fat !== '' && Number.isFinite(currentValue) ? currentValue : (previousFat ?? 0) / 100 });
       return;
@@ -405,7 +433,7 @@ export default function MilkScreen() {
           );
         }}
       />
-      <NestableScrollContainer contentContainerStyle={styles.pageContent} style={styles.pageScroll} keyboardShouldPersistTaps="handled" onScrollBeginDrag={(event) => setRefreshArmed(event.nativeEvent.contentOffset.y <= 1)} refreshControl={<RefreshControl colors={[colors.primary]} enabled={refreshArmed} onRefresh={startRefresh} refreshing={refreshing} tintColor={colors.primary} />}>
+      <NestableScrollContainer contentContainerStyle={styles.pageContent} style={styles.pageScroll} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl colors={[colors.primary]} enabled={!picker && !reordering} onRefresh={startRefresh} refreshing={refreshing} tintColor={colors.primary} />}>
       <View style={styles.dateRow}>
         <SmallButton label="‹" onPress={() => { setHydrated(false); setUnlockedDate(null); setMilkDate((value) => shiftDate(value, -1)); }} />
         <View style={styles.dateCenter}>
@@ -447,6 +475,11 @@ export default function MilkScreen() {
         />}
       </SectionCard>
 
+      <SectionCard title="Milk Calf consumption" tone="blue">
+        <Text style={[styles.helper, { color: colors.textSecondary }]}>Milk consumed by calves is deducted from produced milk.</Text>
+        {milkCalves.length ? milkCalves.map((entry) => <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow]}><View style={styles.animalCopy}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text><Text style={[styles.entryState, { color: colors.textSecondary }]}>Milk Calf</Text></View><SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} milk consumption`} onPress={() => openPicker(entry.animalId, 7.25, `${entry.tag} milk consumption`, previousMilkCalfVolumes[entry.animalId] ?? null)} value={milkCalfValues[entry.animalId] ?? ''} placeholder={previousMilkCalfVolumes[entry.animalId] === undefined ? '—' : formatMilkEntryNumber(previousMilkCalfVolumes[entry.animalId] / 1_000, 2)} invalid={Number.isNaN(parseLitres(milkCalfValues[entry.animalId] ?? ''))} /><Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text></View>) : <Text style={[styles.helper, { color: colors.textSecondary }]}>Mark an animal as Milk Calf in Master data to record its consumption.</Text>}
+      </SectionCard>
+
       <SectionCard>
         <View style={styles.qualityRow}>
           <QualityField disabled={isLocked} label="FAT %" value={fat} onPress={() => openPicker('fat', 10, 'FAT %', previousFat)} placeholder={previousFat === null ? '0' : formatMilkEntryNumber(previousFat / 100, 2)} invalid={Number.isNaN(fatHundredths) || (fatHundredths !== null && fatHundredths > 1_500)} />
@@ -476,7 +509,7 @@ export default function MilkScreen() {
 
       <View style={[styles.total, { backgroundColor: colors.backgroundSelected }]}>
         <View><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Produced</Text><Text style={[styles.totalValue, { color: colors.text }]}>{formatMilk(totalMl)}</Text></View>
-        <View style={styles.variance}>{verkaTargetResult !== null ? <View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Verka target</Text><Text style={[styles.varianceValue, { color: colors.text }]}>{verkaTargetResult}</Text></View> : null}<View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationSummary.exceedsProduction ? colors.danger : colors.text }]}>{allocationSummary.exceedsProduction ? `${formatMilk(Math.abs(allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View></View>
+        <View style={styles.variance}>{verkaTargetResult !== null ? <View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Verka target</Text><Text style={[styles.varianceValue, { color: colors.text }]}>{verkaTargetResult}</Text></View> : null}{milkCalfMl > 0 ? <View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Milk Calf consumption</Text><Text style={[styles.varianceValue, { color: colors.text }]}>{formatMilk(milkCalfMl)}</Text></View> : null}<View style={styles.summaryBlock}><Text style={[styles.totalLabel, { color: colors.textSecondary }]}>Household consumption</Text><Text style={[styles.varianceValue, { color: allocationExceedsProduction ? colors.danger : colors.text }]}>{allocationExceedsProduction ? `${formatMilk(Math.max(0, milkCalfMl - allocationSummary.unallocatedMl))} over` : formatMilk(householdMl)}</Text></View></View>
       </View>
       <Pressable accessibilityLabel="Open Household Consumption" onPress={() => router.push('/household-consumption' as never)} style={[styles.householdLink, { borderColor: colors.primary }]}><Text style={[styles.householdLinkText, { color: colors.primary }]}>Open Household Consumption</Text></Pressable>
 
@@ -484,7 +517,8 @@ export default function MilkScreen() {
       {invalidAllocation ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for allocation litres.</Text> : null}
       {!dailyQualityValid ? <Text style={[styles.error, { color: colors.danger }]}>FAT and SNF must be between 0 and 15 with up to two decimal places.</Text> : null}
       {buyerRateMissing ? <Text style={[styles.error, { color: colors.danger }]}>Set a fixed per-litre rate for every buyer in Master data before allocating milk to them.</Text> : null}
-      {allocationSummary.exceedsProduction ? <Text style={[styles.error, { color: colors.danger }]}>Allocated milk cannot exceed produced milk.</Text> : null}
+      {invalidMilkCalfVolume ? <Text style={[styles.error, { color: colors.danger }]}>Use up to three decimal places for Milk Calf consumption.</Text> : null}
+      {allocationExceedsProduction ? <Text style={[styles.error, { color: colors.danger }]}>Buyer and Milk Calf allocations cannot exceed produced milk.</Text> : null}
       {message ? <Text style={[styles.helper, { color: message.includes('saved') || message.includes('voided') ? colors.primary : colors.danger }]}>{message}</Text> : null}
       {busy ? <View style={[styles.autoSave, { backgroundColor: colors.backgroundSelected }]}><ActivityIndicator color={colors.primary} /><Text style={[styles.helper, { color: colors.textSecondary }]}>Saving changes locally…</Text></View> : null}
 
@@ -539,25 +573,32 @@ function QualityField({ disabled, label, value, onPress, placeholder, invalid }:
   );
 }
 
-function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string; step?: 0.1 | 0.5 | 1 } | null; onClose: () => void; onSelect: (value: number) => void }) {
+function SuggestionPicker({ picker, onClose, onSelect }: { picker: { key: string; max: number; initial: number; label: string; step?: 0.1 | 0.25 | 0.5 | 1 } | null; onClose: () => void; onSelect: (value: number) => void }) {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   if (!picker) return null;
   return <Modal transparent animationType="none" visible onRequestClose={onClose}><View style={styles.pickerOverlay}><View style={[styles.pickerPanel, { backgroundColor: colors.backgroundElement }]}><View style={styles.pickerHeader}><Text numberOfLines={1} style={[styles.pickerTitle, { color: colors.text }]}>{picker.label}</Text><Pressable accessibilityLabel="Close suggestions" hitSlop={8} onPress={onClose} style={styles.closeButton}><Text style={[styles.closeText, { color: colors.primary }]}>Close</Text></Pressable></View><SuggestionGrid key={picker.key} colors={colors} picker={picker} onSelect={onSelect} /></View></View></Modal>;
 }
 
-function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number; step?: 0.1 | 0.5 | 1 }; onSelect: (value: number) => void }) {
+function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[keyof typeof Colors]; picker: { max: number; initial: number; step?: 0.1 | 0.25 | 0.5 | 1 }; onSelect: (value: number) => void }) {
   const unit = picker.max === 10 ? '%' : 'L';
   const step = picker.step ?? 0.1;
   const rowCount = 10;
   const columnCount = 3;
   const usesBuyerSteps = step !== 0.1;
+  const isMilkCalfPicker = step === 0.25;
   const isVerkaPicker = step === 1;
   const usesVerticalBuyerColumns = usesBuyerSteps;
   const rangeSpan = usesBuyerSteps ? (rowCount * columnCount - 1) * step : (columnCount - 1) + (rowCount - 1) * step;
   const maxStart = Math.max(isVerkaPicker ? 1 : 0, picker.max - rangeSpan);
   const [start, setStart] = useState(() => {
-    if (isVerkaPicker) return Math.max(1, Math.min(maxStart, Math.floor(Math.max(0, picker.initial - 1) / (rowCount * columnCount)) * (rowCount * columnCount) + 1));
+    if (usesBuyerSteps && picker.initial > 0) {
+      // Buyer grids fill down each column. Start far enough before the value
+      // for it to land in the centre column, matching animal suggestions.
+      const centerColumnOffset = rowCount * step;
+      return Math.max(isVerkaPicker ? 1 : 0, Math.min(maxStart, Math.floor(picker.initial) - centerColumnOffset));
+    }
+    if (isVerkaPicker) return 1;
     return Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1));
   });
   const rangeEnd = Number((start + rangeSpan).toFixed(1));
@@ -569,7 +610,7 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
       else if (movement.dx >= 30) setStart((value) => Math.max(isVerkaPicker ? 1 : 0, value - rangeStep));
     },
   }), [isVerkaPicker, maxStart, rowCount, step, usesBuyerSteps]);
-  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>Swipe left or right for the next range · {formatMilkEntryNumber(start)}–{formatMilkEntryNumber(rangeEnd)} {unit}</Text></View><View {...gesture.panHandlers}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + ((usesVerticalBuyerColumns ? column * rowCount + row : row * columnCount + column) * step) : start + column + row * step).toFixed(1)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{formatMilkEntryNumber(value)}</Text></Pressable>; })}</View>)}</View></>;
+  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>{isMilkCalfPicker ? `Choose ${formatMilkEntryNumber(start)}–${formatMilkEntryNumber(rangeEnd)} ${unit}` : `Swipe left or right for the next range · ${formatMilkEntryNumber(start)}–${formatMilkEntryNumber(rangeEnd)} ${unit}`}</Text></View><View {...(isMilkCalfPicker ? {} : gesture.panHandlers)}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + ((usesVerticalBuyerColumns ? column * rowCount + row : row * columnCount + column) * step) : start + column + row * step).toFixed(2)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{formatMilkEntryNumber(value)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
 function MilkMenu({ appVersion, farmName, loginId, open, onClose, onNavigate, onSignOut }: { appVersion: string; farmName: string | null; loginId: string; open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {

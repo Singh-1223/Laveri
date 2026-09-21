@@ -53,7 +53,7 @@ export default function MasterDataScreen() {
   const [rateEndDate, setRateEndDate] = useState(new Date().toISOString().slice(0, 10));
   const [itemRate, setItemRate] = useState('');
   const [itemNotes, setItemNotes] = useState('');
-  const [animalIsMilking, setAnimalIsMilking] = useState(true);
+  const [animalMilkEntryCategory, setAnimalMilkEntryCategory] = useState<'milking' | 'not_milking' | 'milk_calf'>('milking');
   const [birthDate, setBirthDate] = useState('');
   const [purchaseDate, setPurchaseDate] = useState('');
   const [conceptionDate, setConceptionDate] = useState('');
@@ -97,7 +97,7 @@ export default function MasterDataScreen() {
     setRateEndDate(new Date().toISOString().slice(0, 10));
     setItemRate('');
     setItemNotes('');
-    setAnimalIsMilking(true);
+    setAnimalMilkEntryCategory('milking');
     setBirthDate('');
     setPurchaseDate('');
     setConceptionDate('');
@@ -128,7 +128,7 @@ export default function MasterDataScreen() {
         if (duplicateAnimal) {
           throw new Error(`An active animal named “${duplicateAnimal.tag}” already exists. Use a different tag or edit the existing animal.`);
         }
-        const input = { ...context, tag: name, category: 'cow' as const, sex: 'female' as const, isMilking: animalIsMilking, breed: secondary, birthDate: birthDate || null, acquisitionDate: purchaseDate || null, conceptionDate: conceptionDate || null };
+        const input = { ...context, tag: name, category: animalMilkEntryCategory === 'milk_calf' ? 'calf' as const : 'cow' as const, sex: 'female' as const, isMilking: animalMilkEntryCategory === 'milking', milkEntryCategory: animalMilkEntryCategory, breed: secondary, birthDate: birthDate || null, acquisitionDate: purchaseDate || null, conceptionDate: conceptionDate || null };
         const animalId = editingId ?? await createAnimal(input);
         if (editingId) await updateAnimal({ ...input, id: editingId });
         await setAnimalLabels({ ...context, animalId, labelIds: selectedLabelIds });
@@ -164,7 +164,7 @@ export default function MasterDataScreen() {
       setBirthDate(row.birth_date ?? '');
       setPurchaseDate(row.acquisition_date ?? '');
       setConceptionDate(row.conception_date ?? '');
-      setAnimalIsMilking(row.is_milking === 1);
+      setAnimalMilkEntryCategory(row.milk_entry_category);
       setSelectedLabelIds(snapshot.animalLabelLinks.filter((link) => link.animal_id === row.id).map((link) => link.label_id));
     } else {
       setName(row.name);
@@ -272,9 +272,9 @@ export default function MasterDataScreen() {
         </View> : null}
         {tab === 'animals' ? (
           <View style={styles.choiceRow}>
-            {[true, false].map((value) => (
-              <Pressable key={String(value)} onPress={() => setAnimalIsMilking(value)} style={[styles.choice, { backgroundColor: animalIsMilking === value ? colors.primary : colors.backgroundSelected }]}>
-                <Text style={{ color: animalIsMilking === value ? '#FFFFFF' : colors.text }}>{value ? 'Milking' : 'Not milking'}</Text>
+            {(['milking', 'not_milking', 'milk_calf'] as const).map((value) => (
+              <Pressable key={value} onPress={() => setAnimalMilkEntryCategory(value)} style={[styles.choice, { backgroundColor: animalMilkEntryCategory === value ? colors.primary : colors.backgroundSelected }]}>
+                <Text style={{ color: animalMilkEntryCategory === value ? '#FFFFFF' : colors.text }}>{value === 'milking' ? 'Milking' : value === 'not_milking' ? 'Not milking' : 'Milk Calf'}</Text>
               </Pressable>
             ))}
           </View>
@@ -337,7 +337,7 @@ function MasterRow({ row, busy, onEdit, onToggle, onDelete, onReorder }: { row: 
   const colors = Colors[scheme === 'dark' ? 'dark' : 'light'];
   const name = 'tag' in row ? row.tag : row.name;
   const active = 'tag' in row ? row.status === 'active' : row.active === 1;
-  const detail = 'category' in row ? `${row.is_milking ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • Packaging: ${row.base_unit}${row.default_rate_paise_per_unit === null ? '' : ` • ₹${(row.default_rate_paise_per_unit / 100).toFixed(2)}`}${row.notes ? ` • ${row.notes}` : ''}` : `${row.phone || 'No phone'} • ${row.name.trim().toLocaleLowerCase() === 'verka' ? 'Billing-cycle rate' : row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
+  const detail = 'category' in row ? `${row.milk_entry_category === 'milk_calf' ? 'milk calf' : row.milk_entry_category === 'milking' ? 'milking' : 'not milking'} • ${row.status}` : 'base_unit' in row ? `${row.type} • Packaging: ${row.base_unit}${row.default_rate_paise_per_unit === null ? '' : ` • ₹${(row.default_rate_paise_per_unit / 100).toFixed(2)}`}${row.notes ? ` • ${row.notes}` : ''}` : `${row.phone || 'No phone'} • ${row.name.trim().toLocaleLowerCase() === 'verka' ? 'Billing-cycle rate' : row.default_rate_paise_per_litre === null ? 'Rate not set' : `₹${(row.default_rate_paise_per_litre / 100).toFixed(2)}/L`} • ${active ? 'active' : 'inactive'}`;
   return (
     <View style={[styles.row, { borderTopColor: colors.border }]}>
       {'default_rate_paise_per_litre' in row ? <Link href={row.name.trim().toLocaleLowerCase() === 'verka' ? { pathname: '/verka-billing/[buyerId]', params: { buyerId: row.id } } : { pathname: '/buyer-account/[id]', params: { id: row.id } }}><Text style={[styles.rowName, { color: colors.primary }]}>{name}</Text></Link> : <Text style={[styles.rowName, { color: colors.text }]}>{name}</Text>}

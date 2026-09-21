@@ -1,11 +1,14 @@
 import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import * as Crypto from 'expo-crypto';
 
-import type { AnimalProductivityRow, BuyerSaleDetailRow, DailyDiaryRow, DeleteDailyDiaryInput, MilkProductionDetailRow, MilkQualityRecord, PeriodReport, SaveDailyDiaryInput } from './reports.types';
+import type { AnimalMilkGraphSnapshot, AnimalProductivityRow, BuyerSaleDetailRow, DailyDiaryCategory, DailyDiaryRow, DeleteDailyDiaryCategoryInput, DeleteDailyDiaryInput, MilkProductionDetailRow, MilkQualityRecord, PeriodReport, SaveDailyDiaryCategoryInput, SaveDailyDiaryInput } from './reports.types';
 
-export async function getDailyDiary(farmId: string, fromDate: string, toDate: string): Promise<DailyDiaryRow[]> { const database = await getPowerSyncDatabase(); return database.getAll<DailyDiaryRow>(`SELECT id, diary_date AS diaryDate, comment FROM daily_diary WHERE farm_id = ? AND diary_date BETWEEN ? AND ? AND deleted_at IS NULL ORDER BY diary_date DESC, created_at DESC`, [farmId, fromDate, toDate]); }
-export async function saveDailyDiary(input: SaveDailyDiaryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); if (input.id) return database.execute(`UPDATE daily_diary SET diary_date=?, comment=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [input.diaryDate, input.comment.trim(), now, input.userId, input.id, input.farmId]); return database.execute(`INSERT INTO daily_diary(id,farm_id,diary_date,comment,created_at,updated_at,created_by,updated_by,deleted_at,version) VALUES(?,?,?,?,?,?,?,?,NULL,1)`, [Crypto.randomUUID(), input.farmId, input.diaryDate, input.comment.trim(), now, now, input.userId, input.userId]); }
+export async function getDailyDiary(farmId: string, fromDate: string, toDate: string): Promise<DailyDiaryRow[]> { const database = await getPowerSyncDatabase(); return database.getAll<DailyDiaryRow>(`SELECT diary.id, diary.diary_date AS diaryDate, diary.comment, diary.category_id AS categoryId, coalesce(category.name, 'Regular') AS categoryName FROM daily_diary diary LEFT JOIN daily_diary_categories category ON category.id = diary.category_id AND category.deleted_at IS NULL WHERE diary.farm_id = ? AND diary.diary_date BETWEEN ? AND ? AND diary.deleted_at IS NULL ORDER BY diary.diary_date DESC, diary.created_at DESC`, [farmId, fromDate, toDate]); }
+export async function listDailyDiaryCategories(farmId: string): Promise<DailyDiaryCategory[]> { const database = await getPowerSyncDatabase(); return database.getAll<DailyDiaryCategory>(`SELECT id, name, display_order AS displayOrder FROM daily_diary_categories WHERE farm_id=? AND deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`, [farmId]); }
+export async function saveDailyDiary(input: SaveDailyDiaryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); if (input.id) return database.execute(`UPDATE daily_diary SET diary_date=?, category_id=?, comment=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [input.diaryDate, input.categoryId, input.comment.trim(), now, input.userId, input.id, input.farmId]); return database.execute(`INSERT INTO daily_diary(id,farm_id,diary_date,category_id,comment,created_at,updated_at,created_by,updated_by,deleted_at,version) VALUES(?,?,?,?,?,?,?,?,?,NULL,1)`, [Crypto.randomUUID(), input.farmId, input.diaryDate, input.categoryId, input.comment.trim(), now, now, input.userId, input.userId]); }
 export async function deleteDailyDiary(input: DeleteDailyDiaryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); return database.execute(`UPDATE daily_diary SET deleted_at=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [now, now, input.userId, input.id, input.farmId]); }
+export async function saveDailyDiaryCategory(input: SaveDailyDiaryCategoryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); if (input.id) return database.execute(`UPDATE daily_diary_categories SET name=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [input.name.trim(), now, input.userId, input.id, input.farmId]); const existing = await database.getOptional<{ id: string }>(`SELECT id FROM daily_diary_categories WHERE farm_id=? AND lower(trim(name))=lower(trim(?)) AND deleted_at IS NULL LIMIT 1`, [input.farmId, input.name]); if (existing) return existing.id; const id=Crypto.randomUUID(); await database.execute(`INSERT INTO daily_diary_categories(id,farm_id,name,display_order,created_at,updated_at,created_by,updated_by,deleted_at,version) VALUES(?,?,?,(SELECT coalesce(max(display_order),0)+1 FROM daily_diary_categories WHERE farm_id=?),?,?,?,?,NULL,1)`, [id,input.farmId,input.name.trim(),input.farmId,now,now,input.userId,input.userId]); return id; }
+export async function deleteDailyDiaryCategory(input: DeleteDailyDiaryCategoryInput) { const database = await getPowerSyncDatabase(); const now = new Date().toISOString(); await database.writeTransaction(async transaction => { await transaction.execute(`UPDATE daily_diary SET category_id=NULL, updated_at=?, updated_by=?, version=version+1 WHERE farm_id=? AND category_id=? AND deleted_at IS NULL`, [now,input.userId,input.farmId,input.id]); await transaction.execute(`UPDATE daily_diary_categories SET deleted_at=?, updated_at=?, updated_by=?, version=version+1 WHERE id=? AND farm_id=? AND deleted_at IS NULL`, [now,now,input.userId,input.id,input.farmId]); }); }
 
 type PeriodAggregate = Omit<PeriodReport, 'fromDate' | 'toDate' | 'producedMl' | 'unallocatedMl' | 'operatingCostPaise' | 'operatingProfitPaise' | 'animals' | 'milkEntries' | 'buyerSales'>;
 
@@ -18,12 +21,14 @@ export async function getPeriodReport(farmId: string, fromDate: string, toDate: 
         coalesce((SELECT sum(volume_ml) FROM milk_entries WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND session = 'evening' AND deleted_at IS NULL), 0) AS eveningMl,
         coalesce((SELECT sum(volume_ml) FROM milk_allocations WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND destination = 'buyer' AND deleted_at IS NULL), 0) AS buyerMl,
         coalesce((SELECT sum(volume_ml) FROM milk_allocations WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND destination = 'household' AND deleted_at IS NULL), 0) AS householdMl,
+        coalesce((SELECT sum(volume_ml) FROM milk_calf_allocations WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL), 0) AS milkCalfMl,
         coalesce((SELECT sum(amount_paise) FROM milk_allocations WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND destination = 'buyer' AND deleted_at IS NULL), 0) AS milkRevenuePaise,
         coalesce((SELECT sum(amount_paise) FROM feed_transactions WHERE farm_id = ? AND transaction_date BETWEEN ? AND ? AND deleted_at IS NULL), 0) AS feedCostPaise,
         coalesce((SELECT sum(total_paise) FROM treatments WHERE farm_id = ? AND treatment_date BETWEEN ? AND ? AND deleted_at IS NULL), 0) AS treatmentCostPaise,
         coalesce((SELECT sum(amount_paise) FROM product_transactions WHERE farm_id = ? AND transaction_date BETWEEN ? AND ? AND category = 'operating_expense' AND deleted_at IS NULL), 0) AS productOperatingCostPaise,
         coalesce((SELECT sum(amount_paise) FROM product_transactions WHERE farm_id = ? AND transaction_date BETWEEN ? AND ? AND category = 'investment' AND deleted_at IS NULL), 0) AS investmentPaise`,
       [
+        farmId, fromDate, toDate,
         farmId, fromDate, toDate,
         farmId, fromDate, toDate,
         farmId, fromDate, toDate,
@@ -84,7 +89,7 @@ export async function getPeriodReport(farmId: string, fromDate: string, toDate: 
   ]);
 
   const producedMl = aggregate.morningMl + aggregate.eveningMl;
-  const unallocatedMl = producedMl - aggregate.buyerMl - aggregate.householdMl;
+  const unallocatedMl = producedMl - aggregate.buyerMl - aggregate.householdMl - aggregate.milkCalfMl;
   const operatingCostPaise = aggregate.feedCostPaise + aggregate.treatmentCostPaise + aggregate.productOperatingCostPaise;
 
   return {
@@ -129,4 +134,26 @@ export async function getMilkSourceEntries(farmId: string, fromDate: string, toD
      ORDER BY entry.milk_date DESC, entry.session, animal.tag COLLATE NOCASE`,
     [farmId, fromDate, toDate],
   );
+}
+
+export async function getAnimalMilkGraph(farmId: string, fromDate: string, toDate: string): Promise<AnimalMilkGraphSnapshot> {
+  const database = await getPowerSyncDatabase();
+  const [animals, points] = await Promise.all([
+    database.getAll<AnimalMilkGraphSnapshot['animals'][number]>(
+      `SELECT id, tag
+       FROM animals
+       WHERE farm_id = ? AND deleted_at IS NULL
+       ORDER BY display_order ASC, tag COLLATE NOCASE`,
+      [farmId],
+    ),
+    database.getAll<AnimalMilkGraphSnapshot['points'][number]>(
+      `SELECT animal_id AS animalId, milk_date AS milkDate, sum(volume_ml) AS volumeMl
+       FROM milk_entries
+       WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL
+       GROUP BY animal_id, milk_date
+       ORDER BY milk_date ASC, animal_id ASC`,
+      [farmId, fromDate, toDate],
+    ),
+  ]);
+  return { animals, points };
 }

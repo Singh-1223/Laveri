@@ -40,9 +40,11 @@ export function AppScreen({ title, subtitle, action, scroll = true, contentStyle
   };
   const refreshControl = onRefresh ? <RefreshControl colors={[colors.primary]} enabled={refreshArmed} onRefresh={startRefresh} refreshing={refreshing} tintColor={colors.primary} /> : undefined;
   const tabSwipe = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_event, gesture) => enableTabSwipe && Math.abs(gesture.dx) > 24 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+    // Keep a horizontal bias so vertical scrolling remains natural, while allowing
+    // the slightly diagonal swipes people make on a phone in normal use.
+    onMoveShouldSetPanResponder: (_event, gesture) => enableTabSwipe && Math.abs(gesture.dx) > 18 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
     onPanResponderRelease: (_event, gesture) => {
-      if (Math.abs(gesture.dx) < 72 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.5) return;
+      if (Math.abs(gesture.dx) < 56 || Math.abs(gesture.dx) <= Math.abs(gesture.dy) * 1.2) return;
       const currentIndex = mainTabRoutes.indexOf(pathname as typeof mainTabRoutes[number]);
       if (currentIndex === -1) return;
       const nextRoute = mainTabRoutes[gesture.dx < 0 ? currentIndex + 1 : currentIndex - 1];
