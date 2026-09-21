@@ -1,6 +1,6 @@
-import { Link, useFocusEffect, useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Constants from 'expo-constants';
+import { Link, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, PanResponder, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View, useColorScheme } from 'react-native';
 import { NestableDraggableFlatList, NestableScrollContainer, ScaleDecorator } from 'react-native-draggable-flatlist';
@@ -48,6 +48,11 @@ function parseHundredths(value: string): number | null {
 
 function formatMilkEntryNumber(value: number, decimals = 1) {
   return String(Number(value.toFixed(decimals)));
+}
+
+function formatPickerNumber(value: number, step?: 0.1 | 0.25 | 0.5 | 1) {
+  if (step === 0.25) return Number.isInteger(value) ? String(value) : value.toFixed(2);
+  return formatMilkEntryNumber(value);
 }
 
 export default function MilkScreen() {
@@ -346,7 +351,7 @@ export default function MilkScreen() {
 
   const selectSuggestion = (value: number) => {
     if (!picker) return;
-    const valueText = formatMilkEntryNumber(value);
+    const valueText = formatPickerNumber(value, picker.step);
     if (picker.key === 'fat') setFat(valueText);
     else if (picker.key === 'snf') setSnf(valueText);
     else if (entries.some((entry) => entry.animalId === picker.key)) setValues((current) => ({ ...current, [picker.key]: valueText }));
@@ -475,10 +480,9 @@ export default function MilkScreen() {
         />}
       </SectionCard>
 
-      <SectionCard title="Milk Calf consumption" tone="blue">
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>Milk consumed by calves is deducted from produced milk.</Text>
-        {milkCalves.length ? milkCalves.map((entry) => <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow]}><View style={styles.animalCopy}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text><Text style={[styles.entryState, { color: colors.textSecondary }]}>Milk Calf</Text></View><SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} milk consumption`} onPress={() => openPicker(entry.animalId, 7.25, `${entry.tag} milk consumption`, previousMilkCalfVolumes[entry.animalId] ?? null)} value={milkCalfValues[entry.animalId] ?? ''} placeholder={previousMilkCalfVolumes[entry.animalId] === undefined ? '—' : formatMilkEntryNumber(previousMilkCalfVolumes[entry.animalId] / 1_000, 2)} invalid={Number.isNaN(parseLitres(milkCalfValues[entry.animalId] ?? ''))} /><Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text></View>) : <Text style={[styles.helper, { color: colors.textSecondary }]}>Mark an animal as Milk Calf in Master data to record its consumption.</Text>}
-      </SectionCard>
+      {milkCalves.length ? <SectionCard title="Milk Calf consumption" tone="blue">
+        {milkCalves.map((entry) => <View key={entry.animalId} style={[styles.entryRow, { borderTopColor: colors.border }, isLocked && styles.lockedRow]}><View style={styles.animalCopy}><Text style={[styles.animalName, { color: colors.primary }]}>{entry.tag}</Text><Text style={[styles.entryState, { color: colors.textSecondary }]}>Milk Calf</Text></View><SuggestionField disabled={isLocked} accessibilityLabel={`${entry.tag} milk consumption`} onPress={() => openPicker(entry.animalId, 7.25, `${entry.tag} milk consumption`, previousMilkCalfVolumes[entry.animalId] ?? null)} value={milkCalfValues[entry.animalId] ?? ''} placeholder={previousMilkCalfVolumes[entry.animalId] === undefined ? '—' : formatMilkEntryNumber(previousMilkCalfVolumes[entry.animalId] / 1_000, 2)} invalid={Number.isNaN(parseLitres(milkCalfValues[entry.animalId] ?? ''))} /><Text style={[styles.litre, { color: colors.textSecondary }]}>L</Text></View>)}
+      </SectionCard> : null}
 
       <SectionCard>
         <View style={styles.qualityRow}>
@@ -601,7 +605,7 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
     if (isVerkaPicker) return 1;
     return Math.max(0, Math.min(maxStart, Math.floor(picker.initial) - 1));
   });
-  const rangeEnd = Number((start + rangeSpan).toFixed(1));
+  const rangeEnd = Number((start + rangeSpan).toFixed(isMilkCalfPicker ? 2 : 1));
   const gesture = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_, movement) => Math.abs(movement.dx) > 12 && Math.abs(movement.dx) > Math.abs(movement.dy),
     onPanResponderRelease: (_, movement) => {
@@ -610,7 +614,8 @@ function SuggestionGrid({ colors, picker, onSelect }: { colors: typeof Colors[ke
       else if (movement.dx >= 30) setStart((value) => Math.max(isVerkaPicker ? 1 : 0, value - rangeStep));
     },
   }), [isVerkaPicker, maxStart, rowCount, step, usesBuyerSteps]);
-  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>{isMilkCalfPicker ? `Choose ${formatMilkEntryNumber(start)}–${formatMilkEntryNumber(rangeEnd)} ${unit}` : `Swipe left or right for the next range · ${formatMilkEntryNumber(start)}–${formatMilkEntryNumber(rangeEnd)} ${unit}`}</Text></View><View {...(isMilkCalfPicker ? {} : gesture.panHandlers)}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + ((usesVerticalBuyerColumns ? column * rowCount + row : row * columnCount + column) * step) : start + column + row * step).toFixed(2)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{formatMilkEntryNumber(value)}</Text></Pressable>; })}</View>)}</View></>;
+  const formatValue = (value: number) => formatPickerNumber(value, step);
+  return <><View style={styles.pickerNavigation}><Text style={[styles.pickerHint, { color: colors.textSecondary }]}>{isMilkCalfPicker ? `Choose ${formatValue(start)}–${formatValue(rangeEnd)} ${unit}` : `Swipe left or right for the next range · ${formatValue(start)}–${formatValue(rangeEnd)} ${unit}`}</Text></View><View {...(isMilkCalfPicker ? {} : gesture.panHandlers)}>{Array.from({ length: rowCount }, (_, row) => <View key={row} style={styles.pickerRow}>{Array.from({ length: columnCount }, (_, column) => { const value = Number((usesBuyerSteps ? start + ((usesVerticalBuyerColumns ? column * rowCount + row : row * columnCount + column) * step) : start + column + row * step).toFixed(2)); const selected = Math.abs(value - picker.initial) < 0.01; return <Pressable key={column} onPress={() => onSelect(value)} style={[styles.pickerValue, { borderTopColor: colors.border }, selected && { backgroundColor: colors.backgroundSelected }]}><Text style={[styles.pickerValueText, { color: selected ? colors.primary : colors.text }]}>{formatValue(value)}</Text></Pressable>; })}</View>)}</View></>;
 }
 
 function MilkMenu({ appVersion, farmName, loginId, open, onClose, onNavigate, onSignOut }: { appVersion: string; farmName: string | null; loginId: string; open: boolean; onClose: () => void; onNavigate: (path: '/master-data' | '/pricing' | '/corrections' | '/reminders') => void; onSignOut: () => void }) {
@@ -622,6 +627,7 @@ function MilkMenu({ appVersion, farmName, loginId, open, onClose, onNavigate, on
     { label: 'Manage master data', detail: 'Animals, buyers, feed, medicine, and products', path: '/master-data' },
     { label: 'Price calculator', detail: 'Calculate a reference price from FAT and SNF', path: '/pricing' },
     { label: 'Correction history', detail: 'Review saved edits, voids, and changes', path: '/corrections' },
+    { label: 'Milk reminders', detail: 'Set morning and evening reminders on this device', path: '/reminders' },
   ];
   return (
     <Modal transparent animationType="slide" visible={open} onRequestClose={onClose}>
