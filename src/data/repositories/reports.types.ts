@@ -43,6 +43,13 @@ export type AnimalMilkGraphSnapshot = {
   points: AnimalMilkGraphPoint[];
 };
 
+export type FarmAverageMilkPoint = {
+  milkDate: string;
+  totalMl: number;
+  milkingAnimals: number;
+  averageMl: number;
+};
+
 export type DailyDiaryRow = { id: string; diaryDate: string; comment: string; categoryId: string | null; categoryName: string };
 export type DailyDiaryCategory = { id: string; name: string; displayOrder: number };
 export type SaveDailyDiaryInput = { farmId: string; userId: string; diaryDate: string; comment: string; categoryId: string | null; id?: string };

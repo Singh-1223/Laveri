@@ -418,7 +418,7 @@ export default function MilkScreen() {
   };
 
   return (
-    <AppScreen contentStyle={styles.milkScreenContent} enableTabSwipe={!picker && !menuOpen && !calendarOpen && !reordering} scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel="Open Daily Dairy" onPress={() => router.push('/daily-diary' as never)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>📖</Text></Pressable><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
+    <AppScreen contentStyle={styles.milkScreenContent} enableTabSwipe={!picker && !menuOpen && !calendarOpen && !reordering} scroll={false} title="Milk" action={<View style={styles.headerControls}><Pressable accessibilityLabel="Open Daily Dairy" onPress={() => router.push('/daily-diary' as never)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>📖</Text></Pressable><Pressable accessibilityLabel={refreshing ? 'Refreshing' : 'Refresh and sync'} accessibilityState={{ busy: refreshing, disabled: refreshing }} disabled={refreshing} onPress={startRefresh} style={[styles.menuButton, { borderColor: colors.border }, refreshing && styles.menuButtonBusy]}>{refreshing ? <ActivityIndicator color={colors.primary} size="small" /> : <Text style={[styles.menuButtonText, { color: colors.text }]}>↻</Text>}</Pressable><Pressable accessibilityLabel={isLocked ? 'Unlock this Milk date' : 'Milk date is unlocked'} disabled={milkDate === todayAtFarm()} onPress={() => setUnlockedDate(isLocked ? milkDate : null)} style={[styles.menuButton, { borderColor: isLocked ? colors.primary : colors.border }]}><Text style={[styles.menuButtonText, { color: isLocked ? colors.primary : colors.text }]}>{isLocked ? '🔒' : '🔓'}</Text></Pressable><Pressable accessibilityLabel="Open Milk menu" onPress={() => setMenuOpen(true)} style={[styles.menuButton, { borderColor: colors.border }]}><Text style={[styles.menuButtonText, { color: colors.text }]}>•••</Text></Pressable></View>}>
       <MilkMenu
         open={menuOpen}
         appVersion={Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0'}
@@ -668,6 +668,7 @@ const styles = StyleSheet.create({
   session: { flex: 1, minHeight: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   sessionText: { fontSize: 15, fontWeight: '700' },
   menuButton: { minHeight: 32, minWidth: 46, borderWidth: 1, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  menuButtonBusy: { opacity: 0.6 },
   menuButtonText: { fontSize: 17, lineHeight: 16, fontWeight: '900', letterSpacing: 1 },
   headerControls: { flexDirection: 'row', gap: 8 },
   helper: { fontSize: 13, lineHeight: 19 },

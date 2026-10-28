@@ -1,7 +1,7 @@
 import { getPowerSyncDatabase } from '@/data/powersync/platform.native';
 import * as Crypto from 'expo-crypto';
 
-import type { AnimalMilkGraphSnapshot, AnimalProductivityRow, BuyerSaleDetailRow, DailyDiaryCategory, DailyDiaryRow, DeleteDailyDiaryCategoryInput, DeleteDailyDiaryInput, MilkProductionDetailRow, MilkQualityRecord, PeriodReport, SaveDailyDiaryCategoryInput, SaveDailyDiaryInput } from './reports.types';
+import type { AnimalMilkGraphSnapshot, AnimalProductivityRow, BuyerSaleDetailRow, DailyDiaryCategory, DailyDiaryRow, DeleteDailyDiaryCategoryInput, DeleteDailyDiaryInput, FarmAverageMilkPoint, MilkProductionDetailRow, MilkQualityRecord, PeriodReport, SaveDailyDiaryCategoryInput, SaveDailyDiaryInput } from './reports.types';
 
 export async function getDailyDiary(farmId: string, fromDate: string, toDate: string): Promise<DailyDiaryRow[]> { const database = await getPowerSyncDatabase(); return database.getAll<DailyDiaryRow>(`SELECT diary.id, diary.diary_date AS diaryDate, diary.comment, diary.category_id AS categoryId, coalesce(category.name, 'Regular') AS categoryName FROM daily_diary diary LEFT JOIN daily_diary_categories category ON category.id = diary.category_id AND category.deleted_at IS NULL WHERE diary.farm_id = ? AND diary.diary_date BETWEEN ? AND ? AND diary.deleted_at IS NULL ORDER BY diary.diary_date DESC, diary.created_at DESC`, [farmId, fromDate, toDate]); }
 export async function listDailyDiaryCategories(farmId: string): Promise<DailyDiaryCategory[]> { const database = await getPowerSyncDatabase(); return database.getAll<DailyDiaryCategory>(`SELECT id, name, display_order AS displayOrder FROM daily_diary_categories WHERE farm_id=? AND deleted_at IS NULL ORDER BY display_order, name COLLATE NOCASE`, [farmId]); }
@@ -134,6 +134,31 @@ export async function getMilkSourceEntries(farmId: string, fromDate: string, toD
      ORDER BY entry.milk_date DESC, entry.session, animal.tag COLLATE NOCASE`,
     [farmId, fromDate, toDate],
   );
+}
+
+export async function getFarmAverageMilk(farmId: string, fromDate: string, toDate: string): Promise<FarmAverageMilkPoint[]> {
+  const database = await getPowerSyncDatabase();
+  // Daily average = total produced (morning + evening) / number of milking animals that date.
+  // "Milking animals on that date" = animals that have a saved milk entry that day; this
+  // naturally excludes Not Milking (no entry) and Milk Calf (consumption lives in
+  // milk_calf_allocations, not milk_entries), and reflects the category applicable on that date.
+  const rows = await database.getAll<{ milkDate: string; totalMl: number; milkingAnimals: number }>(
+    `SELECT milk_date AS milkDate,
+            coalesce(sum(volume_ml), 0) AS totalMl,
+            count(DISTINCT animal_id) AS milkingAnimals
+     FROM milk_entries
+     WHERE farm_id = ? AND milk_date BETWEEN ? AND ? AND deleted_at IS NULL
+     GROUP BY milk_date
+     HAVING count(DISTINCT animal_id) > 0
+     ORDER BY milk_date ASC`,
+    [farmId, fromDate, toDate],
+  );
+  return rows.map((row) => ({
+    milkDate: row.milkDate,
+    totalMl: row.totalMl,
+    milkingAnimals: row.milkingAnimals,
+    averageMl: Math.round(row.totalMl / row.milkingAnimals),
+  }));
 }
 
 export async function getAnimalMilkGraph(farmId: string, fromDate: string, toDate: string): Promise<AnimalMilkGraphSnapshot> {

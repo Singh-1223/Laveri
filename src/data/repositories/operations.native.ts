@@ -57,7 +57,17 @@ export async function listRecentOperations(farmId: string, limit = 1_000): Promi
       UNION ALL
 
       SELECT treatment.id, 'treatment' AS kind, treatment.treatment_date AS businessDate,
-        coalesce(item.name, 'Treatment') AS title, animal.tag AS detail,
+        coalesce(item.name, 'Treatment') AS title,
+        coalesce(
+          (SELECT group_concat(linked.tag, ', ') FROM (
+            SELECT animal.tag AS tag
+            FROM treatment_animals link
+            JOIN animals animal ON animal.id = link.animal_id
+            WHERE link.treatment_id = treatment.id AND link.deleted_at IS NULL
+            ORDER BY animal.tag COLLATE NOCASE
+          ) linked),
+          (SELECT tag FROM animals WHERE id = treatment.animal_id)
+        ) AS detail,
         treatment.total_paise AS amountPaise,
         CASE WHEN treatment.deleted_at IS NULL THEN 0 ELSE 1 END AS isVoided,
         treatment.void_reason AS voidReason,
@@ -67,7 +77,6 @@ export async function listRecentOperations(farmId: string, limit = 1_000): Promi
         treatment.medicine_cost_paise AS medicineCostPaise,
         treatment.notes AS notes, NULL AS productCategory, treatment.created_at AS createdAt
       FROM treatments treatment
-      JOIN animals animal ON animal.id = treatment.animal_id
       LEFT JOIN items item ON item.id = treatment.medicine_item_id
       WHERE treatment.farm_id = ? AND treatment.deleted_at IS NULL
 
@@ -106,6 +115,18 @@ export async function createFeedTransaction(input: CreateFeedInput) {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL, ?, ?, ?, ?, NULL, 1)`,
     [audit.id, input.farmId, input.businessDate, input.animalId, input.animalCategory, input.itemId, input.quantityMilliUnits, input.unitCode, input.ratePaisePerUnit, amountPaise, input.notes?.trim() || null, audit.now, audit.now, input.userId, input.userId],
   );
+}
+
+export async function listTreatmentAnimalIds(farmId: string, treatmentId: string): Promise<string[]> {
+  const database = await getPowerSyncDatabase();
+  const rows = await database.getAll<{ animalId: string }>(
+    `SELECT animal_id AS animalId FROM treatment_animals WHERE treatment_id = ? AND farm_id = ? AND deleted_at IS NULL`,
+    [treatmentId, farmId],
+  );
+  if (rows.length > 0) return rows.map((row) => row.animalId);
+  // Fallback for legacy treatments saved before the join table was populated.
+  const legacy = await database.getOptional<{ animalId: string | null }>(`SELECT animal_id AS animalId FROM treatments WHERE id = ? AND farm_id = ?`, [treatmentId, farmId]);
+  return legacy?.animalId ? [legacy.animalId] : [];
 }
 
 export async function createTreatment(input: CreateTreatmentInput) {
@@ -191,8 +212,11 @@ export async function updateFeedTransaction(input: UpdateFeedInput) {
 
 export async function updateTreatment(input: UpdateTreatmentInput) {
   const database = await getPowerSyncDatabase();
+  const animalIds = [...new Set(input.animalIds)];
+  if (animalIds.length === 0) throw new Error('Select at least one animal for treatment.');
   const totalPaise = calculateTreatmentTotalPaise(input.doctorFeePaise, input.medicineCostPaise);
   const treatedAt = new Date(`${input.businessDate}T12:00:00`).toISOString();
+  const now = new Date().toISOString();
   await database.writeTransaction(async (transaction) => {
     const before = await transaction.get<Record<string, unknown>>(`SELECT * FROM treatments WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`, [input.id, input.farmId]);
     await transaction.execute(
@@ -201,8 +225,29 @@ export async function updateTreatment(input: UpdateTreatmentInput) {
            doctor_fee_paise = ?, medicine_cost_paise = ?, total_paise = ?, notes = ?,
            updated_at = ?, updated_by = ?, version = version + 1
        WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
-      [input.businessDate, treatedAt, input.animalId, input.medicineItemId, input.doctorFeePaise, input.medicineCostPaise, totalPaise, input.notes?.trim() || null, new Date().toISOString(), input.userId, input.id, input.farmId],
+      [input.businessDate, treatedAt, animalIds[0], input.medicineItemId, input.doctorFeePaise, input.medicineCostPaise, totalPaise, input.notes?.trim() || null, now, input.userId, input.id, input.farmId],
     );
+    // Re-sync the full set of linked animals: soft-delete links no longer selected,
+    // revive previously-removed links, and insert newly selected ones.
+    const existingLinks = await transaction.getAll<{ id: string; animal_id: string; deleted_at: string | null }>(
+      `SELECT id, animal_id, deleted_at FROM treatment_animals WHERE treatment_id = ? AND farm_id = ?`,
+      [input.id, input.farmId],
+    );
+    const selected = new Set(animalIds);
+    const linkByAnimal = new Map(existingLinks.map((link) => [link.animal_id, link]));
+    for (const link of existingLinks) {
+      if (!selected.has(link.animal_id) && link.deleted_at === null) {
+        await transaction.execute(`UPDATE treatment_animals SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ?`, [now, now, input.userId, link.id]);
+      }
+    }
+    for (const animalId of animalIds) {
+      const link = linkByAnimal.get(animalId);
+      if (!link) {
+        await transaction.execute(`INSERT INTO treatment_animals (id, farm_id, treatment_id, animal_id, created_at, updated_at, created_by, updated_by, deleted_at, version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, 1)`, [Crypto.randomUUID(), input.farmId, input.id, animalId, now, now, input.userId, input.userId]);
+      } else if (link.deleted_at !== null) {
+        await transaction.execute(`UPDATE treatment_animals SET deleted_at = NULL, updated_at = ?, updated_by = ?, version = version + 1 WHERE id = ?`, [now, input.userId, link.id]);
+      }
+    }
     const after = await transaction.get<Record<string, unknown>>(`SELECT * FROM treatments WHERE id = ?`, [input.id]);
     await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: 'treatments', recordId: input.id, action: 'update', before, after });
   });
@@ -259,6 +304,12 @@ export async function voidOperation(input: VoidOperationInput) {
        WHERE id = ? AND farm_id = ? AND deleted_at IS NULL`,
       [reason, now, now, input.userId, input.id, input.farmId],
     );
+    if (input.kind === 'treatment') {
+      await transaction.execute(
+        `UPDATE treatment_animals SET deleted_at = ?, updated_at = ?, updated_by = ?, version = version + 1 WHERE treatment_id = ? AND farm_id = ? AND deleted_at IS NULL`,
+        [now, now, input.userId, input.id, input.farmId],
+      );
+    }
     const after = await transaction.get<Record<string, unknown>>(`SELECT * FROM ${table} WHERE id = ?`, [input.id]);
     await recordCorrection(transaction, { farmId: input.farmId, userId: input.userId, entityType: table, recordId: input.id, action: 'void', reason, before, after });
   });

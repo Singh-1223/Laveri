@@ -1,5 +1,5 @@
-import { useFocusEffect } from 'expo-router';
 import { Directory } from 'expo-file-system';
+import { useFocusEffect } from 'expo-router';
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import Svg, { Circle, Line, Polyline, Text as SvgText } from 'react-native-svg';
@@ -8,8 +8,8 @@ import { AppScreen, EmptyState, SectionCard } from '@/components/app-screen';
 import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platform';
-import { getAnimalMilkGraph, getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
-import type { AnimalMilkGraphSnapshot, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
+import { getAnimalMilkGraph, getFarmAverageMilk, getPeriodReport, getQualityRecords } from '@/data/repositories/reports';
+import type { AnimalMilkGraphSnapshot, FarmAverageMilkPoint, MilkQualityRecord, PeriodReport } from '@/data/repositories/reports.types';
 import { formatMilk, formatMoney } from '@/domain/calculations';
 import { formatFarmDate, shiftTenDayCycle, tenDayCycleEnd, tenDayCycleStart } from '@/domain/dates';
 
@@ -44,6 +44,11 @@ export default function ReportsScreen() {
   const [graphCustomTo, setGraphCustomTo] = useState('');
   const [animalMilkGraph, setAnimalMilkGraph] = useState<AnimalMilkGraphSnapshot>({ animals: [], points: [] });
   const [selectedAnimalIds, setSelectedAnimalIds] = useState<string[]>([]);
+  const [farmAverage, setFarmAverage] = useState<FarmAverageMilkPoint[]>([]);
+  const [farmAvgRangeDays, setFarmAvgRangeDays] = useState<10 | 30 | 90>(10);
+  const [farmAvgCustomFrom, setFarmAvgCustomFrom] = useState('');
+  const [farmAvgCustomTo, setFarmAvgCustomTo] = useState('');
+  const [farmAvgLoading, setFarmAvgLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [qualityLoading, setQualityLoading] = useState(false);
   const [graphLoading, setGraphLoading] = useState(false);
@@ -71,6 +76,9 @@ export default function ReportsScreen() {
   const qualityGraphToDate = !qualityGraphCustomTo || qualityGraphCustomTo > graphLastDay ? graphLastDay : qualityGraphCustomTo;
   const graphFromDate = graphCustomFrom || addDays(graphLastDay, -(graphRangeDays - 1));
   const graphToDate = !graphCustomTo || graphCustomTo > graphLastDay ? graphLastDay : graphCustomTo;
+  // Farm average always excludes today: the upper bound is clamped to yesterday (graphLastDay).
+  const farmAvgFromDate = farmAvgCustomFrom || addDays(graphLastDay, -(farmAvgRangeDays - 1));
+  const farmAvgToDate = !farmAvgCustomTo || farmAvgCustomTo > graphLastDay ? graphLastDay : farmAvgCustomTo;
   const loadAnimalMilkGraph = useCallback(async () => {
     setGraphLoading(true);
     try {
@@ -89,6 +97,7 @@ export default function ReportsScreen() {
     }
   }, [graphFromDate, graphToDate]);
   const loadQualityGraph = useCallback(async () => { try { const sync = await getPowerSyncSnapshot(); setQualityGraphRecords(sync.farmId ? await getQualityRecords(sync.farmId, qualityGraphFromDate, qualityGraphToDate) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load FAT/SNF graphs.'); } }, [qualityGraphFromDate, qualityGraphToDate]);
+  const loadFarmAverage = useCallback(async () => { setFarmAvgLoading(true); try { const sync = await getPowerSyncSnapshot(); setFarmAverage(sync.farmId ? await getFarmAverageMilk(sync.farmId, farmAvgFromDate, farmAvgToDate) : []); } catch (nextError) { setError(nextError instanceof Error ? nextError.message : 'Unable to load farm average milk production.'); } finally { setFarmAvgLoading(false); } }, [farmAvgFromDate, farmAvgToDate]);
   const exportCsv = async () => {
     if (!report) return;
     setExporting(true);
@@ -116,6 +125,7 @@ export default function ReportsScreen() {
   useEffect(() => { const timeout = setTimeout(() => void loadQuality(), 0); return () => clearTimeout(timeout); }, [loadQuality]);
   useEffect(() => { const timeout = setTimeout(() => void loadAnimalMilkGraph(), 0); return () => clearTimeout(timeout); }, [loadAnimalMilkGraph]);
   useEffect(() => { const timeout = setTimeout(() => void loadQualityGraph(), 0); return () => clearTimeout(timeout); }, [loadQualityGraph]);
+  useEffect(() => { const timeout = setTimeout(() => void loadFarmAverage(), 0); return () => clearTimeout(timeout); }, [loadFarmAverage]);
 
   const qualityCycleEnd = tenDayCycleEnd(qualityCycleStart);
   const selectedAnimals = useMemo(() => animalMilkGraph.animals.filter((animal) => selectedAnimalIds.includes(animal.id)), [animalMilkGraph.animals, selectedAnimalIds]);
@@ -132,7 +142,7 @@ export default function ReportsScreen() {
   const animalGraphColors = useMemo(() => new Map(animalMilkGraph.animals.map((animal, index) => [animal.id, graphColors[index % graphColors.length]])), [animalMilkGraph.animals]);
 
   return (
-    <AppScreen enableTabSwipe onRefresh={async () => { try { await refreshPowerSync(); } finally { await Promise.all([refresh(), loadQuality(), loadAnimalMilkGraph(), loadQualityGraph()]); } }} title="Reports">
+    <AppScreen enableTabSwipe onRefresh={async () => { try { await refreshPowerSync(); } finally { await Promise.all([refresh(), loadQuality(), loadAnimalMilkGraph(), loadQualityGraph(), loadFarmAverage()]); } }} title="Reports">
       <SectionCard title="Date range">
         <View style={styles.dateRow}>
           <View style={styles.dateInput}><DateField label="From date" onChange={setFromDate} value={fromDate} /></View>
@@ -170,6 +180,13 @@ export default function ReportsScreen() {
             <View style={styles.selectionHeader}><Text style={[styles.selectionLabel, { color: colors.text }]}>Animals</Text><Pressable onPress={() => setSelectedAnimalIds((current) => current.length === animalMilkGraph.animals.length ? [] : animalMilkGraph.animals.map((animal) => animal.id))}><Text style={{ color: colors.primary, fontWeight: '800' }}>{selectedAnimalIds.length === animalMilkGraph.animals.length ? 'Clear all' : 'Select all'}</Text></Pressable></View>
             <View style={styles.animalChoices}>{animalMilkGraph.animals.map((animal, index) => { const selected = selectedAnimalIds.includes(animal.id); const color = graphColors[index % graphColors.length]; return <Pressable key={animal.id} onPress={() => setSelectedAnimalIds((current) => current.includes(animal.id) ? current.filter((id) => id !== animal.id) : [...current, animal.id])} style={[styles.animalChoice, { borderColor: selected ? color : colors.border, backgroundColor: selected ? colors.backgroundSelected : colors.backgroundElement }]}><View style={[styles.legendDot, { backgroundColor: color }]} /><Text style={{ color: colors.text, fontWeight: '700' }}>{animal.tag}</Text></Pressable>; })}</View>
             {graphLoading ? <ActivityIndicator color={colors.primary} /> : selectedAnimals.length === 0 ? <EmptyState>Select one or more animals to view their milk lines.</EmptyState> : graphDates.length === 0 ? <EmptyState>No completed milk records in this date range.</EmptyState> : <CombinedMilkChart animals={selectedAnimals} dates={graphDates} pointsByAnimal={pointsByAnimal} animalColors={animalGraphColors} colors={colors} />}
+          </SectionCard>
+
+          <SectionCard title="Farm Average Milk Production">
+            <Text style={[styles.graphCopy, { color: colors.textSecondary }]}>Daily average = total milk produced (morning + evening) ÷ number of milking animals that day. Milk Calf consumption is excluded. Today is excluded.</Text>
+            <View style={styles.rangeButtons}>{([10, 30, 90] as const).map((value) => <Pressable key={value} onPress={() => { setFarmAvgRangeDays(value); setFarmAvgCustomFrom(''); setFarmAvgCustomTo(''); }} style={[styles.rangeButton, { backgroundColor: farmAvgRangeDays === value && !farmAvgCustomFrom && !farmAvgCustomTo ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: farmAvgRangeDays === value && !farmAvgCustomFrom && !farmAvgCustomTo ? '#FFFFFF' : colors.text }}>{value === 10 ? '10 days' : value === 30 ? '1 month' : '3 months'}</Text></Pressable>)}</View>
+            <View style={styles.dateRow}><View style={styles.dateInput}><DateField label="Custom from (optional)" value={farmAvgCustomFrom} onChange={setFarmAvgCustomFrom} /></View><View style={styles.dateInput}><DateField label="Custom to (optional)" value={farmAvgCustomTo} onChange={setFarmAvgCustomTo} /></View></View>
+            {farmAvgLoading ? <ActivityIndicator color={colors.primary} /> : farmAverage.length === 0 ? <EmptyState>No completed milk records in this date range.</EmptyState> : <><FarmAverageChart points={farmAverage} colors={colors} /><View style={[styles.qualityTableRow, styles.qualityTableHeader, { borderBottomColor: colors.border }]}><Text style={[styles.qualityDateColumn, styles.qualityTableHeading, { color: colors.textSecondary }]}>Date</Text><Text style={[styles.qualityValueColumn, styles.qualityTableHeading, { color: colors.textSecondary }]}>Milking</Text><Text style={[styles.qualityValueColumn, styles.qualityTableHeading, { color: colors.textSecondary }]}>Avg/animal</Text></View>{farmAverage.map((point) => <View key={point.milkDate} style={[styles.qualityTableRow, { borderBottomColor: colors.border }]}><Text style={[styles.qualityDateColumn, { color: colors.text }]}>{formatFarmDate(point.milkDate)}</Text><Text style={[styles.qualityValueColumn, { color: colors.text }]}>{point.milkingAnimals}</Text><Text style={[styles.qualityValueColumn, { color: colors.text }]}>{formatMilk(point.averageMl)}</Text></View>)}</>}
           </SectionCard>
 
           <SectionCard title="FAT & SNF history"><Text style={[styles.graphCopy, { color: colors.textSecondary }]}>Morning and Evening are shown as separate lines. Today is excluded.</Text><View style={styles.rangeButtons}>{([10, 30, 90] as const).map((value) => <Pressable key={value} onPress={() => { setQualityGraphRangeDays(value); setQualityGraphCustomFrom(''); setQualityGraphCustomTo(''); }} style={[styles.rangeButton, { backgroundColor: qualityGraphRangeDays === value && !qualityGraphCustomFrom && !qualityGraphCustomTo ? colors.primary : colors.backgroundSelected }]}><Text style={{ color: qualityGraphRangeDays === value && !qualityGraphCustomFrom && !qualityGraphCustomTo ? '#FFFFFF' : colors.text }}>{value === 10 ? '10 days' : value === 30 ? '1 month' : '3 months'}</Text></Pressable>)}</View><View style={styles.dateRow}><View style={styles.dateInput}><DateField label="Custom from (optional)" value={qualityGraphCustomFrom} onChange={setQualityGraphCustomFrom} /></View><View style={styles.dateInput}><DateField label="Custom to (optional)" value={qualityGraphCustomTo} onChange={setQualityGraphCustomTo} /></View></View>{qualityGraphRecords.length === 0 ? <EmptyState>No FAT/SNF records in this date range.</EmptyState> : <><Text style={[styles.qualityGraphTitle, { color: colors.text }]}>FAT %</Text><QualityLineChart records={qualityGraphRecords} value="fat" colors={colors} /><Text style={[styles.qualityGraphTitle, { color: colors.text }]}>SNF %</Text><QualityLineChart records={qualityGraphRecords} value="snf" colors={colors} /></>}</SectionCard>
@@ -228,6 +245,30 @@ function CombinedMilkChart({ animals, dates, pointsByAnimal, animalColors, color
         <View style={styles.chartLabels}>{dates.map((date) => <Text key={date} style={[styles.chartLabel, { color: colors.textSecondary }]}>{formatFarmDate(date)}</Text>)}</View>
       </View>
     </ScrollView>;
+}
+
+function FarmAverageChart({ points, colors }: { points: FarmAverageMilkPoint[]; colors: typeof Colors.light | typeof Colors.dark }) {
+  const chartLeft = 44;
+  const chartTop = 20;
+  const chartBottom = 136;
+  const chartWidth = Math.max(280, chartLeft + points.length * 52);
+  const axisMaximum = Math.max(1_000, Math.ceil(Math.max(1, ...points.map((point) => point.averageMl)) / 1_000) * 1_000);
+  const yTicks = [axisMaximum, axisMaximum / 2, 0];
+  const milkY = (volumeMl: number) => chartBottom - ((volumeMl / axisMaximum) * (chartBottom - chartTop));
+  const pointX = (index: number) => chartLeft + index * 52;
+  const linePoints = points.map((point, index) => `${pointX(index)},${milkY(point.averageMl)}`).join(' ');
+  return <ScrollView horizontal showsHorizontalScrollIndicator>
+    <View>
+      <Svg width={chartWidth} height={156}>
+        <SvgText x="0" y="12" fill={colors.textSecondary} fontSize="10">Avg (L)</SvgText>
+        {yTicks.flatMap((tick) => { const y = milkY(tick); return [<Line key={`grid-${tick}`} x1={chartLeft} y1={y} x2={chartWidth - 8} y2={y} stroke={colors.border} strokeDasharray={tick === 0 ? undefined : '3 3'} />, <SvgText key={`label-${tick}`} x={chartLeft - 5} y={y + 4} fill={colors.textSecondary} fontSize="10" textAnchor="end">{formatMilk(tick)}</SvgText>]; })}
+        <Line x1={chartLeft} y1={chartTop} x2={chartLeft} y2={chartBottom} stroke={colors.border} />
+        <Polyline points={linePoints} fill="none" stroke="#059669" strokeWidth="3" />
+        {points.map((point, index) => <Circle key={point.milkDate} cx={pointX(index)} cy={milkY(point.averageMl)} r="3.5" fill="#059669" />)}
+      </Svg>
+      <View style={styles.chartLabels}>{points.map((point) => <Text key={point.milkDate} style={[styles.chartLabel, { color: colors.textSecondary }]}>{formatFarmDate(point.milkDate)}</Text>)}</View>
+    </View>
+  </ScrollView>;
 }
 
 function QualityLineChart({ records, value, colors }: { records: MilkQualityRecord[]; value: 'fat' | 'snf'; colors: typeof Colors.light | typeof Colors.dark }) {

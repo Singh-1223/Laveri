@@ -67,7 +67,7 @@ export type CreateOtherEventInput = OperationContext & { animalIds: string[]; ev
 export type UpdateFeedInput = CreateFeedInput & { id: string };
 export type UpdateTreatmentInput = OperationContext & {
   id: string;
-  animalId: string;
+  animalIds: string[];
   medicineItemId: string | null;
   doctorFeePaise: number;
   medicineCostPaise: number;

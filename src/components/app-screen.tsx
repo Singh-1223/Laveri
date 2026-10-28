@@ -1,7 +1,7 @@
 import { Link, useFocusEffect, usePathname, useRouter } from 'expo-router';
 import type { PropsWithChildren, ReactNode } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, PanResponder, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, PanResponder, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useColorScheme, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors } from '@/constants/theme';
@@ -60,6 +60,16 @@ export function AppScreen({ title, subtitle, action, scroll = true, contentStyle
         </View>
         <View style={styles.headerActions}>
           {action}
+          {onRefresh ? (
+            <Pressable
+              accessibilityLabel={refreshing ? 'Refreshing' : 'Refresh and sync'}
+              accessibilityState={{ busy: refreshing, disabled: refreshing }}
+              disabled={refreshing}
+              onPress={startRefresh}
+              style={[styles.refreshButton, { borderColor: colors.border }, refreshing && styles.refreshButtonBusy]}>
+              {refreshing ? <ActivityIndicator color={colors.primary} size="small" /> : <Text style={[styles.refreshButtonText, { color: colors.text }]}>↻</Text>}
+            </Pressable>
+          ) : null}
           <SyncPill />
         </View>
       </View>
@@ -144,6 +154,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, paddingTop: 12 },
   headerText: { flex: 1, gap: 4 },
   headerActions: { alignItems: 'center', flexDirection: 'row', gap: 16 },
+  refreshButton: { width: 38, height: 38, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  refreshButtonBusy: { opacity: 0.6 },
+  refreshButtonText: { fontSize: 20, fontWeight: '700' },
   title: { fontSize: 30, fontWeight: '800', letterSpacing: -0.6 },
   subtitle: { fontSize: 15, lineHeight: 21 },
   card: { borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, padding: 16, gap: 12 },

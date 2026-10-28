@@ -7,21 +7,21 @@ import { DateField } from '@/components/date-field';
 import { Colors } from '@/constants/theme';
 import { getPowerSyncSnapshot } from '@/data/powersync/platform';
 import {
-  createAnimal,
-  createAnimalLabel,
-  deleteAnimalLabel,
-  deleteItem,
-  createBuyer,
-  createItem,
-  listMasterData,
-  reorderMasterRecord,
-  setMasterRecordActive,
-  setAnimalLabels,
-  updateAnimal,
-  updateAnimalLabel,
-  updateBuyer,
-  updateBuyerRateRange,
-  updateItem,
+    createAnimal,
+    createAnimalLabel,
+    createBuyer,
+    createItem,
+    deleteAnimalLabel,
+    deleteItem,
+    listMasterData,
+    reorderMasterRecord,
+    setAnimalLabels,
+    setMasterRecordActive,
+    updateAnimal,
+    updateAnimalLabel,
+    updateBuyer,
+    updateBuyerRateRange,
+    updateItem,
 } from '@/data/repositories/master-data';
 import type { ItemRow, MasterDataSnapshot } from '@/data/repositories/master-data.types';
 import { useSession } from '@/features/auth/session-provider';
@@ -307,9 +307,9 @@ export default function MasterDataScreen() {
           style={[styles.input, { color: colors.text, borderColor: Number.isNaN(parseRupees(buyerRate)) ? colors.danger : colors.border }]}
           value={buyerRate}
         /> : null}
-        {tab === 'buyers' && editingId && name.trim().toLocaleLowerCase() !== 'verka' ? <View style={styles.rateRange}>
+        {tab === 'buyers' && editingId ? <View style={styles.rateRange}>
           <Text style={[styles.label, { color: colors.textSecondary }]}>Apply this rate to recorded milk</Text>
-          <Text style={[styles.rateHelp, { color: colors.textSecondary }]}>Updates this buyer’s saved milk allocations for both dates, including the start and end dates. It does not change other buyers.</Text>
+          <Text style={[styles.rateHelp, { color: colors.textSecondary }]}>{name.trim().toLocaleLowerCase() === 'verka' ? 'Updates Verka’s saved milk entries for the selected dates, including the start and end dates. Only the rate changes — quantity, FAT%, and SNF% are untouched, and new entries keep using the billing-cycle rate.' : 'Updates this buyer’s saved milk allocations for both dates, including the start and end dates. It does not change other buyers.'}</Text>
           <DateField label="Rate start date" value={rateStartDate} onChange={setRateStartDate} />
           <DateField label="Rate end date" value={rateEndDate} onChange={setRateEndDate} />
           <Pressable disabled={busy || !buyerRate.trim()} onPress={() => void applyBuyerRateRange()} style={[styles.rangeButton, { borderColor: colors.primary }, (busy || !buyerRate.trim()) && styles.disabled]}><Text style={[styles.cancelText, { color: colors.primary }]}>Apply rate to selected dates</Text></Pressable>

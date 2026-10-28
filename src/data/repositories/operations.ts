@@ -1,15 +1,15 @@
 import type {
-  CreateFeedInput,
-  CreateHeatInput,
-  CreateOtherEventInput,
-  CreateProductInput,
-  CreateTreatmentInput,
-  OperationHistoryRow,
-  UpdateFeedInput,
-  UpdateHeatInput,
-  UpdateProductInput,
-  UpdateTreatmentInput,
-  VoidOperationInput,
+    CreateFeedInput,
+    CreateHeatInput,
+    CreateOtherEventInput,
+    CreateProductInput,
+    CreateTreatmentInput,
+    OperationHistoryRow,
+    UpdateFeedInput,
+    UpdateHeatInput,
+    UpdateProductInput,
+    UpdateTreatmentInput,
+    VoidOperationInput,
 } from './operations.types';
 
 const unavailable = () => new Error('Offline farm operations require the Android or iOS development build.');
@@ -18,6 +18,7 @@ export async function listRecentOperations(_farmId: string, _limit = 50): Promis
   throw unavailable();
 }
 
+export async function listTreatmentAnimalIds(_farmId: string, _treatmentId: string): Promise<string[]> { throw unavailable(); }
 export async function createFeedTransaction(_input: CreateFeedInput) { throw unavailable(); }
 export async function createTreatment(_input: CreateTreatmentInput) { throw unavailable(); }
 export async function createProductTransaction(_input: CreateProductInput) { throw unavailable(); }

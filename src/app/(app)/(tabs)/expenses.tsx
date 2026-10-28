@@ -9,15 +9,16 @@ import { getPowerSyncSnapshot, refreshPowerSync } from '@/data/powersync/platfor
 import { createItem, listMasterData } from '@/data/repositories/master-data';
 import type { AnimalRow, ItemRow } from '@/data/repositories/master-data.types';
 import {
-  createFeedTransaction,
-  createOtherEvents,
-  createProductTransaction,
-  createTreatment,
-  listRecentOperations,
-  updateFeedTransaction,
-  updateProductTransaction,
-  updateTreatment,
-  voidOperation,
+    createFeedTransaction,
+    createOtherEvents,
+    createProductTransaction,
+    createTreatment,
+    listRecentOperations,
+    listTreatmentAnimalIds,
+    updateFeedTransaction,
+    updateProductTransaction,
+    updateTreatment,
+    voidOperation
 } from '@/data/repositories/operations';
 import type { OperationHistoryRow, OperationKind } from '@/data/repositories/operations.types';
 import { formatMoney } from '@/domain/calculations';
@@ -139,7 +140,7 @@ export default function ExpensesScreen() {
     if (item?.default_rate_paise_per_unit !== null && item?.default_rate_paise_per_unit !== undefined) setRate(String(item.default_rate_paise_per_unit / 100));
   };
 
-  const startEdit = (row: OperationHistoryRow) => {
+  const startEdit = async (row: OperationHistoryRow) => {
     setKind(row.kind);
     setHistoryFilter(row.kind);
     setBusinessDate(row.businessDate);
@@ -151,6 +152,16 @@ export default function ExpensesScreen() {
     setMedicineCost(row.medicineCostPaise === null ? '' : String(row.medicineCostPaise / 100));
     setNotes(row.notes ?? '');
     setProductCategory(row.productCategory === 'investment' ? 'investment' : 'operating_expense');
+    if (row.kind === 'treatment') {
+      try {
+        const ids = farmId ? await listTreatmentAnimalIds(farmId, row.id) : [];
+        setSelectedTreatmentAnimalIds(ids.length ? ids : row.animalId ? [row.animalId] : []);
+      } catch {
+        setSelectedTreatmentAnimalIds(row.animalId ? [row.animalId] : []);
+      }
+    } else {
+      setSelectedTreatmentAnimalIds([]);
+    }
     setEditingRow(row);
     setMessage(`Editing ${kindLabel(row.kind).toLowerCase()} from ${formatFarmDate(row.businessDate)}. Use the form above.`);
   };
@@ -168,7 +179,7 @@ export default function ExpensesScreen() {
         else await createFeedTransaction(input);
       } else if (kind === 'treatment') {
         if (selectedTreatmentAnimalIds.length === 0 || !Number.isSafeInteger(doctorFeePaise) || doctorFeePaise < 0 || !Number.isSafeInteger(medicineCostPaise) || medicineCostPaise < 0) throw new Error('Select at least one animal and enter non-negative treatment costs.');
-        if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalId: selectedTreatmentAnimalIds[0], medicineItemId: null, doctorFeePaise, medicineCostPaise });
+        if (editingRow) await updateTreatment({ ...context, id: editingRow.id, animalIds: selectedTreatmentAnimalIds, medicineItemId: null, doctorFeePaise, medicineCostPaise });
         else await createTreatment({ ...context, animalIds: selectedTreatmentAnimalIds, medicineItemId: null, doseMilliUnits: null, doseUnit: null, doctorFeePaise, medicineCostPaise });
       } else if (kind === 'product') {
         if (!selectedItem || !Number.isSafeInteger(quantityMilli) || quantityMilli <= 0 || !Number.isSafeInteger(ratePaise) || ratePaise < 0) throw new Error('Select a product, then enter a quantity above zero and a non-negative rate.');
@@ -317,7 +328,7 @@ export default function ExpensesScreen() {
               </View>
               {row.isVoided !== 1 ? (
                 <View style={styles.historyActions}>
-                  <Pressable disabled={busy} onPress={() => startEdit(row)} style={[styles.historyButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Edit</Text></Pressable>
+                  <Pressable disabled={busy} onPress={() => void startEdit(row)} style={[styles.historyButton, { borderColor: colors.primary }]}><Text style={[styles.voidButtonText, { color: colors.primary }]}>Edit</Text></Pressable>
                   <Pressable disabled={busy} onPress={() => Alert.alert('Delete record?', 'This activity will be removed and excluded from reports.', [{ text: 'Cancel', style: 'cancel' }, { text: 'Delete', style: 'destructive', onPress: () => void deleteRecord(row) }])} style={[styles.historyButton, { borderColor: colors.danger }]}><Text style={[styles.voidButtonText, { color: colors.danger }]}>Delete</Text></Pressable>
                 </View>
               ) : null}

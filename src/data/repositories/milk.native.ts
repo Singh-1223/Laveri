@@ -64,7 +64,7 @@ export async function loadMilkSession(
        LEFT JOIN milk_calf_allocations allocation
          ON allocation.animal_id = animal.id AND allocation.milk_date = ? AND allocation.session = ? AND allocation.deleted_at IS NULL
        WHERE animal.farm_id = ? AND animal.deleted_at IS NULL
-         AND animal.status = 'active' AND animal.milk_entry_category = 'milk_calf'
+         AND ((animal.status = 'active' AND animal.milk_entry_category = 'milk_calf') OR allocation.id IS NOT NULL)
        ORDER BY animal.milk_display_order, animal.tag COLLATE NOCASE`,
       [milkDate, session, farmId],
     ),
