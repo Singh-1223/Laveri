@@ -1,15 +1,16 @@
-import * as Crypto from 'expo-crypto';
 import {
   type CommonPowerSyncDatabase,
-  PowerSyncDatabase,
   type PowerSyncBackendConnector,
+  PowerSyncDatabase,
   UpdateType,
 } from '@powersync/react-native';
+import * as Crypto from 'expo-crypto';
 
 import { getEnvironmentState } from '@/config/env';
 import { appSchema } from '@/data/db/schema';
 import { requireSupabase } from '@/data/supabase/client';
 
+import { conflictAlreadyApplied, patchAlreadyApplied } from './stale-patch';
 import type { LocalConflict, PowerSyncSnapshot, SpikeRecord } from './types';
 
 const database = new PowerSyncDatabase({
@@ -68,6 +69,14 @@ async function saveConflict(
     remotePayload?: unknown;
   },
 ) {
+  // A retried batch re-runs earlier operations; never log the same unresolved conflict twice.
+  const existing = await target.getOptional<{ id: string }>(
+    `SELECT id FROM sync_conflicts
+     WHERE resolved_at IS NULL AND table_name = ? AND record_id = ? AND operation = ? AND message = ? AND local_payload = ?
+     LIMIT 1`,
+    [details.table, details.recordId, details.operation, details.message, JSON.stringify(details.localPayload ?? null)],
+  );
+  if (existing) return;
   await target.execute(
     `INSERT INTO sync_conflicts (
       id, table_name, record_id, operation, message,
@@ -198,6 +207,9 @@ class SupabaseConnector implements PowerSyncBackendConnector {
 
           if (readError) throw readError;
 
+          // Already on the server (replay of a batch that partly succeeded): nothing to resolve.
+          if (patchAlreadyApplied(patch, current as Record<string, unknown> | null)) continue;
+
           await saveConflict(target, {
             table: operation.table,
             recordId: operation.id,
@@ -236,6 +248,54 @@ export async function getPowerSyncDatabase() {
   return database;
 }
 
+/**
+ * Marks already-logged "Stale edit rejected" conflicts as resolved when the server verifiably
+ * holds the same values (i.e. they came from a replayed upload batch, not a real clash).
+ * Read-only against the server and non-destructive locally: rows are only stamped resolved_at,
+ * never deleted, and anything that does not match stays visible for review.
+ */
+async function reconcileStaleConflicts() {
+  const rows = await database.getAll<{ id: string; table_name: string; record_id: string; local_payload: string | null; remote_payload: string | null }>(
+    `SELECT id, table_name, record_id, local_payload, remote_payload FROM sync_conflicts
+     WHERE resolved_at IS NULL AND operation = ? AND message LIKE 'Stale edit rejected%'`,
+    [UpdateType.PATCH],
+  );
+  if (rows.length === 0) return;
+
+  const now = new Date().toISOString();
+  const resolve = (id: string) => database.execute('UPDATE sync_conflicts SET resolved_at = ? WHERE id = ?', [now, id]);
+
+  // Pass 1 (offline): the server row captured when the conflict was logged already held the edit.
+  // Unaffected by later edits to the same row.
+  const remaining: typeof rows = [];
+  for (const row of rows) {
+    if (conflictAlreadyApplied(row.local_payload, row.remote_payload)) await resolve(row.id);
+    else remaining.push(row);
+  }
+  if (remaining.length === 0) return;
+
+  // Pass 2 (online, read-only): compare with the current server row. Any error leaves rows untouched.
+  const client = requireSupabase();
+  const idsByTable = new Map<string, string[]>();
+  for (const row of remaining) {
+    if (!UPLOADABLE_TABLES.has(row.table_name)) continue;
+    idsByTable.set(row.table_name, [...(idsByTable.get(row.table_name) ?? []), row.record_id]);
+  }
+  const remoteByKey = new Map<string, Record<string, unknown>>();
+  for (const [table, ids] of idsByTable) {
+    const unique = [...new Set(ids)];
+    for (let index = 0; index < unique.length; index += 50) {
+      const { data, error } = await client.from(table).select('*').in('id', unique.slice(index, index + 50));
+      if (error) return;
+      for (const remote of (data ?? []) as Record<string, unknown>[]) remoteByKey.set(`${table}:${String(remote.id)}`, remote);
+    }
+  }
+  for (const row of remaining) {
+    const current = remoteByKey.get(`${row.table_name}:${row.record_id}`);
+    if (current && conflictAlreadyApplied(row.local_payload, null, current)) await resolve(row.id);
+  }
+}
+
 export async function connectPowerSync() {
   if (database.connected || connecting) return;
 
@@ -243,6 +303,7 @@ export async function connectPowerSync() {
   try {
     await initializePowerSync();
     await database.connect(connector);
+    void reconcileStaleConflicts().catch(() => undefined);
   } finally {
     connecting = false;
   }

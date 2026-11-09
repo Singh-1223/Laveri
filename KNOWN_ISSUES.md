@@ -47,29 +47,27 @@ Add a **milking-category history** so we can resolve "what category was this ani
 
 ---
 
-## Issue 2 — Sync `version` double-increment causes recurring "Stale edit rejected" conflicts `[ ]`
+## Issue 2 — Recurring "Stale edit rejected" conflicts after flaky connections `[x]` (fixed in connector, needs device verification)
 
-**Severity:** High (edits can land in a permanent local conflict queue; worked around today only by logout/login full resync)
-**Area:** Optimistic concurrency · `src/data/powersync/platform.native.ts` (`SupabaseConnector.uploadData`), every repository `UPDATE`, Supabase trigger `set_audit_columns_and_version`, `src/data/db/schema.ts` (`trackPrevious`)
+**Area:** `src/data/powersync/platform.native.ts` (`SupabaseConnector.uploadData`)
 
 ### Symptom
-After 1–2 days of use, the Sync status screen fills with "Stale edit rejected: expected server version N" conflicts (observed 105, mostly `milk_entries` / `milk_allocations`). Logging out and back in clears them temporarily, then they return.
+After a day or two, Sync status fills with "Stale edit rejected: expected server version N" (observed 105, mostly `milk_entries` / `milk_allocations`, all within about 4 seconds). Logout/login clears them temporarily.
 
-### Root cause (confirmed)
-`version` has **two independent writers**:
-- **Server:** trigger `set_audit_columns_and_version` runs `new.version := old.version + 1` on every update (all tables).
-- **Client:** every repository `UPDATE` also does `version = version + 1`.
+### Corrected root cause
+`uploadData` applies a batch operation by operation and only calls `transaction.complete()` at the end. If the connection drops mid-batch, or the server applies an op but the response is lost, the SDK retries the whole batch. Ops that already succeeded now assert their old base version, the server is one ahead, and each is logged as a conflict even though the edit is already on the server. Flaky Wi-Fi plus large milk save batches produce exactly the observed burst.
 
-The connector's optimistic check asserts `.eq('version', previousValues.version)` (version stripped from the patch via `IMMUTABLE_PATCH_COLUMNS`). The scheme only works while the client's local increments stay in perfect lockstep with the server's trigger increments. Concurrent/auto-save edits, bulk range updates, a rejected op, or a download re-applying a row break the lockstep; once local and server `version` diverge by ≥1, every later PATCH's `previousValues.version` is wrong → stale → parked in `sync_conflicts` (local-only) → poisoned until a full resync.
+### Ruled out (do not retry)
+An earlier theory blamed the client's `version = version + 1` as a second writer. That is wrong: the client increment keeps several offline edits to one row in lockstep with the server trigger (A: 5 to 6, B: 6 to 7). Removing it makes every second edit stale. The client increment and the `trackPrevious` config are intentionally unchanged.
 
-- Milk rows dominate because they're edited most (1.25s auto-save on the milk screen; VERKA/buyer rate-range updates PATCH many allocation rows at once).
-- Logout/login runs `disconnectAndClear({ clearLocal: true })` → re-downloads rows at the server's current `version` → realigns → conflict queue cleared.
+### Fix
+- Stale PATCH: re-read the server row. If it already holds every patched value (ignoring server-owned `updated_at` / `updated_by`, and timestamp-format and boolean/int differences), treat it as already applied and record no conflict. Any differing value still becomes a conflict, as before.
+- `saveConflict` de-duplicates identical unresolved conflicts so retries do not stack duplicates.
+- A patch that only touches server-owned columns (unchanged auto-save) carries no data, so it counts as applied.
+- `reconcileStaleConflicts` (runs after connect) marks existing logged stale conflicts `resolved_at` when the server row captured at conflict time (`remote_payload`) already held the edit, falling back to the current server row. It never deletes or clears anything; non-matching conflicts stay visible.
+- Logic lives in `src/data/powersync/stale-patch.ts`; `tests/upload-replay.test.mjs` simulates the server trigger and a mid-batch drop, reproducing the bug (before) and confirming zero false conflicts (after).
 
-### Proper fix (deferred)
-Make the **server the sole authority** on `version`:
-- **A.** Remove `version = version + 1` from every repository UPDATE (sites across `milk.native.ts`, `operations.native.ts`, `master-data.native.ts`, `animal-profile.native.ts`, `reports.native.ts`, `pricing.native.ts`, `platform.native.ts` spike, `verka-billing.native.ts`, `corrections.native.ts`, `household-consumption.native.ts`, `buyer-account.native.ts`). The trigger already supplies the new version.
-- **B.** Change `schema.ts` `trackPrevious` from `{ columns: ['version'], onlyWhenChanged: true }` to `trackPrevious: true` (or `onlyWhenChanged: false`) so `previousValues.version` is still captured on PATCH even though the client no longer mutates `version`. The connector keeps asserting `.eq('version', previousValues.version)`, now against the true server value.
-- **C.** (Optional hardening) On a genuinely stale PATCH (real multi-device conflict), make the connector re-read the server row and rebase/retry instead of permanently parking it in `sync_conflicts`.
-
-### Migration caveat
-Existing installs already carry drifted local DBs. After shipping A+B, each device needs **one** resync (logout/login or a programmatic `disconnectAndClear`) to realign once; consider triggering that automatically on the update that ships the fix.
+### Not done / follow-ups
+- No local data is cleared or migrated, and there is no schema change.
+- Optional: skip no-op rows in the milk auto-save to cut redundant PATCH traffic.
+- Verify on a device: simulate a mid-upload disconnect and confirm no new stale conflicts appear.
